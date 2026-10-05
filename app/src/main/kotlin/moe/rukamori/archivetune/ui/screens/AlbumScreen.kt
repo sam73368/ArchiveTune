@@ -103,7 +103,9 @@ import moe.rukamori.archivetune.constants.LiquidGlassEnabledKey
 import moe.rukamori.archivetune.ui.player.LocalPlayerLyricsFullScreen
 import moe.rukamori.archivetune.ui.player.LocalPlayerSheetOverlayActive
 import moe.rukamori.archivetune.db.entities.Album
+import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.extensions.togglePlayPause
+import moe.rukamori.archivetune.playback.queues.ListQueue
 import moe.rukamori.archivetune.playback.queues.LocalAlbumRadio
 import moe.rukamori.archivetune.ui.component.IconButton
 import moe.rukamori.archivetune.ui.component.LiquidGlassActionPill
@@ -376,7 +378,12 @@ fun AlbumScreen(
                                 null
                             } else {
                                 {
-                                    playerConnection.playQueue(LocalAlbumRadio(albumWithSongs))
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = albumWithSongs.album.title,
+                                            items = wrappedSongs.map { it.item.toMediaItem() },
+                                        ),
+                                    )
                                 }
                             },
                         onToggleAdd = null,
@@ -512,7 +519,11 @@ fun AlbumScreen(
                                                 playerConnection.player.togglePlayPause()
                                             } else {
                                                 playerConnection.playQueue(
-                                                    LocalAlbumRadio(albumWithSongs, startIndex = index),
+                                                    ListQueue(
+                                                        title = albumWithSongs.album.title,
+                                                        items = wrappedSongs.map { it.item.toMediaItem() },
+                                                        startIndex = index,
+                                                    ),
                                                 )
                                             }
                                         } else {
@@ -889,7 +900,14 @@ fun AlbumScreen(
             PinnedAlbumActionsRow(
                 visible = showTopBarTitle && !selection,
                 backdrop = artworkBackdrop.takeIf { glassHeaderActive },
-                onPlay = { playerConnection.playQueue(LocalAlbumRadio(pinnedActionsAlbum)) },
+                onPlay = {
+                    playerConnection.playQueue(
+                        ListQueue(
+                            title = pinnedActionsAlbum.album.title,
+                            items = wrappedSongs.map { it.item.toMediaItem() },
+                        ),
+                    )
+                },
                 onShuffle = {
                     playerConnection.playQueue(
                         LocalAlbumRadio(pinnedActionsAlbum.copy(songs = pinnedActionsAlbum.songs.shuffled())),
