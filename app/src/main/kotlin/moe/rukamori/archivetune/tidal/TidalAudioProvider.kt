@@ -15,6 +15,7 @@ import moe.rukamori.archivetune.audiosource.TrackMatching
 import moe.rukamori.archivetune.constants.AudioSourceType
 import android.util.Base64
 import moe.rukamori.archivetune.constants.TidalAudioQuality
+import moe.rukamori.archivetune.utils.PoolAccountManager
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -307,8 +308,9 @@ object TidalAudioProvider {
                         .url(source)
                         .header("User-Agent", DOWNLOAD_USER_AGENT)
 
-                if (BuildConfig.SOURCE_PROVIDER_KEY.isNotBlank()) {
-                    builder.header("Authorization", "Bearer ${BuildConfig.SOURCE_PROVIDER_KEY}")
+                val poolKey = PoolAccountManager.effectiveReadKey()
+                if (poolKey.isNotBlank()) {
+                    builder.header("Authorization", "Bearer $poolKey")
                 }
                 val request = builder.get().build()
                 healthClient.newCall(request).execute().use { response ->
@@ -318,7 +320,7 @@ object TidalAudioProvider {
                                 .tag("TidalHealth")
                                 .w(
                                     "Pool discovery %s rejected as unauthorized (HTTP 401); " +
-                                        "SOURCE_PROVIDER_KEY is missing or invalid for this build.",
+                                        "no valid pool key (set a personal key in Settings › Integration, or build with SOURCE_PROVIDER_KEY).",
                                     source,
                                 )
                         }

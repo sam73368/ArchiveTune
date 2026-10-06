@@ -5,6 +5,7 @@ import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.audiosource.DirectStream
 import moe.rukamori.archivetune.constants.AudioSourceType
 import moe.rukamori.archivetune.tidal.TidalAudioProvider
+import moe.rukamori.archivetune.utils.PoolAccountManager
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -177,8 +178,9 @@ object QobuzAudioProvider {
                         .url(source)
                         .header("User-Agent", USER_AGENT)
 
-                if (BuildConfig.SOURCE_PROVIDER_KEY.isNotBlank()) {
-                    builder.header("Authorization", "Bearer ${BuildConfig.SOURCE_PROVIDER_KEY}")
+                val poolKey = PoolAccountManager.effectiveReadKey()
+                if (poolKey.isNotBlank()) {
+                    builder.header("Authorization", "Bearer $poolKey")
                 }
                 val request = builder.get().build()
                 healthClient.newCall(request).execute().use { response ->
@@ -188,7 +190,7 @@ object QobuzAudioProvider {
                                 .tag("QobuzDiscovery")
                                 .w(
                                     "Pool discovery %s rejected as unauthorized (HTTP 401); " +
-                                        "SOURCE_PROVIDER_KEY is missing or invalid for this build.",
+                                        "no valid pool key (set a personal key in Settings › Integration, or build with SOURCE_PROVIDER_KEY).",
                                     source,
                                 )
                         }
