@@ -6,9 +6,13 @@ options:
   bundleIdPrefix: moe.rukamori
   deploymentTarget:
     iOS: "15.0"
+packages:
+  YouTubeKit:
+    url: https://github.com/alexeichhorn/YouTubeKit
+    from: "0.4.0"
 settings:
   base:
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "0.2.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
 targets:
@@ -17,6 +21,8 @@ targets:
     platform: iOS
     sources:
       - path: iosApp
+    dependencies:
+      - package: YouTubeKit
     info:
       path: iosApp/Info.plist
       properties:

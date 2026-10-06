@@ -7,25 +7,25 @@
 
 package moe.rukamori.archivetune.shared
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ListItem
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -33,123 +33,127 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
-import moe.rukamori.archivetune.innertube.YouTube
-import moe.rukamori.archivetune.innertube.models.AlbumItem
-import moe.rukamori.archivetune.innertube.models.ArtistItem
-import moe.rukamori.archivetune.innertube.models.PlaylistItem
-import moe.rukamori.archivetune.innertube.models.SongItem
-import moe.rukamori.archivetune.innertube.models.YTItem
+import coil3.ImageLoader
+import coil3.compose.setSingletonImageLoaderFactory
+import coil3.network.ktor3.KtorNetworkFetcherFactory
+import moe.rukamori.archivetune.shared.player.PlayerController
+import moe.rukamori.archivetune.shared.ui.AppIcons
+import moe.rukamori.archivetune.shared.ui.ArchiveTunePink
+import moe.rukamori.archivetune.shared.ui.Navigator
+import moe.rukamori.archivetune.shared.ui.Screen
+import moe.rukamori.archivetune.shared.ui.ScreenHeader
+import moe.rukamori.archivetune.shared.ui.Tab
+import moe.rukamori.archivetune.shared.ui.player.FullPlayer
+import moe.rukamori.archivetune.shared.ui.player.MiniPlayer
+import moe.rukamori.archivetune.shared.ui.screens.AlbumScreen
+import moe.rukamori.archivetune.shared.ui.screens.ArtistItemsScreen
+import moe.rukamori.archivetune.shared.ui.screens.ArtistScreen
+import moe.rukamori.archivetune.shared.ui.screens.HomeScreen
+import moe.rukamori.archivetune.shared.ui.screens.PlaylistScreen
+import moe.rukamori.archivetune.shared.ui.screens.SearchScreen
 
 private val ArchiveTuneColors =
     darkColorScheme(
-        primary = Color(0xFFFFB0CB),
+        primary = ArchiveTunePink,
+        onPrimary = Color(0xFF5E1133),
+        primaryContainer = Color(0xFF7B2949),
+        secondary = Color(0xFFE2BDC7),
         background = Color(0xFF141218),
         surface = Color(0xFF141218),
+        surfaceVariant = Color(0xFF2B2930),
+        surfaceContainerHigh = Color(0xFF2B2930),
     )
 
 @Composable
-fun App() {
+fun App(player: PlayerController) {
+    setSingletonImageLoaderFactory { context ->
+        ImageLoader
+            .Builder(context)
+            .components { add(KtorNetworkFetcherFactory()) }
+            .build()
+    }
     MaterialTheme(colorScheme = ArchiveTuneColors) {
+        val navigator = remember { Navigator() }
+        var playerExpanded by remember { mutableStateOf(false) }
+
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            SearchScreen()
+            Box(Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize()) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+                    ) {
+                        val padding = PaddingValues(bottom = 8.dp)
+                        when (val screen = navigator.current) {
+                            is Screen.Album -> AlbumScreen(screen, navigator, player, padding)
+                            is Screen.Artist -> ArtistScreen(screen, navigator, player, padding)
+                            is Screen.Playlist -> PlaylistScreen(screen, navigator, player, padding)
+                            is Screen.ArtistItems -> ArtistItemsScreen(screen, navigator, player, padding)
+                            null ->
+                                when (navigator.tab.value) {
+                                    Tab.HOME -> HomeScreen(navigator, player, padding)
+                                    Tab.SEARCH -> SearchScreen(navigator, player, padding)
+                                    Tab.LIBRARY -> LibraryPlaceholder()
+                                }
+                        }
+                    }
+                    MiniPlayer(player = player, onExpand = { playerExpanded = true })
+                    NavigationBar {
+                        TabItem(navigator, Tab.HOME, "Accueil") { Icon(AppIcons.Home, contentDescription = null) }
+                        TabItem(navigator, Tab.SEARCH, "Recherche") { Icon(AppIcons.Search, contentDescription = null) }
+                        TabItem(navigator, Tab.LIBRARY, "Bibliothèque") { Icon(AppIcons.Library, contentDescription = null) }
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = playerExpanded,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                ) {
+                    FullPlayer(player = player, onCollapse = { playerExpanded = false })
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun SearchScreen() {
-    val scope = rememberCoroutineScope()
-    var query by remember { mutableStateOf("") }
-    var results by remember { mutableStateOf<List<YTItem>>(emptyList()) }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+private fun androidx.compose.foundation.layout.RowScope.TabItem(
+    navigator: Navigator,
+    tab: Tab,
+    label: String,
+    icon: @Composable () -> Unit,
+) {
+    NavigationBarItem(
+        selected = navigator.tab.value == tab,
+        onClick = { navigator.selectTab(tab) },
+        icon = icon,
+        label = { Text(label) },
+    )
+}
 
-    fun runSearch() {
-        val q = query.trim()
-        if (q.isEmpty() || loading) return
-        loading = true
-        error = null
-        scope.launch {
-            YouTube
-                .searchSummary(q)
-                .map { page -> page.summaries.flatMap { it.items }.distinctBy { it.id } }
-                .onSuccess { results = it }
-                .onFailure { error = it.message ?: it.toString() }
-            loading = false
-        }
-    }
-
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.Top,
-    ) {
-        Spacer(Modifier.height(12.dp))
-        Text("ArchiveTune", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-        Text(
-            "Version iOS — aperçu technique",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            singleLine = true,
-            label = { Text("Rechercher sur YouTube Music") },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { runSearch() }),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-        when {
-            loading -> {
-                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            error != null -> {
-                Text("Erreur : $error", color = MaterialTheme.colorScheme.error)
-            }
-            else -> {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(results, key = { it.id }) { item ->
-                        ListItem(
-                            overlineContent = { Text(item.kindLabel()) },
-                            headlineContent = { Text(item.title) },
-                            supportingContent = { Text(item.subtitleText(), maxLines = 1) },
-                        )
-                    }
-                }
-            }
+@Composable
+private fun LibraryPlaceholder() {
+    Column(Modifier.fillMaxSize()) {
+        ScreenHeader(title = "Bibliothèque", onBack = null)
+        Column(
+            modifier = Modifier.fillMaxSize().padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                "Bientôt : tes favoris, playlists, historique, la connexion à ton compte YouTube Music et l'import des sauvegardes Android.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
-
-private fun YTItem.kindLabel(): String =
-    when (this) {
-        is SongItem -> "Chanson"
-        is AlbumItem -> "Album"
-        is ArtistItem -> "Artiste"
-        is PlaylistItem -> "Playlist"
-        else -> "Autre"
-    }
-
-private fun YTItem.subtitleText(): String =
-    when (this) {
-        is SongItem -> artists.joinToString { it.name }
-        is AlbumItem -> artists.orEmpty().joinToString { it.name }
-        is PlaylistItem -> author?.name.orEmpty()
-        else -> ""
-    }

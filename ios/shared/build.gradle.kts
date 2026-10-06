@@ -15,12 +15,13 @@ plugins {
 }
 
 val ktorVersion = "3.5.1"
+val coilVersion = "3.5.0"
 
 // The YouTube Music response models and page parsers are compiled straight from the :core
 // submodule (sam73368/core), so Android and iOS share one copy of them. Only the portable
 // part is taken: models/, pages/ (minus the NewPipe stream extractors) and SearchFilter.
 val coreSourceRoot = rootDir.resolve("../core/src/main/kotlin")
-val syncCoreSources by tasks.registering(Sync::class) {
+val syncCoreSources = tasks.register<Sync>("syncCoreSources") {
     from(coreSourceRoot) {
         include("moe/rukamori/archivetune/innertube/models/**")
         include("moe/rukamori/archivetune/innertube/pages/**")
@@ -57,6 +58,8 @@ kotlin {
                 implementation("io.ktor:ktor-client-core:$ktorVersion")
                 implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
                 implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+                implementation("io.coil-kt.coil3:coil-compose:$coilVersion")
+                implementation("io.coil-kt.coil3:coil-network-ktor3:$coilVersion")
             }
         }
         iosMain.dependencies {
