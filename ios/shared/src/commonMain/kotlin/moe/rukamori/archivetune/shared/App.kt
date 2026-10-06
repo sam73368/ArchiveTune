@@ -41,7 +41,13 @@ import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.ktor3.KtorNetworkFetcherFactory
+import moe.rukamori.archivetune.shared.platform.NoPlatformServices
+import moe.rukamori.archivetune.shared.platform.PlatformServices
 import moe.rukamori.archivetune.shared.player.PlayerController
+import moe.rukamori.archivetune.shared.ui.SigningExpiryBanner
+import moe.rukamori.archivetune.shared.ui.SigningInfoCard
+import moe.rukamori.archivetune.shared.ui.SigningStatus
+import moe.rukamori.archivetune.shared.ui.rememberSigningStatus
 import moe.rukamori.archivetune.shared.ui.AppIcons
 import moe.rukamori.archivetune.shared.ui.ArchiveTunePink
 import moe.rukamori.archivetune.shared.ui.Navigator
@@ -70,7 +76,10 @@ private val ArchiveTuneColors =
     )
 
 @Composable
-fun App(player: PlayerController) {
+fun App(
+    player: PlayerController,
+    platform: PlatformServices = NoPlatformServices,
+) {
     setSingletonImageLoaderFactory { context ->
         ImageLoader
             .Builder(context)
@@ -80,16 +89,17 @@ fun App(player: PlayerController) {
     MaterialTheme(colorScheme = ArchiveTuneColors) {
         val navigator = remember { Navigator() }
         var playerExpanded by remember { mutableStateOf(false) }
+        val signingStatus = rememberSigningStatus(platform)
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Box(Modifier.fillMaxSize()) {
-                Column(Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))) {
+                    SigningExpiryBanner(signingStatus, platform)
                     Box(
                         modifier =
                             Modifier
                                 .weight(1f)
-                                .fillMaxWidth()
-                                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+                                .fillMaxWidth(),
                     ) {
                         val padding = PaddingValues(bottom = 8.dp)
                         when (val screen = navigator.current) {
@@ -101,7 +111,7 @@ fun App(player: PlayerController) {
                                 when (navigator.tab.value) {
                                     Tab.HOME -> HomeScreen(navigator, player, padding)
                                     Tab.SEARCH -> SearchScreen(navigator, player, padding)
-                                    Tab.LIBRARY -> LibraryPlaceholder()
+                                    Tab.LIBRARY -> LibraryPlaceholder(signingStatus, platform)
                                 }
                         }
                     }
@@ -141,9 +151,13 @@ private fun androidx.compose.foundation.layout.RowScope.TabItem(
 }
 
 @Composable
-private fun LibraryPlaceholder() {
+private fun LibraryPlaceholder(
+    signingStatus: SigningStatus,
+    platform: PlatformServices,
+) {
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(title = "Bibliothèque", onBack = null)
+        SigningInfoCard(signingStatus, platform)
         Column(
             modifier = Modifier.fillMaxSize().padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,

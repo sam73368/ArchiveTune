@@ -13,10 +13,11 @@ import UIKit
 struct ArchiveTuneApp: App {
     /// One audio engine for the whole app lifetime (keeps playing in the background).
     private let engine = AudioEngineImpl()
+    private let platform = PlatformServicesImpl()
 
     var body: some Scene {
         WindowGroup {
-            ComposeView(engine: engine)
+            ComposeView(engine: engine, platform: platform)
                 .ignoresSafeArea(.all)
         }
     }
@@ -25,11 +26,12 @@ struct ArchiveTuneApp: App {
 /// Hosts the shared Compose Multiplatform UI.
 struct ComposeView: UIViewControllerRepresentable {
     let engine: AudioEngineImpl
+    let platform: PlatformServicesImpl
 
     // Spelled out: the shared Kotlin framework exports its own `Context` model, which would
     // shadow SwiftUI's `Context` typealias here.
     func makeUIViewController(context: UIViewControllerRepresentableContext<ComposeView>) -> UIViewController {
-        MainViewControllerKt.MainViewController(engine: engine)
+        MainViewControllerKt.MainViewController(engine: engine, platform: platform)
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: UIViewControllerRepresentableContext<ComposeView>) {}
