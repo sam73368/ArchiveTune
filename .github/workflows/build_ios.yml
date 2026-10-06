@@ -29,12 +29,48 @@ defaults:
     shell: bash
 
 jobs:
+  # Fast check on Linux: compiles the shared Kotlin code (JVM target) and runs the live
+  # YouTube Music tests before the slower macOS build.
+  shared-jvm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch core submodule
+        run: git submodule update --init --depth 1 core
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ios-jvm-gradle-${{ hashFiles('ios/**/*.gradle.kts', 'ios/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ios-jvm-gradle-
+
+      - name: Compile and test shared code (JVM)
+        working-directory: ios
+        run: ./gradlew --no-daemon --stacktrace :shared:jvmTest 2>&1 | tee "$RUNNER_TEMP/gradle-jvm.log"
+
+      - name: Report build errors
+        if: failure()
+        run: python3 .github/scripts/annotate_build_log.py "$RUNNER_TEMP/gradle-jvm.log"
+
   build:
     runs-on: macos-26
     timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v7
+
+      - name: Fetch core submodule
+        run: git submodule update --init --depth 1 core
 
       - uses: actions/setup-java@v5
         with:

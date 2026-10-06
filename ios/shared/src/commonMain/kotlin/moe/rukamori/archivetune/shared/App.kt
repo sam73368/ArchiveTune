@@ -41,8 +41,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import moe.rukamori.archivetune.shared.innertube.SearchResult
-import moe.rukamori.archivetune.shared.innertube.YTMusicApi
+import moe.rukamori.archivetune.innertube.YouTube
+import moe.rukamori.archivetune.innertube.models.AlbumItem
+import moe.rukamori.archivetune.innertube.models.ArtistItem
+import moe.rukamori.archivetune.innertube.models.PlaylistItem
+import moe.rukamori.archivetune.innertube.models.SongItem
+import moe.rukamori.archivetune.innertube.models.YTItem
 
 private val ArchiveTuneColors =
     darkColorScheme(
@@ -62,10 +66,9 @@ fun App() {
 
 @Composable
 private fun SearchScreen() {
-    val api = remember { YTMusicApi() }
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
-    var results by remember { mutableStateOf<List<SearchResult>>(emptyList()) }
+    var results by remember { mutableStateOf<List<YTItem>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -75,7 +78,9 @@ private fun SearchScreen() {
         loading = true
         error = null
         scope.launch {
-            runCatching { api.search(q) }
+            YouTube
+                .searchSummary(q)
+                .map { page -> page.summaries.flatMap { it.items }.distinctBy { it.id } }
                 .onSuccess { results = it }
                 .onFailure { error = it.message ?: it.toString() }
             loading = false
@@ -119,11 +124,11 @@ private fun SearchScreen() {
             }
             else -> {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(results, key = { it.videoId ?: it.browseId ?: it.title }) { item ->
+                    items(results, key = { it.id }) { item ->
                         ListItem(
-                            overlineContent = { Text(item.kind.label()) },
+                            overlineContent = { Text(item.kindLabel()) },
                             headlineContent = { Text(item.title) },
-                            supportingContent = { Text(item.subtitle, maxLines = 1) },
+                            supportingContent = { Text(item.subtitleText(), maxLines = 1) },
                         )
                     }
                 }
@@ -132,12 +137,19 @@ private fun SearchScreen() {
     }
 }
 
-private fun SearchResult.Kind.label(): String =
+private fun YTItem.kindLabel(): String =
     when (this) {
-        SearchResult.Kind.SONG -> "Chanson"
-        SearchResult.Kind.VIDEO -> "Vidéo"
-        SearchResult.Kind.ALBUM -> "Album"
-        SearchResult.Kind.ARTIST -> "Artiste"
-        SearchResult.Kind.PLAYLIST -> "Playlist"
-        SearchResult.Kind.OTHER -> "Autre"
+        is SongItem -> "Chanson"
+        is AlbumItem -> "Album"
+        is ArtistItem -> "Artiste"
+        is PlaylistItem -> "Playlist"
+        else -> "Autre"
+    }
+
+private fun YTItem.subtitleText(): String =
+    when (this) {
+        is SongItem -> artists.joinToString { it.name }
+        is AlbumItem -> artists.orEmpty().joinToString { it.name }
+        is PlaylistItem -> author?.name.orEmpty()
+        else -> ""
     }
