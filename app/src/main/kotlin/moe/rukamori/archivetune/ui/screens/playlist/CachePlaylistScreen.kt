@@ -108,6 +108,7 @@ import moe.rukamori.archivetune.ui.menu.SelectionSongMenu
 import moe.rukamori.archivetune.ui.menu.SongMenu
 import moe.rukamori.archivetune.ui.utils.ItemWrapper
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.viewmodels.CachePlaylistViewModel
@@ -627,6 +628,19 @@ fun CachePlaylistScreen(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
+                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                            tint = liquidGlassContentColor(),
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     androidx.compose.material3.IconButton(onClick = { isSearching = true }) {
                         Icon(
                             painter = painterResource(R.drawable.search),
@@ -825,6 +839,12 @@ fun CachePlaylistScreen(
                     }
                 } else if (!isSearching) {
                     if (showTopBarTitle || !liquidGlassHeaderActive) {
+                        androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                            Icon(
+                                painter = painterResource(R.drawable.home_outlined),
+                                contentDescription = stringResource(R.string.home),
+                            )
+                        }
                         androidx.compose.material3.IconButton(onClick = { isSearching = true }) {
                             Icon(
                                 painter = painterResource(R.drawable.search),

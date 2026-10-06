@@ -134,6 +134,7 @@ import moe.rukamori.archivetune.ui.utils.HeaderDownloadState
 import moe.rukamori.archivetune.ui.utils.ItemWrapper
 import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.ui.utils.headerDownloadState
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.ui.utils.sendAddMissingDownloads
 import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
 import moe.rukamori.archivetune.ui.utils.sendPauseRunningDownloads
@@ -849,6 +850,19 @@ fun AlbumScreen(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
+                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                            tint = liquidGlassContentColor(),
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     androidx.compose.material3.IconButton(onClick = {
                         database.query {
                             update(currentAlbumWithSongs.album.toggleLike())
@@ -1032,6 +1046,15 @@ fun AlbumScreen(
                         )
                     }
                 } else {
+                    IconButton(
+                        onClick = { navController.navigateHome() },
+                        onLongClick = {},
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                        )
+                    }
                     if (showTopBarTitle || !liquidGlassHeaderActive) {
                         albumWithSongs?.let { currentAlbum ->
                             IconButton(

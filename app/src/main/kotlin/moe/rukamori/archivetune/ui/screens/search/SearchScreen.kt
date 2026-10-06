@@ -31,6 +31,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -166,20 +167,46 @@ fun SearchScreen(
             ) {
                 val recentsMaxHeight = maxHeight * RecentsHeightFraction
 
+                // Live results: as soon as something is typed, suggestions and top matches update
+                // while typing (debounced in OnlineSearchSuggestionViewModel); Enter still opens
+                // the full results page.
+                val showLiveResults = searchQuery.isNotBlank()
                 Column(
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .then(if (showLiveResults) Modifier.fillMaxHeight() else Modifier)
                             .align(Alignment.BottomCenter)
                             .padding(bottom = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom,
                 ) {
-                    RecentSearchesPanel(
-                        recentSearches = recentSearches,
-                        maxHeight = recentsMaxHeight,
-                        onClearAll = historyViewModel::clearAll,
-                        onPick = onSearchQuery,
-                    )
+                    if (showLiveResults) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                        ) {
+                            OnlineSearchScreen(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it.text },
+                                navController = navController,
+                                onSearch = onSearchQuery,
+                                onDismiss = { keyboardController?.hide() },
+                                pureBlack = false,
+                                searchProvider = searchProvider,
+                                transparentBackground = true,
+                            )
+                        }
+                    } else {
+                        RecentSearchesPanel(
+                            recentSearches = recentSearches,
+                            maxHeight = recentsMaxHeight,
+                            onClearAll = historyViewModel::clearAll,
+                            onPick = onSearchQuery,
+                        )
+                    }
 
                     Spacer(Modifier.height(10.dp))
 

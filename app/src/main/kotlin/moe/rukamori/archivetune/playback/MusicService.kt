@@ -8429,18 +8429,37 @@ class MusicService :
         }
     }
 
+    /**
+     * NORMAL: the regular lossless/alternate-source chain tried before YouTube.
+     * STUDIO: a music video (clip) whose studio audio is wanted ("Hide music videos" on): the clip
+     *   length is not trusted for matching and JioSaavn (no account needed) is added to the chain.
+     * RESCUE: YouTube refused the track (e.g. "Music Premium members only"); last chance through
+     *   the no-account JioSaavn catalogue when it is not already part of the user's chain.
+     */
+    private enum class SourceResolveMode { NORMAL, STUDIO, RESCUE }
+
+    private fun sourceChainFor(mode: SourceResolveMode): List<AudioSourceType> {
+        val chain = sourceResolutionChain()
+        return when (mode) {
+            SourceResolveMode.NORMAL -> chain
+            SourceResolveMode.STUDIO -> (chain + AudioSourceType.JIOSAAVN).distinct()
+            SourceResolveMode.RESCUE -> listOf(AudioSourceType.JIOSAAVN).filterNot { it in chain }
+        }
+    }
+
     private fun resolveMultiSourceDataSpec(
         dataSpec: DataSpec,
         mediaId: String,
         lowDataModeActive: Boolean,
         isPrefetch: Boolean = false,
+        mode: SourceResolveMode = SourceResolveMode.NORMAL,
     ): DataSpec? {
         if (mediaId.isLocalMediaId() || mediaId.isTelegramMediaId()) {
             Timber.tag("MusicService").d("Multi-source skip: %s is a local/telegram media id", mediaId)
             return null
         }
 
-        if (isMusicVideoPlayback(mediaId)) {
+        if (mode == SourceResolveMode.NORMAL && isMusicVideoPlayback(mediaId)) {
             Timber.tag("MusicService").d("Multi-source skip: %s is a music video — audio pinned to the YouTube video source", mediaId)
             return null
         }
@@ -8467,9 +8486,10 @@ class MusicService :
             evictDirectStreamCache(mediaId)
         } else {
             val override = SongSourceOverride.get(sourceOverrideRaw, mediaId)
+            if (mode != SourceResolveMode.NORMAL && override == AudioSourceType.YOUTUBE) return null
             val probeOrder =
                 when (override) {
-                    null -> sourceResolutionChain()
+                    null -> sourceChainFor(mode)
                     AudioSourceType.YOUTUBE -> emptyList()
                     else -> listOf(override)
                 }
@@ -8526,7 +8546,7 @@ class MusicService :
             if (isDirectPick) {
                 listOfNotNull(override)
             } else when (override) {
-                null -> sourceResolutionChain()
+                null -> sourceChainFor(mode)
                 AudioSourceType.YOUTUBE -> {
                     Timber.tag("MusicService").d("Per-song override: %s pinned to YouTube; skipping lossless", mediaId)
                     emptyList()
@@ -8540,7 +8560,7 @@ class MusicService :
                         mediaId,
                         override.name,
                     )
-                    sourceResolutionChain()
+                    sourceChainFor(mode)
                 }
             }
         Timber.tag("MusicService").d("Multi-source resolve for %s | chain=%s", mediaId, chain.joinToString(",") { it.name })
@@ -8555,7 +8575,11 @@ class MusicService :
             return null
         }
 
-        val query = buildSourceQuery(mediaId)
+        val query =
+            buildSourceQuery(mediaId)?.let { built ->
+                // A clip's length (intro, skits, outro) says nothing about the studio track's length.
+                if (mode == SourceResolveMode.STUDIO) built.copy(durationMs = null) else built
+            }
         if (query == null) {
             Timber.tag("MusicService").w("Multi-source skip: could not build source query (missing metadata) for %s", mediaId)
             return null
@@ -9489,6 +9513,161 @@ class MusicService :
             dataStore.get(AppleMusicSourceEnabledKey, true)
     }
 
+    private val alternateUrlCache = ConcurrentHashMap<String, AuthScopedCacheValue>()
+
+    /**
+     * "Hide music videos" means the user wants songs, not clips: when YouTube Music hands us the
+     * official clip (common in albums), play the studio recording instead when one can be found.
+     */
+    private fun prefersStudioAudio(mediaId: String): Boolean =
+        !mediaId.isLocalMediaId() &&
+            !mediaId.isTelegramMediaId() &&
+            dataStore.get(HideVideoKey, false) &&
+            isMusicVideoPlayback(mediaId)
+
+    private fun hasActiveNetwork(): Boolean = runCatching { connectivityManager.activeNetwork != null }.getOrDefault(true)
+
+    /**
+     * Plays another YouTube upload of the same song under [mediaId]: the studio track for a clip
+     * ([studioOnly]) or, when YouTube refuses the track itself (Music Premium only), another release
+     * or a same-length upload. Streams go through the normal [YTPlayerUtils] client chain and are
+     * cached under their own key so they never mix with the original upload's cached bytes.
+     */
+    private fun resolveYouTubeAlternateDataSpec(
+        dataSpec: DataSpec,
+        mediaId: String,
+        studioOnly: Boolean,
+        lowDataModeActive: Boolean,
+    ): DataSpec? {
+        val cacheKey = "$ALTERNATE_UPLOAD_CACHE_KEY_PREFIX$mediaId"
+        val authFingerprint = YouTube.currentPlaybackAuthState().fingerprint
+        alternateUrlCache[mediaId]
+            ?.takeIf { it.isValidFor(authFingerprint = authFingerprint, minimumRemainingMs = YTPlayerUtils.STREAM_URL_EXPIRY_SAFETY_MS) }
+            ?.let { cached ->
+                return dataSpec
+                    .buildUpon()
+                    .setUri(cached.url.toUri())
+                    .setKey(cacheKey)
+                    .build()
+            }
+        if (StudioAudioResolver.isKnownUnavailable(mediaId, studioOnly)) return null
+        if (!hasActiveNetwork()) return null
+
+        val query = buildSourceQuery(mediaId) ?: return null
+        val request =
+            StudioAudioResolver.Request(
+                mediaId = mediaId,
+                title = query.title,
+                artists = query.artists,
+                durationMs = if (studioOnly) null else query.durationMs,
+                studioOnly = studioOnly,
+            )
+        val found =
+            runCatching { runBlocking(Dispatchers.IO) { StudioAudioResolver.findCandidates(request) } }
+                .getOrNull()
+        val candidates = (listOfNotNull(StudioAudioResolver.cachedAlternate(mediaId)) + found.orEmpty()).distinct()
+        for (candidateId in candidates) {
+            val playback =
+                runCatching {
+                    runBlocking(Dispatchers.IO) {
+                        retryWithoutPlaybackLoginContext {
+                            YTPlayerUtils.playerResponseForPlayback(
+                                candidateId,
+                                audioQuality = if (lowDataModeActive) AudioQuality.LOW else audioQuality,
+                                connectivityManager = connectivityManager,
+                                preferredStreamClient = preferredStreamClient,
+                                networkMetered = lowDataModeActive,
+                            )
+                        }
+                    }
+                }.getOrNull()?.getOrNull()
+            if (playback == null) {
+                Timber.tag("MusicService").d("Alternate upload %s for %s is not playable either", candidateId, mediaId)
+                continue
+            }
+            StudioAudioResolver.rememberAlternate(mediaId, candidateId)
+            Timber.tag("MusicService").i(
+                "Playing %s upload %s in place of %s",
+                if (studioOnly) "studio" else "alternate",
+                candidateId,
+                mediaId,
+            )
+            val format = playback.format
+            val normalizationEntity =
+                FormatEntity(
+                    id = mediaId,
+                    itag = format.itag,
+                    mimeType = format.mimeType.split(";")[0],
+                    codecs = format.mimeType.substringAfter("codecs=", "").removeSurrounding("\"").substringBefore("\""),
+                    bitrate = format.bitrate,
+                    sampleRate = format.audioSampleRate,
+                    contentLength = format.contentLength ?: 0L,
+                    loudnessDb = playback.audioConfig?.loudnessDb,
+                    perceptualLoudnessDb = playback.audioConfig?.perceptualLoudnessDb,
+                    playbackUrl = null,
+                )
+            audioNormalizationFactorCache[mediaId] =
+                calculateAudioNormalizationFactor(normalizationEntity, normalizeAudio = true, replayGainMode = replayGainMode)
+            alternateUrlCache[mediaId] =
+                AuthScopedCacheValue(
+                    url = playback.streamUrl,
+                    expiresAtMs = System.currentTimeMillis() + playback.streamExpiresInSeconds * 1000L,
+                    authFingerprint = playback.authFingerprint,
+                )
+            publishCurrentStreamInfo(
+                mediaId,
+                CurrentStreamInfo(
+                    mediaId = mediaId,
+                    source = AudioSourceType.YOUTUBE,
+                    label =
+                        if (studioOnly) {
+                            "YouTube Music itag ${format.itag} (studio version)"
+                        } else {
+                            "YouTube Music itag ${format.itag} (alternate upload)"
+                        },
+                    protocol = "HTTPS Progressive Stream",
+                ),
+            )
+            val resolved =
+                dataSpec
+                    .buildUpon()
+                    .setUri(playback.streamUrl.toUri())
+                    .setKey(cacheKey)
+                    .build()
+            val length =
+                resolveStreamChunkLength(
+                    requestedLength = dataSpec.length,
+                    position = dataSpec.position,
+                    knownContentLength = format.contentLength,
+                    chunkLength = CHUNK_LENGTH,
+                    mimeType = format.mimeType,
+                )
+            return length?.let { resolved.subrange(0L, it) } ?: resolved
+        }
+        StudioAudioResolver.forgetAlternate(mediaId)
+        StudioAudioResolver.markNoAlternate(mediaId, studioOnly, definite = found != null)
+        return null
+    }
+
+    /** YouTube refused the track itself (not a network/login problem): worth trying elsewhere. */
+    private fun Throwable.isRescuableYouTubeRefusal(): Boolean =
+        when (this) {
+            is YTPlayerUtils.LoginRequiredForPlaybackException,
+            is YTPlayerUtils.InvalidPlaybackLoginContextException,
+            -> false
+            is YTPlayerUtils.PremiumOnlyPlaybackException -> true
+            is YTPlayerUtils.BadStreamPlayerResponseException,
+            is YTPlayerUtils.BotDetectionPlaybackException,
+            is PlaybackException,
+            -> !isNetworkConnectionFailure() && !isRequestTimeout()
+            else -> message?.startsWith("Could not find format") == true
+        }
+
+    /** Only an explicit refusal of this video (e.g. Premium-only) makes another upload worth it. */
+    private fun Throwable.isUnplayableVideoRefusal(): Boolean =
+        this is YTPlayerUtils.PremiumOnlyPlaybackException ||
+            (this is PlaybackException && !isNetworkConnectionFailure() && !isRequestTimeout())
+
     private fun resolvePlaybackDataSpec(
         dataSpec: DataSpec,
         allowCacheShortCircuit: Boolean,
@@ -9498,6 +9677,19 @@ class MusicService :
         }
         val mediaId = dataSpec.key ?: return dataSpec
         val lowDataModeActive = isLowDataModeActive()
+
+        // Studio version instead of a clip ("Hide music videos"): lossless/JioSaavn sources first,
+        // then the studio upload on YouTube; the clip itself stays the fallback.
+        if (!lowDataModeActive && prefersStudioAudio(mediaId) && !StudioAudioResolver.isKnownUnavailable(mediaId, studioOnly = true)) {
+            val studioSpec =
+                resolveMultiSourceDataSpec(dataSpec, mediaId, lowDataModeActive, mode = SourceResolveMode.STUDIO)
+                    ?: resolveYouTubeAlternateDataSpec(dataSpec, mediaId, studioOnly = true, lowDataModeActive = lowDataModeActive)
+            if (studioSpec != null) {
+                scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                return studioSpec
+            }
+            Timber.tag("MusicService").i("No studio version found for clip %s; playing the clip audio", mediaId)
+        }
         val storedFormat =
             runBlocking(Dispatchers.IO) {
                 database.format(mediaId).first()
@@ -9619,7 +9811,7 @@ class MusicService :
                 } ?: resolvedDataSpec
             }
 
-        val playbackData =
+        val playbackResult =
             runBlocking(Dispatchers.IO) {
                 retryWithoutPlaybackLoginContext {
                     YTPlayerUtils.playerResponseForPlayback(
@@ -9639,7 +9831,33 @@ class MusicService :
                     )
                     throw youtubeFailure
                 }
-            }.getOrElse { throwable ->
+            }
+
+        // YouTube refused this track (typically "Music Premium members only" for free accounts):
+        // try the same song elsewhere before surfacing an error.
+        playbackResult.exceptionOrNull()?.let { youtubeFailure ->
+            if (youtubeFailure is CancellationException) throw youtubeFailure
+            if (lowDataModeActive || !youtubeFailure.isRescuableYouTubeRefusal()) return@let
+            Timber.tag("MusicService").w(
+                "YouTube refused %s (%s); looking for another source of the same song",
+                mediaId,
+                youtubeFailure.message,
+            )
+            resolveMultiSourceDataSpec(dataSpec, mediaId, lowDataModeActive, mode = SourceResolveMode.RESCUE)?.let { rescued ->
+                scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                return rescued
+            }
+            if (youtubeFailure.isUnplayableVideoRefusal()) {
+                resolveYouTubeAlternateDataSpec(dataSpec, mediaId, studioOnly = false, lowDataModeActive = lowDataModeActive)
+                    ?.let { rescued ->
+                        scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                        return rescued
+                    }
+            }
+        }
+
+        val playbackData =
+            playbackResult.getOrElse { throwable ->
                 when {
                     throwable is YTPlayerUtils.InvalidPlaybackLoginContextException -> {
                         promptLoginRecovery(mediaId, throwable.targetUrl)
@@ -9653,6 +9871,14 @@ class MusicService :
                     throwable is YTPlayerUtils.LoginRequiredForPlaybackException -> {
                         throw PlaybackException(
                             getString(R.string.playback_requires_youtube_music_confirmation),
+                            throwable,
+                            PlaybackException.ERROR_CODE_REMOTE_ERROR,
+                        )
+                    }
+
+                    throwable is YTPlayerUtils.PremiumOnlyPlaybackException -> {
+                        throw PlaybackException(
+                            throwable.message?.takeIf { it.isNotBlank() } ?: getString(R.string.error_no_stream),
                             throwable,
                             PlaybackException.ERROR_CODE_REMOTE_ERROR,
                         )
@@ -11595,6 +11821,7 @@ class MusicService :
         const val HOME_QUICK_PICKS = "home_quick_picks"
 
         private const val TIDAL_CACHE_KEY_PREFIX = "tidal:"
+        private const val ALTERNATE_UPLOAD_CACHE_KEY_PREFIX = "ytalt:"
 
         private const val APPLE_LICENSE_URL =
             "https://play.itunes.apple.com/WebObjects/MZPlay.woa/wa/acquireWebPlaybackLicense"

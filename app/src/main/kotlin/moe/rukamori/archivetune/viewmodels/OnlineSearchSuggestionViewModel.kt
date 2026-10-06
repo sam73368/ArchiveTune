@@ -17,6 +17,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.aicontentfilter.FilterAiContentUseCase
@@ -40,7 +43,7 @@ import moe.rukamori.archivetune.spotify.SpotifySearchItem
 import moe.rukamori.archivetune.spotify.toSearchItems
 import javax.inject.Inject
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class OnlineSearchSuggestionViewModel
     @Inject
@@ -60,6 +63,10 @@ class OnlineSearchSuggestionViewModel
             viewModelScope.launch {
                 query
                     .combine(provider) { query, provider -> query to provider }
+                    // Live search while typing: wait for a short pause so every keystroke does
+                    // not fire a network request (clearing the field still updates instantly).
+                    .debounce { (query, _) -> if (query.isBlank()) 0L else 250L }
+                    .distinctUntilChanged()
                     .flatMapLatest { (query, provider) ->
                         if (query.isEmpty()) {
                             database.searchHistory().map { history ->

@@ -24,6 +24,8 @@ class PlayerTitleActions(
 
     val onTitleClick: () -> Unit,
 
+    val onAlbumClick: () -> Unit,
+
     val onArtistClick: (artistId: String) -> Unit,
 
     val onCopyTitle: () -> Unit,
@@ -46,14 +48,17 @@ fun rememberPlayerTitleActions(
         }
 
     return remember(mediaMetadata, navController, state, artistLine) {
-        PlayerTitleActions(
-            onTitleClick = {
-                mediaMetadata.album?.let { album ->
-
+        val openAlbum: () -> Unit = {
+            mediaMetadata.album
+                ?.takeIf { it.id.isNotBlank() }
+                ?.let { album ->
                     state.collapseSoft()
-                    navController.navigate("album/${album.id}")
+                    navController.navigate("album/${album.id}") { launchSingleTop = true }
                 }
-            },
+        }
+        PlayerTitleActions(
+            onTitleClick = openAlbum,
+            onAlbumClick = openAlbum,
             onArtistClick = { artistId ->
                 if (artistId.isNotBlank()) {
                     state.collapseSoft()

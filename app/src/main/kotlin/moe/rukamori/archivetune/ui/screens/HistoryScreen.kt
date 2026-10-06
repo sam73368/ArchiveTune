@@ -146,6 +146,7 @@ import moe.rukamori.archivetune.ui.menu.YouTubeSongMenu
 import moe.rukamori.archivetune.ui.player.LocalPlayerLyricsFullScreen
 import moe.rukamori.archivetune.ui.utils.appBarScrollBehavior
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.viewmodels.DateAgo
 import moe.rukamori.archivetune.viewmodels.HistoryViewModel
@@ -662,6 +663,15 @@ fun HistoryScreen(
                         if (selectionCount == 0) {
                             FrostedHeaderPill(modifier = Modifier.padding(end = 8.dp)) {
                                 AppIconButton(
+                                    onClick = { navController.navigateHome() },
+                                    onLongClick = {},
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.home_outlined),
+                                        contentDescription = stringResource(R.string.home),
+                                    )
+                                }
+                                AppIconButton(
                                     onClick = { isSearching = true },
                                     onLongClick = {},
                                 ) {
@@ -769,6 +779,21 @@ fun HistoryScreen(
                                     translationY = -compactFraction.value * 12.dp.toPx()
                                 },
                     ) {
+                        Box(
+                            modifier = Modifier.size(48.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AppIconButton(
+                                onClick = { if (compactFraction.value < 0.5f) navController.navigateHome() },
+                                onLongClick = {},
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.home_outlined),
+                                    contentDescription = stringResource(R.string.home),
+                                    tint = liquidGlassContentColor(),
+                                )
+                            }
+                        }
                         Box(
                             modifier = Modifier.size(48.dp),
                             contentAlignment = Alignment.Center,

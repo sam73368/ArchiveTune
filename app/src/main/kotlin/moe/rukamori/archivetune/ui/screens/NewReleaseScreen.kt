@@ -114,6 +114,7 @@ import moe.rukamori.archivetune.ui.component.shimmer.ShimmerHost
 import moe.rukamori.archivetune.ui.menu.YouTubeAlbumMenu
 import moe.rukamori.archivetune.ui.screens.search.onlineSearchResultRoute
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.utils.PresavedRelease
 import moe.rukamori.archivetune.utils.ReleasePresaveKey
 import moe.rukamori.archivetune.utils.isReleased
@@ -268,6 +269,17 @@ fun NewReleaseScreen(
                             }
                         },
                         actions = {
+                            if (!isSelectionMode) {
+                                IconButton(
+                                    onClick = { navController.navigateHome() },
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.home_outlined),
+                                        contentDescription = stringResource(R.string.home),
+                                    )
+                                }
+                            }
+
                             IconButton(
                                 onClick = {
                                     isSelectionMode = !isSelectionMode
@@ -480,6 +492,7 @@ fun NewReleaseScreen(
                 title = stringResource(R.string.new_releases),
                 onBack = navController::navigateUp,
                 onBackLongClick = navController::backToMain,
+                onHome = if (isSelectionMode) null else ({ navController.navigateHome() }),
 
                 trailing = {
                     Box(

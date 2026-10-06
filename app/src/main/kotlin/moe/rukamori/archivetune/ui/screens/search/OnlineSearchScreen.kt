@@ -63,6 +63,7 @@ fun OnlineSearchScreen(
     onDismiss: () -> Unit,
     pureBlack: Boolean,
     searchProvider: SearchProvider = SearchProvider.YOUTUBE,
+    transparentBackground: Boolean = false,
     viewModel: OnlineSearchSuggestionViewModel = hiltViewModel(),
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -91,7 +92,12 @@ fun OnlineSearchScreen(
         viewModel.updateQuery(query)
     }
 
-    val backgroundColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.background
+    val backgroundColor =
+        when {
+            transparentBackground -> Color.Transparent
+            pureBlack -> Color.Black
+            else -> MaterialTheme.colorScheme.background
+        }
     val distinctResultItems = remember(viewState.items) { viewState.items.distinctBy { it.id } }
 
     Box(

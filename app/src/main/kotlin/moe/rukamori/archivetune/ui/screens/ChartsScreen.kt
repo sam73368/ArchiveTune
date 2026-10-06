@@ -52,6 +52,7 @@ import moe.rukamori.archivetune.ui.component.shimmer.TextPlaceholder
 import moe.rukamori.archivetune.ui.menu.YouTubeSongMenu
 import moe.rukamori.archivetune.ui.utils.SnapLayoutInfoProvider
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.viewmodels.ChartsViewModel
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -87,6 +88,17 @@ fun ChartsScreen(
                 titleRes = R.string.charts,
                 onBack = { navController.navigateUp() },
                 onBackLongClick = { navController.backToMain() },
+                actions = {
+                    IconButton(
+                        onClick = { navController.navigateHome() },
+                        onLongClick = {},
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                        )
+                    }
+                },
             )
         },
     ) { paddingValues ->
