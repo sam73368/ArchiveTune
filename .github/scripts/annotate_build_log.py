@@ -43,7 +43,9 @@ def main() -> None:
             seen.add(key)
             print(f"::error title={name}::{escape(key)}")
             emitted += 1
-        tail = "\n".join(lines[-80:])
+        # Drop JVM stack frames so the tail shows the actual error text.
+        meaningful = [line for line in lines if not line.lstrip().startswith("at ") and line.strip() != "..."]
+        tail = "\n".join(meaningful[-80:])
         print(f"::error title={name} (tail)::{escape(tail[-60000:])}")
 
 
