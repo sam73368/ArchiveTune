@@ -6729,7 +6729,16 @@ class MusicService :
                             hideVideo = dataStore.get(HideVideoKey, false),
                         )
                 if (player.playbackState != STATE_IDLE) {
-                    player.addMediaItems(mediaItems.drop(1))
+                    // Skip only items already queued instead of blindly dropping the first one:
+                    // drop(1) lost a song at every page boundary when the page did not repeat
+                    // the previous item, and this also absorbs overlapping page loads.
+                    val queuedIds =
+                        (0 until player.mediaItemCount)
+                            .mapTo(HashSet()) { player.getMediaItemAt(it).mediaId }
+                    val newItems = mediaItems.filter { queuedIds.add(it.mediaId) }
+                    if (newItems.isNotEmpty()) {
+                        player.addMediaItems(newItems)
+                    }
                 } else {
                     requestDiscordSync(
                         reason = "player_idle_after_queue_extension",

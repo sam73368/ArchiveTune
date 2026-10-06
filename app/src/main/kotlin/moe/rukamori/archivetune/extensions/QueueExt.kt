@@ -147,6 +147,7 @@ fun PersistQueue.toContinuationQueue(): Queue =
                 items = items.map { it.toMediaItem() },
                 startIndex = mediaItemIndex,
                 position = position,
+                keepMusicVideos = true,
             )
         }
     }
