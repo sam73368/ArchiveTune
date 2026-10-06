@@ -22,6 +22,9 @@ class LocalAlbumRadio(
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
 
+    override val keepsMusicVideos: Boolean
+        get() = true
+
     private lateinit var playlistId: String
     private val endpoint: WatchEndpoint
         get() =

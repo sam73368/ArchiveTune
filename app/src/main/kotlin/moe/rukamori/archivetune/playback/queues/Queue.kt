@@ -15,6 +15,13 @@ import moe.rukamori.archivetune.models.MediaMetadata
 interface Queue {
     val preloadItem: MediaMetadata?
 
+    /**
+     * True for album playback: every track of an album is part of the release even when
+     * YouTube serves it as a music video, so "Hide music videos" must not strip it.
+     */
+    val keepsMusicVideos: Boolean
+        get() = false
+
     suspend fun getInitialStatus(): Status
 
     fun shouldExpandToFullQueueWhenAutoLoadMoreDisabled(): Boolean = false

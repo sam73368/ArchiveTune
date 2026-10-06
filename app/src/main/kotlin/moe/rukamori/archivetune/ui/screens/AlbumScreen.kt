@@ -382,6 +382,7 @@ fun AlbumScreen(
                                         ListQueue(
                                             title = albumWithSongs.album.title,
                                             items = wrappedSongs.map { it.item.toMediaItem() },
+                                            keepMusicVideos = true,
                                         ),
                                     )
                                 }
@@ -523,6 +524,7 @@ fun AlbumScreen(
                                                         title = albumWithSongs.album.title,
                                                         items = wrappedSongs.map { it.item.toMediaItem() },
                                                         startIndex = index,
+                                                        keepMusicVideos = true,
                                                     ),
                                                 )
                                             }
@@ -905,6 +907,7 @@ fun AlbumScreen(
                         ListQueue(
                             title = pinnedActionsAlbum.album.title,
                             items = wrappedSongs.map { it.item.toMediaItem() },
+                            keepMusicVideos = true,
                         ),
                     )
                 },

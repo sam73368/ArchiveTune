@@ -1490,12 +1490,18 @@ class MusicService :
                 blockedArtistIds = updatedBlockedArtistIds
                 removeBlockedArtistItems(updatedBlockedArtistIds)
             }
+        var isInitialHideVideoValue = true
         dataStore.data
             .map { preferences -> preferences[HideVideoKey] ?: false }
             .distinctUntilChanged()
             .collect(scope) { shouldHideMusicVideos ->
                 hideMusicVideos = shouldHideMusicVideos
-                if (shouldHideMusicVideos) {
+                // Only prune when the user actually turns the setting on (not on startup, which
+                // would strip music-video tracks from a restored album queue), and never inside
+                // an album queue, whose tracks are all part of the release.
+                val toggledOn = shouldHideMusicVideos && !isInitialHideVideoValue
+                isInitialHideVideoValue = false
+                if (toggledOn && !currentQueue.keepsMusicVideos) {
                     removeMusicVideoItems()
                 }
             }
@@ -2770,11 +2776,13 @@ class MusicService :
         val itemQueue = persistedQueue.toQueue()
         val continuationQueue = persistedQueue.toContinuationQueue()
         val hideExplicit = shouldHideExplicitTracks()
-        val hideVideo = dataStore.get(HideVideoKey, false)
+        // Music videos were already vetted when the queue was built (album queues keep them on
+        // purpose, and toggling "Hide music videos" prunes the live queue), so re-filtering here
+        // would strip album tracks after every app restart.
         val initialStatus =
             itemQueue
                 .getInitialStatus()
-                .filterPlaybackContent(hideExplicit, hideVideo)
+                .filterPlaybackContent(hideExplicit, hideVideo = false)
 
         withContext(Dispatchers.Main) {
             currentQueue = continuationQueue
@@ -5233,7 +5241,7 @@ class MusicService :
                     withContext(Dispatchers.IO) {
                         queue
                             .getInitialStatus()
-                            .filterPlaybackContent(hideExplicit, hideVideo)
+                            .filterPlaybackContent(hideExplicit, hideVideo && !queue.keepsMusicVideos)
                     }
                 if (!autoLoadMoreEnabled && queue.shouldExpandToFullQueueWhenAutoLoadMoreDisabled() && queue.hasNextPage()) {
                     val expandedItems = initialStatus.items.toMutableList()
@@ -5564,11 +5572,14 @@ class MusicService :
         }
     }
 
-    fun playNext(items: List<MediaItem>) {
+    fun playNext(
+        items: List<MediaItem>,
+        keepMusicVideos: Boolean = false,
+    ) {
         val allowedItems =
             items
                 .filterBlockedArtists(blockedArtistIds)
-                .filterVideo(hideMusicVideos)
+                .filterVideo(hideMusicVideos && !keepMusicVideos)
         if (allowedItems.isEmpty()) return
         suppressAutoPlayback = false
         val insertionIndex = if (player.mediaItemCount == 0) 0 else player.currentMediaItemIndex + 1
@@ -5624,11 +5635,14 @@ class MusicService :
         }
     }
 
-    fun addToQueue(items: List<MediaItem>) {
+    fun addToQueue(
+        items: List<MediaItem>,
+        keepMusicVideos: Boolean = false,
+    ) {
         val allowedItems =
             items
                 .filterBlockedArtists(blockedArtistIds)
-                .filterVideo(hideMusicVideos)
+                .filterVideo(hideMusicVideos && !keepMusicVideos)
         if (allowedItems.isEmpty()) return
         suppressAutoPlayback = false
 
@@ -5649,11 +5663,15 @@ class MusicService :
         player.prepare()
     }
 
-    fun addAfterQueueIndex(index: Int, items: List<MediaItem>) {
+    fun addAfterQueueIndex(
+        index: Int,
+        items: List<MediaItem>,
+        keepMusicVideos: Boolean = false,
+    ) {
         val allowedItems =
             items
                 .filterBlockedArtists(blockedArtistIds)
-                .filterVideo(hideMusicVideos)
+                .filterVideo(hideMusicVideos && !keepMusicVideos)
         if (allowedItems.isEmpty()) return
         suppressAutoPlayback = false
 

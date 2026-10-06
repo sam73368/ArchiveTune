@@ -20,6 +20,9 @@ class YouTubeAlbumRadio(
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
 
+    override val keepsMusicVideos: Boolean
+        get() = true
+
     private val endpoint: WatchEndpoint
         get() =
             WatchEndpoint(

@@ -358,8 +358,11 @@ class PlayerConnection(
 
     fun playNext(item: MediaItem) = playNext(listOf(item))
 
-    fun playNext(items: List<MediaItem>) {
-        service.playNext(items)
+    fun playNext(
+        items: List<MediaItem>,
+        keepMusicVideos: Boolean = false,
+    ) {
+        service.playNext(items, keepMusicVideos)
     }
 
     fun moveQueueItemToNext(mediaItemIndex: Int) {
@@ -368,8 +371,11 @@ class PlayerConnection(
 
     fun addToQueue(item: MediaItem) = addToQueue(listOf(item))
 
-    fun addToQueue(items: List<MediaItem>) {
-        service.addToQueue(items)
+    fun addToQueue(
+        items: List<MediaItem>,
+        keepMusicVideos: Boolean = false,
+    ) {
+        service.addToQueue(items, keepMusicVideos)
     }
 
     fun addAfterQueueIndex(index: Int, items: List<MediaItem>) {

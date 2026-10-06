@@ -406,6 +406,7 @@ fun AlbumMenu(
                                                 ListQueue(
                                                     title = album.album.title,
                                                     items = songs.map(Song::toMediaItem),
+                                                    keepMusicVideos = true,
                                                 ),
                                             )
                                         }
@@ -430,6 +431,7 @@ fun AlbumMenu(
                                                 ListQueue(
                                                     title = album.album.title,
                                                     items = songs.shuffled().map(Song::toMediaItem),
+                                                    keepMusicVideos = true,
                                                 ),
                                             )
                                         }
@@ -488,7 +490,7 @@ fun AlbumMenu(
                         modifier =
                             Modifier.clickable {
                                 onDismiss()
-                                playerConnection.playNext(songs.map { it.toMediaItem() })
+                                playerConnection.playNext(songs.map { it.toMediaItem() }, keepMusicVideos = true)
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     )
@@ -510,7 +512,7 @@ fun AlbumMenu(
                         modifier =
                             Modifier.clickable {
                                 onDismiss()
-                                playerConnection.addToQueue(songs.map { it.toMediaItem() })
+                                playerConnection.addToQueue(songs.map { it.toMediaItem() }, keepMusicVideos = true)
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     )

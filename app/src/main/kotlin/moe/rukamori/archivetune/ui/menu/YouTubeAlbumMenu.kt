@@ -438,7 +438,7 @@ fun YouTubeAlbumMenu(
                                 album
                                     ?.songs
                                     ?.map { it.toMediaItem() }
-                                    ?.let(playerConnection::playNext)
+                                    ?.let { playerConnection.playNext(it, keepMusicVideos = true) }
                                 onDismiss()
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -463,7 +463,7 @@ fun YouTubeAlbumMenu(
                                 album
                                     ?.songs
                                     ?.map { it.toMediaItem() }
-                                    ?.let(playerConnection::addToQueue)
+                                    ?.let { playerConnection.addToQueue(it, keepMusicVideos = true) }
                                 onDismiss()
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
