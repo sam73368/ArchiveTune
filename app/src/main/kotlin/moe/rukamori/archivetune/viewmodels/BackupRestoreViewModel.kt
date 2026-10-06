@@ -841,7 +841,11 @@ class BackupRestoreViewModel
                     if (includeLibrary && !hasDb) throw IllegalStateException("Backup missing database")
 
                     val includeStatsMerge = !includeLibrary && hasStats
-                    val includeLyricsMerge = includeLyrics && LyricsBackup.ZIP_ENTRY_NAME in entryNames
+                    // The restored database file already carries its lyrics table, and the live
+                    // database is closed during a library restore, so merging lyrics then would
+                    // fail mid-restore.
+                    val includeLyricsMerge =
+                        includeLyrics && !includeLibrary && LyricsBackup.ZIP_ENTRY_NAME in entryNames
                     val includeFonts = BackupCategory.FONTS in categories
                     val restoreEntries =
                         entryNames.filter { name ->
@@ -880,6 +884,12 @@ class BackupRestoreViewModel
                         runCatching { database.awaitIdle() }
                         runCatching { database.checkpoint() }
                         runCatching { database.close() }
+                        // Remove the old WAL/SHM/journal files: if the backup has no -wal entry,
+                        // a leftover WAL from the previous database would be replayed onto the
+                        // restored file and corrupt or mix the libraries.
+                        listOf("-wal", "-shm", "-journal").forEach { suffix ->
+                            runCatching { context.getDatabasePath("${InternalDatabase.DB_NAME}$suffix").delete() }
+                        }
                         completedUnits++
                     }
 

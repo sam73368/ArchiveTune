@@ -68,18 +68,36 @@ class MusicDatabase(
     val openHelper: SupportSQLiteOpenHelper
         get() = delegate.openHelper
 
+    // Set when the database is closed on purpose (backup restore swaps the db file and then
+    // restarts the process). Fire-and-forget writes queued from the UI in that window, such as
+    // a search-history insert, used to crash the app with "attempt to re-open an
+    // already-closed object" and could kill the process halfway through a restore.
+    @Volatile
+    private var isClosed = false
+
+    private inline fun runUnlessClosed(block: () -> Unit) {
+        if (isClosed) return
+        try {
+            block()
+        } catch (e: IllegalStateException) {
+            if (!isClosed) throw e
+        }
+    }
+
     fun query(block: MusicDatabase.() -> Unit) =
         with(delegate) {
             queryExecutor.execute {
-                block(this@MusicDatabase)
+                runUnlessClosed { block(this@MusicDatabase) }
             }
         }
 
     fun transaction(block: MusicDatabase.() -> Unit) =
         with(delegate) {
             transactionExecutor.execute {
-                runInTransaction {
-                    block(this@MusicDatabase)
+                runUnlessClosed {
+                    runInTransaction {
+                        block(this@MusicDatabase)
+                    }
                 }
             }
         }
@@ -96,7 +114,10 @@ class MusicDatabase(
         }
     }
 
-    fun close() = delegate.close()
+    fun close() {
+        isClosed = true
+        delegate.close()
+    }
 
     private suspend fun awaitExecutor(executor: Executor) {
         suspendCancellableCoroutine { cont ->
