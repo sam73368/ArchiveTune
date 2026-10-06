@@ -509,8 +509,16 @@ jobs:
           name: ${{ steps.variant.outputs.artifact_name }}
           path: ${{ steps.release_dir.outputs.release_dir }}/out/${{ steps.variant.outputs.apk_name }}
 
+  build-ios:
+    name: Build iOS IPA
+    needs: [check-version]
+    if: needs.check-version.outputs.version_changed == 'true'
+    uses: ./.github/workflows/build_ios.yml
+    with:
+      version: ${{ needs.check-version.outputs.new_version }}
+
   create-release:
-    needs: [check-version, build]
+    needs: [check-version, build, build-ios]
     if: needs.check-version.outputs.version_changed == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -536,6 +544,14 @@ jobs:
           VERSION="${{ needs.check-version.outputs.new_version }}"
           TAG="v${VERSION}"
 
+          # iOS build from the build-ios job (unsigned IPA, signed on-device by SideStore/AltStore).
+          IOS_IPA_SRC=$(find downloaded_artifacts/ArchiveTune-ios-ipa -name "*.ipa" | head -n 1)
+          IOS_IPA=""
+          if [ -n "$IOS_IPA_SRC" ]; then
+            IOS_IPA="ArchiveTune-${VERSION}-ios.ipa"
+            cp "$IOS_IPA_SRC" "$IOS_IPA"
+          fi
+
           # GitHub rejects release bodies over 125,000 characters, and the
           # auto-generated commit changelog for 15.0 blew past that limit
           # (HTTP 422 "body is too long"). The release page now carries a short
@@ -556,6 +572,11 @@ jobs:
           **Full changelog:** https://github.com/${{ github.repository }}/blob/${TAG}/changelogs.md
 
           **All changes since v16.0:** https://github.com/${{ github.repository }}/compare/v16.0...${TAG}
+
+          ## Downloads
+
+          - **Android (GMS):** `app-gms-mobile-universal-release.apk`
+          - **iOS (preview):** `ArchiveTune-${VERSION}-ios.ipa` — unsigned; install it with SideStore or AltStore, which sign it with your own Apple ID.
           EOF
 
           gh release create "$TAG" \
@@ -564,4 +585,5 @@ jobs:
             --notes-file release_notes.md \
             "$MOBILE_UNIVERSAL_APK" \
             $OTHER_APKS \
+            $IOS_IPA \
             changelogs.md
