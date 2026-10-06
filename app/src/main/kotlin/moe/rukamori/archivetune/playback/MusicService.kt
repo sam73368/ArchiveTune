@@ -202,7 +202,6 @@ import moe.rukamori.archivetune.constants.EqualizerVirtualizerStrengthKey
 import moe.rukamori.archivetune.constants.HISTORY_DURATION_DEFAULT
 import moe.rukamori.archivetune.constants.HISTORY_DURATION_MAX
 import moe.rukamori.archivetune.constants.HISTORY_DURATION_MIN
-import moe.rukamori.archivetune.constants.AllowAgeRestrictedKey
 import moe.rukamori.archivetune.constants.HideExplicitKey
 import moe.rukamori.archivetune.constants.HideVideoKey
 import moe.rukamori.archivetune.constants.HistoryDuration
@@ -1501,10 +1500,10 @@ class MusicService :
                 }
             }
         dataStore.data
-            .map { preferences -> preferences[AllowAgeRestrictedKey] ?: false }
+            .map { preferences -> preferences[HideExplicitKey] ?: false }
             .distinctUntilChanged()
-            .collect(scope) { ageRestrictedAllowed ->
-                if (!ageRestrictedAllowed) {
+            .collect(scope) { shouldHideExplicit ->
+                if (shouldHideExplicit) {
                     scope.launch(SilentHandler) { removeExplicitItems() }
                 }
             }
@@ -2719,9 +2718,9 @@ class MusicService :
             database.getBlockedArtistIds().toSet()
         }
 
-    private suspend fun shouldHideExplicitTracks(): Boolean =
-        dataStore.get(HideExplicitKey, false) ||
-            !dataStore.get(AllowAgeRestrictedKey, false)
+    // "Allow age-restricted content" only controls YouTube age-gate playback fallbacks
+    // (see YTPlayerUtils); it must not strip explicit-tagged songs from the queue.
+    private suspend fun shouldHideExplicitTracks(): Boolean = dataStore.get(HideExplicitKey, false)
 
     private fun removeExplicitItems() {
         removeQueueItems { item -> item.metadata?.explicit == true }

@@ -49,8 +49,8 @@ class YouTubeAlbumRadio(
             Queue.Status(
                 title =
                     albumSongs
-                        .first()
-                        .album
+                        .firstOrNull()
+                        ?.album
                         ?.name
                         .orEmpty(),
                 items = albumSongs.map { it.toMediaItem() },
@@ -66,7 +66,7 @@ class YouTubeAlbumRadio(
             continuation = nextResult.continuation
             if (!firstTimeLoaded) {
                 firstTimeLoaded = true
-                nextResult.items.subList(albumSongCount, nextResult.items.size).map { it.toMediaItem() }
+                nextResult.items.drop(albumSongCount).map { it.toMediaItem() }
             } else {
                 nextResult.items.map { it.toMediaItem() }
             }

@@ -1160,7 +1160,7 @@ fun ArtistScreen(
                                                     playerConnection.playQueue(
                                                         ListQueue(
                                                             title = libraryArtist?.artist?.name ?: "Unknown Artist",
-                                                            items = librarySongs.map { it.toMediaItem() },
+                                                            items = filteredLibrarySongs.map { it.toMediaItem() },
                                                             startIndex = index,
                                                         ),
                                                     )

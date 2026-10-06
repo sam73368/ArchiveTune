@@ -1000,7 +1000,8 @@ fun LocalPlaylistScreen(
                                                             ListQueue(
                                                                 title = playlist!!.playlist.name,
                                                                 items = songs.map { it.song.toMediaItem() },
-                                                                startIndex = index,
+                                                                // index is in filteredSongs (search); map it back to the full list.
+                                                                startIndex = songs.indexOfFirst { it.map.id == song.map.id },
                                                             ),
                                                         )
                                                     }
