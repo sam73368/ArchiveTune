@@ -1,0 +1,112 @@
+name: Build iOS
+
+on:
+  push:
+    branches: [ "ios-port" ]
+    paths:
+      - "ios/**"
+      - ".github/workflows/build_ios.yml"
+      - ".github/scripts/annotate_build_log.py"
+  pull_request:
+    paths:
+      - "ios/**"
+      - ".github/workflows/build_ios.yml"
+  workflow_dispatch:
+  # Reused by the release workflow to attach the IPA to a GitHub Release.
+  workflow_call:
+    inputs:
+      version:
+        description: "Marketing version to stamp into the IPA (e.g. 17.1.0)"
+        required: false
+        type: string
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Select Xcode
+        run: |
+          ls -d /Applications/Xcode*.app || true
+          XC="$(ls -d /Applications/Xcode_26.4*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$XC" ]; then XC="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"; fi
+          if [ -z "$XC" ]; then XC="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"; fi
+          echo "Using $XC"
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: Cache Gradle and Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.konan
+          key: ios-gradle-${{ hashFiles('ios/**/*.gradle.kts', 'ios/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ios-gradle-
+
+      - name: Build shared Kotlin framework
+        working-directory: ios
+        run: ./gradlew --no-daemon --stacktrace :shared:linkReleaseFrameworkIosArm64 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+
+      - name: Generate Xcode project
+        working-directory: ios/iosApp
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Stamp version
+        if: ${{ inputs.version }}
+        working-directory: ios/iosApp
+        run: sed -i '' "s/MARKETING_VERSION = .*;/MARKETING_VERSION = ${{ inputs.version }};/" iosApp.xcodeproj/project.pbxproj
+
+      - name: Build app (unsigned)
+        working-directory: ios/iosApp
+        run: |
+          xcodebuild \
+            -project iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log"
+
+      - name: Package IPA
+        run: |
+          APP="$(find "$RUNNER_TEMP/dd/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' | head -1)"
+          echo "App bundle: $APP"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qry "$GITHUB_WORKSPACE/ArchiveTune-ios.ipa" Payload)
+          ls -lh "$GITHUB_WORKSPACE/ArchiveTune-ios.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: ArchiveTune-ios-ipa
+          path: ArchiveTune-ios.ipa
+          retention-days: 30
+
+      # The Actions log API is not reachable from every tool used on this project, so failures
+      # are also surfaced as check-run annotations (readable through the Checks API).
+      - name: Report build errors
+        if: failure()
+        run: python3 .github/scripts/annotate_build_log.py "$RUNNER_TEMP/gradle.log" "$RUNNER_TEMP/xcodebuild.log"

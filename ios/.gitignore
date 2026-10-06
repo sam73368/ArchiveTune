@@ -1,0 +1,8 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+iosApp/iosApp.xcodeproj/
+iosApp/iosApp/Info.plist
+*.ipa
+xcuserdata/

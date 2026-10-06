@@ -1,0 +1,53 @@
+# XcodeGen spec for the iOS app shell (generated on CI with `xcodegen generate`).
+# The shared Kotlin code is linked as a static framework built by Gradle beforehand:
+#   cd ios && ./gradlew :shared:linkReleaseFrameworkIosArm64
+name: iosApp
+options:
+  bundleIdPrefix: moe.rukamori
+  deploymentTarget:
+    iOS: "15.0"
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+targets:
+  iosApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: iosApp
+    info:
+      path: iosApp/Info.plist
+      properties:
+        CFBundleDisplayName: ArchiveTune
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIRequiresFullScreen: false
+        CADisableMinimumFrameDurationOnPhone: true
+        UIBackgroundModes:
+          - audio
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_NAME: ArchiveTune
+        PRODUCT_BUNDLE_IDENTIFIER: moe.rukamori.archivetune.ios
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_BITCODE: NO
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        FRAMEWORK_SEARCH_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework
+        OTHER_LDFLAGS:
+          - $(inherited)
+          - -framework
+          - Shared
+          - -lc++
+          - -lsqlite3
