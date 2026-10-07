@@ -88,6 +88,7 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.LocalDatabase
@@ -520,34 +521,47 @@ fun LocalPlaylistScreen(
     LaunchedEffect(reorderableState.isAnyItemDragging) {
         if (!reorderableState.isAnyItemDragging) {
             dragInfo?.let { (from, to) ->
+                // `songs` hides blocked artists / music videos, so its indexes are not the stored
+                // positions: translate through the real `position` of both rows.
                 val orderedBeforeMove = songs
                 val browseId =
                     viewModel.playlist.value
                         ?.playlist
                         ?.browseId
-                val movedSetVideoId = orderedBeforeMove.getOrNull(from)?.map?.setVideoId
-                val successorIndex = if (from > to) to else to + 1
-                val successorSetVideoId = orderedBeforeMove.getOrNull(successorIndex)?.map?.setVideoId
+                val fromPosition = orderedBeforeMove.getOrNull(from)?.map?.position
+                val toPosition = orderedBeforeMove.getOrNull(to)?.map?.position
 
-                coroutineScope.launch(Dispatchers.IO) {
-                    database.withTransaction {
-                        move(viewModel.playlistId, from, to)
-                    }
+                if (fromPosition != null && toPosition != null) {
+                    coroutineScope.launch(Dispatchers.IO) {
+                        val fullPlaylist = database.playlistSongs(viewModel.playlistId).first()
+                        val movedSetVideoId = fullPlaylist.firstOrNull { it.map.position == fromPosition }?.map?.setVideoId
+                        val targetIndex = fullPlaylist.indexOfFirst { it.map.position == toPosition }
+                        val successorSetVideoId =
+                            if (targetIndex < 0) {
+                                null
+                            } else {
+                                fullPlaylist.getOrNull(if (fromPosition > toPosition) targetIndex else targetIndex + 1)?.map?.setVideoId
+                            }
 
-                    if (browseId != null && movedSetVideoId != null) {
-                        runCatching {
-                            YouTube
-                                .moveSongPlaylist(
-                                    browseId,
-                                    movedSetVideoId,
-                                    successorSetVideoId,
-                                ).getOrThrow()
-                        }.onFailure {
-                            withContext(Dispatchers.Main) {
-                                snackbarHostState.showSnackbar(
-                                    message = context.getString(R.string.error_unknown),
-                                    withDismissAction = true,
-                                )
+                        database.withTransaction {
+                            move(viewModel.playlistId, fromPosition, toPosition)
+                        }
+
+                        if (browseId != null && movedSetVideoId != null) {
+                            runCatching {
+                                YouTube
+                                    .moveSongPlaylist(
+                                        browseId,
+                                        movedSetVideoId,
+                                        successorSetVideoId,
+                                    ).getOrThrow()
+                            }.onFailure {
+                                withContext(Dispatchers.Main) {
+                                    snackbarHostState.showSnackbar(
+                                        message = context.getString(R.string.error_unknown),
+                                        withDismissAction = true,
+                                    )
+                                }
                             }
                         }
                     }

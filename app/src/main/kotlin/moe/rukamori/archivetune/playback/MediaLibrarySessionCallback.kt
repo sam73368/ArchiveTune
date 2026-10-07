@@ -2526,7 +2526,7 @@ class MediaLibrarySessionCallback
 
             val normalizedQuery = query.lowercase(Locale.getDefault())
             return database
-                .getSongsByIds(cachedIds)
+                .let { dao -> cachedIds.chunked(500).flatMap { dao.getSongsByIds(it) } }
                 .asSequence()
                 .filter { it.song.inLibrary == null }
                 .filterNot { it.id in excludeIds }

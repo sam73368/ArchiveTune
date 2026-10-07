@@ -88,10 +88,19 @@ class ScrobbleManager(
         scrobbleJob?.cancel()
         val resolvedDuration = duration?.toInt()?.div(1000) ?: metadata.duration
 
+        // Tracks shorter than the minimum are never scrobbled.
+        if (resolvedDuration in 1 until minSongDuration) {
+            currentMetadata = metadata
+            currentThresholdMillis = 0L
+            scrobbleRemainingMillis = 0L
+            scrobbleTimerRunning = false
+            return
+        }
+
         val thresholdMillis =
             if (resolvedDuration > 0) {
                 min(
-                    resolvedDuration * 1000L * scrobbleDelayPercent.toLong(),
+                    (resolvedDuration * 1000L * scrobbleDelayPercent).toLong(),
                     scrobbleDelaySeconds * 1000L,
                 )
             } else {

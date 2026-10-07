@@ -26,9 +26,13 @@ import moe.rukamori.archivetune.extensions.filterExplicit
 import moe.rukamori.archivetune.extensions.filterVideo
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
+import moe.rukamori.archivetune.utils.reportException
 import java.time.LocalDateTime
 import javax.inject.Inject
 import kotlinx.coroutines.flow.*
+
+// Android < 11 caps a statement at 999 bound variables.
+private const val SQL_VARIABLE_CHUNK = 500
 
 @HiltViewModel
 class CachePlaylistViewModel
@@ -45,42 +49,48 @@ class CachePlaylistViewModel
         init {
             viewModelScope.launch(Dispatchers.IO) {
                 while (true) {
-                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                    val hideVideo = context.dataStore.get(HideVideoKey, false)
-                    val cachedIds = playerCache.keys.toSet()
-                    val downloadedIds = downloadCache.keys.toSet()
-                    val pureCacheIds = cachedIds.subtract(downloadedIds)
+                    try {
+                        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                        val hideVideo = context.dataStore.get(HideVideoKey, false)
+                        val cachedIds = playerCache.keys.toSet()
+                        val downloadedIds = downloadCache.keys.toSet()
+                        val pureCacheIds = cachedIds.subtract(downloadedIds)
 
-                    val songs =
-                        if (pureCacheIds.isNotEmpty()) {
-                            database.getSongsByIds(pureCacheIds.toList())
-                        } else {
-                            emptyList()
-                        }
+                        val songs =
+                            if (pureCacheIds.isNotEmpty()) {
+                                pureCacheIds.toList().chunked(SQL_VARIABLE_CHUNK).flatMap { database.getSongsByIds(it) }
+                            } else {
+                                emptyList()
+                            }
 
-                    val completeSongs =
-                        songs.filter {
-                            val contentLength = it.format?.contentLength
-                            contentLength != null && playerCache.isCached(it.song.id, 0, contentLength)
-                        }
+                        val completeSongs =
+                            songs.filter {
+                                val contentLength = it.format?.contentLength
+                                contentLength != null && playerCache.isCached(it.song.id, 0, contentLength)
+                            }
 
-                    if (completeSongs.isNotEmpty()) {
-                        database.query {
-                            completeSongs.forEach {
-                                if (it.song.dateDownload == null) {
-                                    update(it.song.copy(dateDownload = LocalDateTime.now()))
+                        if (completeSongs.isNotEmpty()) {
+                            database.query {
+                                completeSongs.forEach {
+                                    if (it.song.dateDownload == null) {
+                                        update(it.song.copy(dateDownload = LocalDateTime.now()))
+                                    }
                                 }
                             }
                         }
+
+                        _cachedSongs.value =
+                            completeSongs
+                                .filter { it.song.dateDownload != null }
+                                .sortedByDescending { it.song.dateDownload }
+                                .filterExplicit(hideExplicit)
+                                .filterVideo(hideVideo)
+
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        reportException(e)
                     }
-
-                    _cachedSongs.value =
-                        completeSongs
-                            .filter { it.song.dateDownload != null }
-                            .sortedByDescending { it.song.dateDownload }
-                            .filterExplicit(hideExplicit)
-                            .filterVideo(hideVideo)
-
                     delay(1000)
                 }
             }

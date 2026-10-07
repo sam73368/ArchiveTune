@@ -666,7 +666,7 @@ fun AddToPlaylistDialog(
 
                                                 val (playlistsWithDups, playlistsWithoutDups) =
                                                     selectedPlaylists.partition { playlist ->
-                                                        val dups = database.playlistDuplicates(playlist.id, currentSongIds)
+                                                        val dups = currentSongIds.chunked(500).flatMap { database.playlistDuplicates(playlist.id, it) }
                                                         if (dups.isNotEmpty()) {
                                                             tempDuplicatesMap[playlist.id] = dups
                                                             true

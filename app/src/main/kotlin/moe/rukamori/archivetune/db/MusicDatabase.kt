@@ -80,7 +80,14 @@ class MusicDatabase(
         try {
             block()
         } catch (e: IllegalStateException) {
-            if (!isClosed) throw e
+            if (!isClosed) {
+                android.util.Log.e("MusicDatabase", "Background database write failed", e)
+            }
+        } catch (e: Exception) {
+            // Fire-and-forget writes run on a pool thread: an uncaught exception there would kill the app.
+            if (!isClosed) {
+                android.util.Log.e("MusicDatabase", "Background database write failed", e)
+            }
         }
     }
 
@@ -463,24 +470,31 @@ private object SchemaTools {
         }
 
         val oldTable = "_old_${table.name}"
-        db.execSQL("ALTER TABLE `${table.name}` RENAME TO `$oldTable`")
-        db.execSQL(table.sql!!)
+        // Since SQLite 3.26 a rename also rewrites the REFERENCES of child tables to the new name, which
+        // would leave them pointing at the dropped `_old_*` table. Keep the legacy behaviour here.
+        db.execSQL("PRAGMA legacy_alter_table=ON")
+        try {
+            db.execSQL("ALTER TABLE `${table.name}` RENAME TO `$oldTable`")
+            db.execSQL(table.sql!!)
 
-        val expectedOrdered = expectedColumns.values.sortedBy { it.cid }
-        val insertColumns = expectedOrdered.joinToString(",") { "`${it.name}`" }
-        val selectExpr =
-            expectedOrdered.joinToString(",") { col ->
-                val old = actualColumns[col.name]
-                when {
-                    old != null -> "`${col.name}`"
-                    col.defaultValue != null -> col.defaultValue
-                    col.notNull -> defaultLiteral(col.type)
-                    else -> "NULL"
+            val expectedOrdered = expectedColumns.values.sortedBy { it.cid }
+            val insertColumns = expectedOrdered.joinToString(",") { "`${it.name}`" }
+            val selectExpr =
+                expectedOrdered.joinToString(",") { col ->
+                    val old = actualColumns[col.name]
+                    when {
+                        old != null -> "`${col.name}`"
+                        col.defaultValue != null -> col.defaultValue
+                        col.notNull -> defaultLiteral(col.type)
+                        else -> "NULL"
+                    }
                 }
-            }
 
-        db.execSQL("INSERT INTO `${table.name}` ($insertColumns) SELECT $selectExpr FROM `$oldTable`")
-        db.execSQL("DROP TABLE `$oldTable`")
+            db.execSQL("INSERT INTO `${table.name}` ($insertColumns) SELECT $selectExpr FROM `$oldTable`")
+            db.execSQL("DROP TABLE `$oldTable`")
+        } finally {
+            runCatching { db.execSQL("PRAGMA legacy_alter_table=OFF") }
+        }
         expectedIndices.filter { it.tblName == table.name }.forEach { db.execSQL(it.sql!!) }
 
         if (table.sql

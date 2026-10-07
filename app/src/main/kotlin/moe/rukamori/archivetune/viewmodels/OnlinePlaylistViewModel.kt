@@ -99,6 +99,7 @@ class OnlinePlaylistViewModel
         }
 
         fun loadMoreSongs() {
+            if (_isLoading.value || _isRefreshing.value) return
             val nextContinuation = continuation ?: return
             if (!_isLoadingMore.compareAndSet(expect = false, update = true)) return
 
@@ -161,6 +162,7 @@ class OnlinePlaylistViewModel
             viewModelScope.launch(Dispatchers.IO) {
                 _error.value = null
 
+                try {
                 YouTube
                     .playlist(playlistId)
                     .onSuccess { playlistPage ->
@@ -177,11 +179,17 @@ class OnlinePlaylistViewModel
                         _error.value = throwable.message ?: "Failed to load playlist"
                         reportException(throwable)
                     }
-
-                if (initial) {
-                    _isLoading.value = false
-                } else {
-                    _isRefreshing.value = false
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _error.value = e.message ?: "Failed to load playlist"
+                    reportException(e)
+                } finally {
+                    if (initial) {
+                        _isLoading.value = false
+                    } else {
+                        _isRefreshing.value = false
+                    }
                 }
             }
         }

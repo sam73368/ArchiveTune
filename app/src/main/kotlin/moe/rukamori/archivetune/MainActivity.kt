@@ -3732,7 +3732,16 @@ class MainActivity : ComponentActivity() {
         intent: Intent,
         navController: NavHostController,
     ) {
-        val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
+        val uri =
+            intent.data
+                ?: intent
+                    .getCharSequenceExtra(Intent.EXTRA_TEXT)
+                    ?.toString()
+                    ?.let { Regex("""https?://\S+""").find(it)?.value }
+                    ?.toUri()
+                ?: return
+        // Shared text such as "Title: https://…" can parse to an opaque Uri, which has no query.
+        if (uri.isOpaque) return
         val coroutineScope = lifecycleScope
 
         val authority = uri.authority?.lowercase()

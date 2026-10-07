@@ -153,7 +153,7 @@ fun ImportPlaylistDialog(
                                 isEditable = browseId == null,
                                 bookmarkedAt = LocalDateTime.now(),
                             )
-                        database.query { insert(newPlaylist) }
+                        database.withTransaction { insert(newPlaylist) }
 
                         val playlist = database.playlist(newPlaylist.id).firstOrNull()
                         if (playlist != null) {
@@ -313,7 +313,7 @@ fun ImportPlaylistDialog(
                                         browseId = null,
                                         bookmarkedAt = LocalDateTime.now(),
                                     )
-                                database.query { insert(newPlaylist) }
+                                database.withTransaction { insert(newPlaylist) }
 
                                 val playlist = database.playlist(newPlaylist.id).firstOrNull()
                                 if (playlist != null) {

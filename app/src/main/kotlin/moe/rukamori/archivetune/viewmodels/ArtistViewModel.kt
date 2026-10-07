@@ -173,17 +173,26 @@ class ArtistViewModel
         fun manualRefresh() {
             if (isManuallyRefreshing) return
             isManuallyRefreshing = true
-            viewModelScope.launch {
-                try {
-                    fetchArtistsFromYTM(manual = true)
-                } finally {
-                    isManuallyRefreshing = false
-                }
-            }
+            // The flag is cleared when the fetch itself finishes (see fetchArtistsFromYTM).
+            fetchArtistsFromYTM(manual = true)
         }
 
         fun fetchArtistsFromYTM(manual: Boolean = false) {
             viewModelScope.launch {
+                try {
+                    fetchArtistFromYTM()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    reportException(e)
+                } finally {
+                    if (manual) isManuallyRefreshing = false
+                }
+            }
+        }
+
+        private suspend fun fetchArtistFromYTM() {
+            run {
                 val hideExplicit = context.dataStore.get(HideExplicitKey, false)
                 val hideVideo = context.dataStore.get(HideVideoKey, false)
                 val blockedArtistIds = database.getBlockedArtistIds().toSet()
@@ -216,9 +225,6 @@ class ArtistViewModel
                     }.onFailure {
                         reportException(it)
                     }
-                if (manual) {
-                    isManuallyRefreshing = false
-                }
             }
         }
 
