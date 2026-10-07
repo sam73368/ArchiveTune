@@ -32,6 +32,7 @@ fun Queue.toPersistQueue(
                 mediaItemIndex = mediaItemIndex,
                 position = position,
                 queueType = QueueType.LIST,
+                keepMusicVideos = keepMusicVideos,
             )
         }
 
@@ -101,6 +102,7 @@ fun PersistQueue.toQueue(): Queue =
         items = items.map { it.toMediaItem() },
         startIndex = mediaItemIndex,
         position = position,
+        keepMusicVideos = keepMusicVideos,
     )
 
 fun PersistQueue.toContinuationQueue(): Queue =
@@ -111,6 +113,7 @@ fun PersistQueue.toContinuationQueue(): Queue =
                 items = items.map { it.toMediaItem() },
                 startIndex = mediaItemIndex,
                 position = position,
+                keepMusicVideos = keepMusicVideos,
             )
         }
 

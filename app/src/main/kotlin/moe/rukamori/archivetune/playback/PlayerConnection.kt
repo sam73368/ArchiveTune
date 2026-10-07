@@ -29,6 +29,12 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import moe.rukamori.archivetune.utils.dataStore
+import moe.rukamori.archivetune.constants.HideVideoKey
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -100,7 +106,33 @@ class PlayerConnection(
             SharingStarted.Lazily,
             player.playWhenReady && player.playbackState != STATE_ENDED,
         )
-    val mediaMetadata = service.currentMediaMetadata
+
+    // What the UI sees. With "Hide music videos" on, an official clip is played as its studio
+    // recording (see StudioAudioResolver), so it must also look like one: no clip picture and no
+    // video player, but the album cover. The service keeps the raw metadata (it needs the clip
+    // flag to pick the studio audio), only this UI-facing flow is rewritten.
+    private val hideMusicVideos =
+        context.dataStore.data
+            .map { it[HideVideoKey] ?: false }
+            .distinctUntilChanged()
+    private val currentAlbumCover =
+        service.currentMediaMetadata
+            .map { it?.album?.id }
+            .distinctUntilChanged()
+            .flatMapLatest { albumId ->
+                if (albumId.isNullOrBlank()) flowOf(null) else database.album(albumId).map { it?.album?.thumbnailUrl }
+            }
+    val mediaMetadata: StateFlow<MediaMetadata?> =
+        combine(service.currentMediaMetadata, hideMusicVideos, currentAlbumCover) { metadata, hideVideos, albumCover ->
+            if (metadata != null && hideVideos && metadata.isMusicVideo) {
+                metadata.copy(
+                    isMusicVideo = false,
+                    thumbnailUrl = albumCover?.takeIf { it.isNotBlank() } ?: metadata.thumbnailUrl,
+                )
+            } else {
+                metadata
+            }
+        }.stateIn(connectionScope, SharingStarted.Eagerly, service.currentMediaMetadata.value)
     val currentSong =
         mediaMetadata.flatMapLatest {
             database.song(it?.id)

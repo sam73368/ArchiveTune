@@ -16,6 +16,8 @@ data class PersistQueue(
     val position: Long,
     val queueType: QueueType = QueueType.LIST,
     val queueData: QueueData? = null,
+    /** Album queues keep their clips when "Hide music videos" is on. Old saves read false. */
+    val keepMusicVideos: Boolean = false,
 ) : Serializable {
     companion object {
         private const val serialVersionUID = 1L

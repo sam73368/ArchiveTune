@@ -321,6 +321,9 @@ import moe.rukamori.archivetune.extensions.findNextMediaItemById
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.extensions.mediaItems
 import moe.rukamori.archivetune.extensions.metadata
+import moe.rukamori.archivetune.extensions.toNotificationArtworkUri
+import moe.rukamori.archivetune.ui.utils.YTThumbQuality
+import moe.rukamori.archivetune.ui.utils.buildYTThumbnailUrl
 import moe.rukamori.archivetune.extensions.move
 import moe.rukamori.archivetune.extensions.toEnum
 import moe.rukamori.archivetune.extensions.setOffloadEnabled
@@ -1496,11 +1499,14 @@ class MusicService :
             .distinctUntilChanged()
             .collect(scope) { shouldHideMusicVideos ->
                 hideMusicVideos = shouldHideMusicVideos
+                // Re-evaluate the studio/clip choice for everything except the file playing right now.
+                releaseStudioPins(player.currentMediaItem?.mediaId)
                 // Only prune when the user actually turns the setting on (not on startup, which
                 // would strip music-video tracks from a restored album queue), and never inside
                 // an album queue, whose tracks are all part of the release.
                 val toggledOn = shouldHideMusicVideos && !isInitialHideVideoValue
                 isInitialHideVideoValue = false
+                refreshClipArtwork()
                 if (toggledOn && !currentQueue.keepsMusicVideos) {
                     removeMusicVideoItems()
                 }
@@ -2641,7 +2647,7 @@ class MusicService :
                         song = snapshot.song,
                         positionMs = snapshot.positionMs,
                         isPaused = snapshot.isPaused,
-                        isMusicVideo = currentMediaMetadata.value?.isMusicVideo ?: false,
+                        isMusicVideo = (currentMediaMetadata.value?.isMusicVideo ?: false) && !hideMusicVideos,
                     )
                 if (!updated) {
                     Timber.tag(DISCORD_SYNC_TAG).d(
@@ -2739,7 +2745,8 @@ class MusicService :
     }
 
     private fun removeMusicVideoItems() {
-        removeQueueItems { item -> item.metadata?.isMusicVideo == true }
+        val playingMediaId = player.currentMediaItem?.mediaId
+        removeQueueItems { item -> item.metadata?.isMusicVideo == true && item.mediaId != playingMediaId }
     }
 
     private inline fun removeQueueItems(shouldRemove: (MediaItem) -> Boolean) {
@@ -4894,6 +4901,7 @@ class MusicService :
                 )
 
         playbackUrlCache.remove(mediaId)
+        invalidateAlternateStream(mediaId)
         extractorPlaybackUrlCache.remove(mediaId)
         YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
         if (!failedExpiredUrl && cachedExtractorFailedUrl == null && requestProfile.clientKey.isNotEmpty()) {
@@ -4996,6 +5004,7 @@ class MusicService :
                     mediaId,
                 )
                 playbackUrlCache.remove(mediaId)
+                invalidateAlternateStream(mediaId)
                 YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
                 if (playbackStreamRecoveryTracker.registerRetryAttempt(mediaId)) {
                     player.prepare()
@@ -5562,6 +5571,8 @@ class MusicService :
         consecutivePlaybackErr = 0
 
         playbackUrlCache.clear()
+        alternateUrlCache.clear()
+        alternateStreamMeta.clear()
         remotePlaybackTrackingUrlCache.clear()
         contentLengthCache.clear()
         directStreamCache.clear()
@@ -6612,6 +6623,45 @@ class MusicService :
             }
     }
 
+    /**
+     * Keeps the platform artwork (notification, lock screen, Android Auto, widget, Cast) of the
+     * playing music-video in line with the "Hide music videos" setting: the album cover while it is
+     * on, the video frame while it is off.
+     */
+    private fun refreshClipArtwork() {
+        val mediaItem = player.currentMediaItem ?: return
+        val metadata = mediaItem.metadata ?: return
+        if (!metadata.isMusicVideo) return
+        val mediaId = mediaItem.mediaId
+        val hide = hideMusicVideos
+        scope.launch(SilentHandler) {
+            val target =
+                if (hide) {
+                    val albumId = metadata.album?.id?.takeIf { it.isNotBlank() } ?: return@launch
+                    val cover =
+                        withContext(Dispatchers.IO) { database.album(albumId).first()?.album?.thumbnailUrl }
+                            ?.takeIf { it.isNotBlank() }
+                    cover.toNotificationArtworkUri() ?: return@launch
+                } else {
+                    buildYTThumbnailUrl(mediaId, YTThumbQuality.HQ).toUri()
+                }
+            val index =
+                (0 until player.mediaItemCount).firstOrNull { player.getMediaItemAt(it).mediaId == mediaId }
+                    ?: return@launch
+            val item = player.getMediaItemAt(index)
+            if (item.mediaMetadata.artworkUri == target) return@launch
+            runCatching {
+                player.replaceMediaItem(
+                    index,
+                    item
+                        .buildUpon()
+                        .setMediaMetadata(item.mediaMetadata.buildUpon().setArtworkUri(target).build())
+                        .build(),
+                )
+            }.onFailure { Timber.tag(TAG).w(it, "artwork: clip artwork refresh failed mediaId=%s", mediaId) }
+        }
+    }
+
     private fun commitResolvedArtwork(
         mediaId: String,
         resolved: ResolvedArtwork,
@@ -6663,6 +6713,8 @@ class MusicService :
     ) {
         super.onMediaItemTransition(mediaItem, reason)
         mediaItem?.metadata?.let { queuedMetadataByMediaId[mediaItem.mediaId] = it }
+        releaseStudioPins(mediaItem?.mediaId)
+        if (hideMusicVideos) refreshClipArtwork()
 
         crossfadeConsecutiveFailures = 0
         crossfadeFailureMediaId = null
@@ -7340,6 +7392,7 @@ class MusicService :
             )
 
             playbackUrlCache.remove(currentMediaId)
+            invalidateAlternateStream(currentMediaId)
             if (playbackStreamRecoveryTracker.registerRetryAttempt(currentMediaId)) {
                 player.prepare()
                 return
@@ -7402,6 +7455,7 @@ class MusicService :
             )
 
             playbackUrlCache.remove(currentMediaId)
+            invalidateAlternateStream(currentMediaId, purgeCachedBytes = true)
             contentLengthCache.remove(currentMediaId)
             YTPlayerUtils.invalidateCachedStreamUrls(currentMediaId)
 
@@ -7442,6 +7496,7 @@ class MusicService :
 
         if (!isLocalMedia && !isFullyDownloadedMedia && YTPlayerUtils.isBotDetectionException(error)) {
             playbackUrlCache.remove(currentMediaId)
+            invalidateAlternateStream(currentMediaId)
             YTPlayerUtils.invalidateCachedStreamUrls(currentMediaId)
             YTPlayerUtils.clearPlaybackAuthCaches()
             if (playbackStreamRecoveryTracker.registerRetryAttempt(currentMediaId)) {
@@ -7453,6 +7508,7 @@ class MusicService :
 
         if (!isLocalMedia && !isFullyDownloadedMedia && YTPlayerUtils.isBadStreamPlayerResponseException(error)) {
             playbackUrlCache.remove(currentMediaId)
+            invalidateAlternateStream(currentMediaId)
             YTPlayerUtils.invalidateCachedStreamUrls(currentMediaId)
             if (playbackStreamRecoveryTracker.registerRetryAttempt(currentMediaId)) {
                 scope.launch(Dispatchers.IO) {
@@ -7484,6 +7540,7 @@ class MusicService :
             val failedUrl =
                 playbackUrlCache[currentMediaId]?.url
             playbackUrlCache.remove(currentMediaId)
+            invalidateAlternateStream(currentMediaId)
             contentLengthCache.remove(currentMediaId)
 
             evictDirectStreamCache(currentMediaId)
@@ -7649,6 +7706,7 @@ class MusicService :
         ) {
             val shouldResume = player.playWhenReady
             playbackUrlCache.remove(currentMediaId)
+            invalidateAlternateStream(currentMediaId)
             evictDirectStreamCache(currentMediaId)
             contentLengthCache.remove(currentMediaId)
             YTPlayerUtils.invalidateCachedStreamUrls(currentMediaId)
@@ -7954,7 +8012,12 @@ class MusicService :
             val resolvedScheme = resolvedUri.scheme?.lowercase(Locale.US)
             if (resolvedScheme != "http" && resolvedScheme != "https") return@withContext false
 
-            fetchFullStreamIntoPlayerCache(resolvedUri.toString(), mediaId)
+            // Cache under the key playback will actually read (a studio upload has its own key).
+            val resolvedKey = resolved.key?.takeIf { it.isNotBlank() } ?: mediaId
+            if (resolvedKey != mediaId && !runCatching { playerCache.getCachedSpans(resolvedKey) }.getOrNull().isNullOrEmpty()) {
+                return@withContext true
+            }
+            fetchFullStreamIntoPlayerCache(resolvedUri.toString(), resolvedKey)
         }
 
     private suspend fun fetchFullStreamIntoPlayerCache(
@@ -8359,6 +8422,7 @@ class MusicService :
             sourceSwitchExpectedVolume = expectedVolume
 
             playbackUrlCache.remove(mediaId)
+            invalidateAlternateStream(mediaId)
             YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
             tidalActiveMediaIds.remove(mediaId)
 
@@ -8432,7 +8496,7 @@ class MusicService :
     /**
      * NORMAL: the regular lossless/alternate-source chain tried before YouTube.
      * STUDIO: a music video (clip) whose studio audio is wanted ("Hide music videos" on): the clip
-     *   length is not trusted for matching and JioSaavn (no account needed) is added to the chain.
+     *   length is not trusted for matching, only used as a plausibility bound.
      * RESCUE: YouTube refused the track (e.g. "Music Premium members only"); last chance through
      *   the no-account JioSaavn catalogue when it is not already part of the user's chain.
      */
@@ -8442,7 +8506,7 @@ class MusicService :
         val chain = sourceResolutionChain()
         return when (mode) {
             SourceResolveMode.NORMAL -> chain
-            SourceResolveMode.STUDIO -> (chain + AudioSourceType.JIOSAAVN).distinct()
+            SourceResolveMode.STUDIO -> chain
             SourceResolveMode.RESCUE -> listOf(AudioSourceType.JIOSAAVN).filterNot { it in chain }
         }
     }
@@ -8575,10 +8639,17 @@ class MusicService :
             return null
         }
 
+        var clipDurationMs: Long? = null
         val query =
             buildSourceQuery(mediaId)?.let { built ->
-                // A clip's length (intro, skits, outro) says nothing about the studio track's length.
-                if (mode == SourceResolveMode.STUDIO) built.copy(durationMs = null) else built
+                if (mode == SourceResolveMode.STUDIO) {
+                    // A clip's length (intro, skits, outro) says nothing about the studio track's exact
+                    // length, so it is not part of the match score; it only bounds what is plausible.
+                    clipDurationMs = built.durationMs
+                    built.copy(title = StudioAudioResolver.cleanTitle(built.title), durationMs = null)
+                } else {
+                    built
+                }
             }
         if (query == null) {
             Timber.tag("MusicService").w("Multi-source skip: could not build source query (missing metadata) for %s", mediaId)
@@ -8637,6 +8708,25 @@ class MusicService :
                     match.artist?.let { "%.1f%%".format(it * 100) } ?: "?",
                     match.duration?.let { "%.1f%%".format(it * 100) } ?: "?",
                     stream.matchedTitle ?: "?",
+                )
+                continue
+            }
+            if (mode == SourceResolveMode.STUDIO &&
+                (
+                    match.title < STUDIO_MIN_TITLE_SCORE ||
+                        !StudioAudioResolver.studioDurationPlausible(
+                            clipDurationMs,
+                            stream.matchedDurationMs?.let { (it / 1000L).toInt() },
+                        )
+                )
+            ) {
+                Timber.tag("MusicService").i(
+                    "Source %s skipped for studio version of \"%s\": title=%.1f%% matched=\"%s\" (%s ms)",
+                    source.name,
+                    query.title,
+                    match.title * 100,
+                    stream.matchedTitle ?: "?",
+                    stream.matchedDurationMs?.toString() ?: "?",
                 )
                 continue
             }
@@ -9515,6 +9605,47 @@ class MusicService :
 
     private val alternateUrlCache = ConcurrentHashMap<String, AuthScopedCacheValue>()
 
+    /** Which upload an [alternateUrlCache] entry belongs to, plus what chunking needs to know. */
+    private data class AlternateStreamMeta(
+        val candidateId: String,
+        val contentLength: Long?,
+        val mimeType: String?,
+    )
+
+    private val alternateStreamMeta = ConcurrentHashMap<String, AlternateStreamMeta>()
+
+    /**
+     * Media ids whose studio/clip choice is pinned while they play: a seek re-opens the stream, and
+     * switching to the other file mid-song would feed the extractor a different file's seek map.
+     */
+    private val studioVariantPins = ConcurrentHashMap<String, Boolean>()
+
+    /** Media ids that already streamed a studio version in this pin (see [studioVariantPins]). */
+    private val studioServedIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    private fun releaseStudioPins(keepMediaId: String?) {
+        studioVariantPins.keys.removeIf { it != keepMediaId }
+        studioServedIds.removeIf { it != keepMediaId }
+    }
+
+    /** Drops the studio/alternate stream URL of [mediaId] (it failed, expired or was purged). */
+    private fun invalidateAlternateStream(
+        mediaId: String,
+        purgeCachedBytes: Boolean = false,
+    ) {
+        alternateUrlCache.remove(mediaId)
+        val meta = alternateStreamMeta.remove(mediaId)
+        val candidateId = meta?.candidateId ?: StudioAudioResolver.cachedAlternate(mediaId)
+        if (candidateId != null) {
+            YTPlayerUtils.invalidateCachedStreamUrls(candidateId)
+            if (purgeCachedBytes) {
+                scope.launch(Dispatchers.IO) {
+                    runCatching { playerCache.removeResource("$ALTERNATE_UPLOAD_CACHE_KEY_PREFIX$candidateId") }
+                }
+            }
+        }
+    }
+
     /**
      * "Hide music videos" means the user wants songs, not clips: when YouTube Music hands us the
      * official clip (common in albums), play the studio recording instead when one can be found.
@@ -9524,6 +9655,15 @@ class MusicService :
             !mediaId.isTelegramMediaId() &&
             dataStore.get(HideVideoKey, false) &&
             isMusicVideoPlayback(mediaId)
+
+    /** True when every byte of [mediaId] is in the download cache (the offline copy is complete). */
+    private fun isFullyDownloaded(mediaId: String): Boolean =
+        runCatching {
+            DownloadSourceConfig.songIdToDownloadIds(mediaId).any { key ->
+                val length = downloadCache.getContentMetadata(key).get(ContentMetadata.KEY_CONTENT_LENGTH, -1L)
+                length > 0L && downloadCache.isCached(key, 0L, length)
+            }
+        }.getOrDefault(false)
 
     private fun hasActiveNetwork(): Boolean = runCatching { connectivityManager.activeNetwork != null }.getOrDefault(true)
 
@@ -9539,16 +9679,27 @@ class MusicService :
         studioOnly: Boolean,
         lowDataModeActive: Boolean,
     ): DataSpec? {
-        val cacheKey = "$ALTERNATE_UPLOAD_CACHE_KEY_PREFIX$mediaId"
         val authFingerprint = YouTube.currentPlaybackAuthState().fingerprint
+        val knownMeta = alternateStreamMeta[mediaId]
         alternateUrlCache[mediaId]
+            ?.takeIf { knownMeta != null }
             ?.takeIf { it.isValidFor(authFingerprint = authFingerprint, minimumRemainingMs = YTPlayerUtils.STREAM_URL_EXPIRY_SAFETY_MS) }
             ?.let { cached ->
-                return dataSpec
-                    .buildUpon()
-                    .setUri(cached.url.toUri())
-                    .setKey(cacheKey)
-                    .build()
+                val hit =
+                    dataSpec
+                        .buildUpon()
+                        .setUri(cached.url.toUri())
+                        .setKey("$ALTERNATE_UPLOAD_CACHE_KEY_PREFIX${knownMeta!!.candidateId}")
+                        .build()
+                val hitLength =
+                    resolveStreamChunkLength(
+                        requestedLength = dataSpec.length,
+                        position = dataSpec.position,
+                        knownContentLength = knownMeta.contentLength,
+                        chunkLength = CHUNK_LENGTH,
+                        mimeType = knownMeta.mimeType,
+                    )
+                return hitLength?.let { hit.subrange(0L, it) } ?: hit
             }
         if (StudioAudioResolver.isKnownUnavailable(mediaId, studioOnly)) return null
         if (!hasActiveNetwork()) return null
@@ -9559,25 +9710,33 @@ class MusicService :
                 mediaId = mediaId,
                 title = query.title,
                 artists = query.artists,
-                durationMs = if (studioOnly) null else query.durationMs,
+                durationMs = query.durationMs,
                 studioOnly = studioOnly,
+                hideExplicit = dataStore.get(HideExplicitKey, false),
             )
         val found =
-            runCatching { runBlocking(Dispatchers.IO) { StudioAudioResolver.findCandidates(request) } }
-                .getOrNull()
+            runCatching {
+                runBlocking(Dispatchers.IO) {
+                    withTimeout(ALTERNATE_SEARCH_TIMEOUT_MS) { StudioAudioResolver.findCandidates(request) }
+                }
+            }.getOrNull()
+        val lookupStartedAt = android.os.SystemClock.elapsedRealtime()
         val candidates = (listOfNotNull(StudioAudioResolver.cachedAlternate(mediaId)) + found.orEmpty()).distinct()
         for (candidateId in candidates) {
+            if (android.os.SystemClock.elapsedRealtime() - lookupStartedAt > ALTERNATE_TOTAL_TIMEOUT_MS) break
             val playback =
                 runCatching {
                     runBlocking(Dispatchers.IO) {
-                        retryWithoutPlaybackLoginContext {
-                            YTPlayerUtils.playerResponseForPlayback(
-                                candidateId,
-                                audioQuality = if (lowDataModeActive) AudioQuality.LOW else audioQuality,
-                                connectivityManager = connectivityManager,
-                                preferredStreamClient = preferredStreamClient,
-                                networkMetered = lowDataModeActive,
-                            )
+                        withTimeout(ALTERNATE_CANDIDATE_TIMEOUT_MS) {
+                            retryWithoutPlaybackLoginContext {
+                                YTPlayerUtils.playerResponseForPlayback(
+                                    candidateId,
+                                    audioQuality = if (lowDataModeActive) AudioQuality.LOW else audioQuality,
+                                    connectivityManager = connectivityManager,
+                                    preferredStreamClient = preferredStreamClient,
+                                    networkMetered = lowDataModeActive,
+                                )
+                            }
                         }
                     }
                 }.getOrNull()?.getOrNull()
@@ -9606,8 +9765,15 @@ class MusicService :
                     perceptualLoudnessDb = playback.audioConfig?.perceptualLoudnessDb,
                     playbackUrl = null,
                 )
-            audioNormalizationFactorCache[mediaId] =
+            val alternateNormalizationFactor =
                 calculateAudioNormalizationFactor(normalizationEntity, normalizeAudio = true, replayGainMode = replayGainMode)
+            audioNormalizationFactorCache[mediaId] = alternateNormalizationFactor
+            scope.launch(SilentHandler) {
+                if (currentMediaMetadata.value?.id == mediaId && dataStore.get(AudioNormalizationKey, true)) {
+                    normalizeFactor.value = alternateNormalizationFactor
+                }
+            }
+            alternateStreamMeta[mediaId] = AlternateStreamMeta(candidateId, format.contentLength, format.mimeType)
             alternateUrlCache[mediaId] =
                 AuthScopedCacheValue(
                     url = playback.streamUrl,
@@ -9632,7 +9798,7 @@ class MusicService :
                 dataSpec
                     .buildUpon()
                     .setUri(playback.streamUrl.toUri())
-                    .setKey(cacheKey)
+                    .setKey("$ALTERNATE_UPLOAD_CACHE_KEY_PREFIX$candidateId")
                     .build()
             val length =
                 resolveStreamChunkLength(
@@ -9645,7 +9811,7 @@ class MusicService :
             return length?.let { resolved.subrange(0L, it) } ?: resolved
         }
         StudioAudioResolver.forgetAlternate(mediaId)
-        StudioAudioResolver.markNoAlternate(mediaId, studioOnly, definite = found != null)
+        StudioAudioResolver.markNoAlternate(mediaId, studioOnly, definite = found?.isEmpty() == true)
         return null
     }
 
@@ -9680,13 +9846,23 @@ class MusicService :
 
         // Studio version instead of a clip ("Hide music videos"): lossless/JioSaavn sources first,
         // then the studio upload on YouTube; the clip itself stays the fallback.
-        if (!lowDataModeActive && prefersStudioAudio(mediaId) && !StudioAudioResolver.isKnownUnavailable(mediaId, studioOnly = true)) {
+        val wantStudio = !lowDataModeActive && studioVariantPins.getOrPut(mediaId) { prefersStudioAudio(mediaId) }
+        val fullyDownloaded = wantStudio && isFullyDownloaded(mediaId)
+        if (wantStudio && !fullyDownloaded) {
+            // The YouTube lookup keeps its own negative cache; a miss there must not disable the
+            // lossless sources.
             val studioSpec =
                 resolveMultiSourceDataSpec(dataSpec, mediaId, lowDataModeActive, mode = SourceResolveMode.STUDIO)
                     ?: resolveYouTubeAlternateDataSpec(dataSpec, mediaId, studioOnly = true, lowDataModeActive = lowDataModeActive)
             if (studioSpec != null) {
+                studioServedIds.add(mediaId)
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return studioSpec
+            }
+            if (dataSpec.position > 0L && mediaId in studioServedIds) {
+                // A seek re-opens the stream: switching to the clip file now would feed the player a
+                // different file with the studio file's seek map. Let ExoPlayer retry instead.
+                throw IOException("Studio stream temporarily unavailable for $mediaId")
             }
             Timber.tag("MusicService").i("No studio version found for clip %s; playing the clip audio", mediaId)
         }
@@ -11822,6 +11998,10 @@ class MusicService :
 
         private const val TIDAL_CACHE_KEY_PREFIX = "tidal:"
         private const val ALTERNATE_UPLOAD_CACHE_KEY_PREFIX = "ytalt:"
+        private const val ALTERNATE_SEARCH_TIMEOUT_MS = 8_000L
+        private const val STUDIO_MIN_TITLE_SCORE = 0.92
+        private const val ALTERNATE_CANDIDATE_TIMEOUT_MS = 10_000L
+        private const val ALTERNATE_TOTAL_TIMEOUT_MS = 15_000L
 
         private const val APPLE_LICENSE_URL =
             "https://play.itunes.apple.com/WebObjects/MZPlay.woa/wa/acquireWebPlaybackLicense"

@@ -89,6 +89,7 @@ import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import moe.rukamori.archivetune.LocalDatabase
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.canvas.models.CanvasArtwork
@@ -99,6 +100,7 @@ import moe.rukamori.archivetune.constants.CropThumbnailToSquareKey
 import moe.rukamori.archivetune.constants.DisableBlurKey
 import moe.rukamori.archivetune.constants.EnableHapticFeedbackKey
 import moe.rukamori.archivetune.constants.HidePlayerThumbnailKey
+import moe.rukamori.archivetune.constants.HideVideoKey
 import moe.rukamori.archivetune.constants.MaxCanvasCacheSizeKey
 import moe.rukamori.archivetune.constants.PlayerBackgroundStyle
 import moe.rukamori.archivetune.constants.PlayerBackgroundStyleKey
@@ -419,6 +421,21 @@ fun Thumbnail(
                         var skipMultiplier by remember { mutableStateOf(1) }
                         var lastTapTime by remember { mutableLongStateOf(0L) }
                         val itemMetadata = remember(item) { item.metadata }
+                        val database = LocalDatabase.current
+                        val hideMusicVideos by rememberPreference(HideVideoKey, defaultValue = false)
+                        // With "Hide music videos" on, a clip is shown like a normal song: album
+                        // cover, no video-frame swap, canvas allowed.
+                        val itemIsClip = itemMetadata?.isMusicVideo == true && !hideMusicVideos
+                        val clipAlbumId = itemMetadata?.album?.id
+                        val clipAlbumCover by produceState<String?>(null, clipAlbumId, hideMusicVideos, itemMetadata?.isMusicVideo) {
+                            value = null
+                            if (!hideMusicVideos || itemMetadata?.isMusicVideo != true || clipAlbumId.isNullOrBlank()) return@produceState
+                            runCatching {
+                                database.album(clipAlbumId).collect { album ->
+                                    value = album?.album?.thumbnailUrl?.takeIf { it.isNotBlank() }
+                                }
+                            }
+                        }
                         val storefront =
                             remember {
                                 val country = Locale.getDefault().country
@@ -429,7 +446,7 @@ fun Thumbnail(
                                 playerDesignStyle != PlayerDesignStyle.V7 &&
                                 item.mediaId.isNotBlank() &&
                                 item.mediaId == currentMediaItem?.mediaId &&
-                                item.metadata?.isMusicVideo != true
+                                !itemIsClip
                         val shouldFetchCanvas = shouldUseCanvas && !lowDataModeActive
                         var canvasArtwork by remember(item.mediaId) { mutableStateOf<CanvasArtwork?>(null) }
                         var canvasFetchInFlight by remember(item.mediaId) { mutableStateOf(false) }
@@ -571,7 +588,7 @@ fun Thumbnail(
                                             playerDesignStyle != PlayerDesignStyle.V7
 
                                     val baseArtworkUrl =
-                                        item.metadata?.thumbnailUrl?.highRes()
+                                        (clipAlbumCover ?: item.metadata?.thumbnailUrl)?.highRes()
                                             ?: item.mediaMetadata.artworkUri?.toString()
 
                                     val thumbnailSwapState =
@@ -579,7 +596,7 @@ fun Thumbnail(
                                             videoId = item.metadata?.id,
                                             ytmUrl = baseArtworkUrl,
                                             lowDataMode = lowDataModeActive,
-                                            isMusicVideo = item.metadata?.isMusicVideo ?: false,
+                                            isMusicVideo = itemIsClip,
                                         )
 
                                     val displayUrl = thumbnailSwapState.displayUrl
@@ -624,7 +641,7 @@ fun Thumbnail(
 
                                     val isCurrentMusicVideo =
                                         LocalVideoArtworkState.current != null &&
-                                            item.metadata?.isMusicVideo == true &&
+                                            itemIsClip &&
                                             item.mediaId == currentMediaItem?.mediaId &&
                                             !item.mediaId.isLocalMediaId()
 

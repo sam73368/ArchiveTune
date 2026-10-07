@@ -7,14 +7,13 @@
 
 package moe.rukamori.archivetune.playback
 
-import moe.rukamori.archivetune.audiosource.TrackMatching
+import moe.rukamori.archivetune.audiosource.TitleMatch
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import moe.rukamori.archivetune.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_OMV
 import moe.rukamori.archivetune.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_UGC
 import timber.log.Timber
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 
@@ -49,6 +48,8 @@ object StudioAudioResolver {
         val durationMs: Long?,
         /** true: only studio "song" uploads (ATV) are acceptable — used to replace a clip. */
         val studioOnly: Boolean,
+        /** "Hide explicit" is on: never swap in an explicit upload. */
+        val hideExplicit: Boolean = false,
     )
 
     private val negativeCache = ConcurrentHashMap<String, Long>()
@@ -117,15 +118,27 @@ object StudioAudioResolver {
                 ?.filterIsInstance<SongItem>()
                 ?: return null
 
+        val wantedKey = comparable(wantedTitle)
         val studioMatches =
             songs
                 .asSequence()
                 .filter { it.id != request.mediaId && it.musicVideoType() == MUSIC_VIDEO_TYPE_ATV }
-                .filter { matchesTitle(wantedTitle, it.title) && matchesArtist(request.artists, it) }
+                .filter { !request.hideExplicit || !it.explicit }
+                .filter { matchesArtist(request.artists, it) }
+                // Replacing a clip must be the very same title ("Love" is not "Love Me Like You Do");
+                // the looser match is only for the Premium-only rescue.
+                .filter { if (request.studioOnly) comparable(it.title) == wantedKey else matchesTitle(wantedTitle, it.title) }
                 .filterNot { looksLikeAlteredVersion(wantedTitle, it.title) }
-                .filter { request.studioOnly || durationClose(request.durationMs, it.duration, SAME_RECORDING_TOLERANCE_MS) }
-                .sortedBy { durationDistance(request.durationMs, it.duration) }
-                .map { it.id }
+                .filter {
+                    if (request.studioOnly) {
+                        studioDurationPlausible(request.durationMs, it.duration)
+                    } else {
+                        durationClose(request.durationMs, it.duration, SAME_RECORDING_TOLERANCE_MS)
+                    }
+                }.sortedWith(
+                    compareBy<SongItem> { if (comparable(it.title) == wantedKey) 0 else 1 }
+                        .thenBy { durationDistance(request.durationMs, it.duration) },
+                ).map { it.id }
                 .toList()
 
         if (request.studioOnly) {
@@ -199,7 +212,7 @@ object StudioAudioResolver {
     /** Strips "(Clip officiel)", "[Official Video]", "(Audio)", "(Paroles)"… */
     internal fun cleanTitle(title: String): String = title.replace(decorationRegex, "").replace(Regex("\\s+"), " ").trim()
 
-    private fun comparable(value: String): String = TrackMatching.normalizeTitle(cleanTitle(value))
+    private fun comparable(value: String): String = TitleMatch.normalize(cleanTitle(value))
 
     internal fun matchesTitle(
         wanted: String,
@@ -217,16 +230,21 @@ object StudioAudioResolver {
         return remainder.split(' ').count { it.length > 1 } <= 4
     }
 
-    private val alteredVersionTokens =
-        listOf("remix", "live", "acoustic", "acoustique", "cover", "karaoke", "instrumental", "nightcore", "sped up", "slowed", "reverb", "8d", "chipmunk", "parodie", "parody", "reaction")
+    private val alteredVersionPatterns =
+        listOf(
+            "remix", "live", "acoustic", "acoustique", "cover", "karaoke", "instrumental", "nightcore",
+            "sped up", "speed up", "slowed", "reverb", "8d", "chipmunk", "parodie", "parody", "reaction",
+            "piano", "unplugged", "acapella", "a cappella", "extended", "club mix", "mix", "edit",
+            "stripped", "orchestral", "lofi", "lo-fi", "tribute", "bootleg",
+        ).map { token -> token to Regex("(?<![\\p{L}\\p{N}])${Regex.escape(token)}(?![\\p{L}\\p{N}])", RegexOption.IGNORE_CASE) }
 
     private fun looksLikeAlteredVersion(
         wanted: String,
         candidate: String,
     ): Boolean {
-        val wantedLower = wanted.lowercase(Locale.ROOT)
-        val candidateLower = candidate.lowercase(Locale.ROOT)
-        return alteredVersionTokens.any { token -> token in candidateLower && token !in wantedLower }
+        return alteredVersionPatterns.any { (_, pattern) ->
+            pattern.containsMatchIn(candidate) && !pattern.containsMatchIn(wanted)
+        }
     }
 
     private fun matchesArtist(
@@ -234,8 +252,8 @@ object StudioAudioResolver {
         item: SongItem,
     ): Boolean {
         if (artists.isEmpty()) return false
-        val wanted = artists.map { TrackMatching.normalize(it) }.filter { it.isNotBlank() }
-        val candidate = item.artists.map { TrackMatching.normalize(it.name.replace(" - Topic", "")) }
+        val wanted = artists.map { TitleMatch.normalize(it) }.filter { it.isNotBlank() }
+        val candidate = item.artists.map { TitleMatch.normalize(it.name.replace(" - Topic", "")) }
         return wanted.any { w -> candidate.any { c -> c == w || (w.length >= 4 && c.length >= 4 && (w in c || c in w)) } }
     }
 
@@ -243,9 +261,9 @@ object StudioAudioResolver {
         artists: List<String>,
         title: String,
     ): Boolean {
-        val normalizedTitle = " ${TrackMatching.normalize(title)} "
+        val normalizedTitle = " ${TitleMatch.normalize(title)} "
         return artists
-            .map { TrackMatching.normalize(it) }
+            .map { TitleMatch.normalize(it) }
             .filter { it.length >= 3 }
             .any { artist ->
                 " $artist " in normalizedTitle ||
@@ -261,6 +279,19 @@ object StudioAudioResolver {
     ): Boolean {
         if (wantedMs == null || wantedMs <= 0 || candidateSeconds == null || candidateSeconds <= 0) return false
         return abs(wantedMs - candidateSeconds * 1000L) <= toleranceMs
+    }
+
+    /**
+     * A studio cut can be shorter than the clip (no skit/intro) but never wildly different; unknown
+     * lengths are given the benefit of the doubt.
+     */
+    internal fun studioDurationPlausible(
+        clipMs: Long?,
+        candidateSeconds: Int?,
+    ): Boolean {
+        if (clipMs == null || clipMs <= 0 || candidateSeconds == null || candidateSeconds <= 0) return true
+        val candidateMs = candidateSeconds * 1000L
+        return candidateMs in (clipMs * 0.5).toLong()..(clipMs * 1.2).toLong()
     }
 
     private fun durationDistance(
