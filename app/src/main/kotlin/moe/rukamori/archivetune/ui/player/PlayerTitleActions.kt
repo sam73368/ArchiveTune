@@ -11,7 +11,25 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import moe.rukamori.archivetune.R
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -83,6 +101,46 @@ fun rememberPlayerTitleActions(
                 )
                 Toast.makeText(context, "Copied Artist", Toast.LENGTH_SHORT).show()
             },
+        )
+    }
+}
+
+/**
+ * Small tappable album line for the player header: shows the current album and opens its page
+ * (with every track) on tap. Renders nothing when the item has no known album.
+ */
+@Composable
+fun PlayerAlbumLink(
+    mediaMetadata: MediaMetadata,
+    onAlbumClick: () -> Unit,
+    color: Color,
+    modifier: Modifier = Modifier,
+    centered: Boolean = false,
+) {
+    val album = mediaMetadata.album ?: return
+    if (album.id.isBlank() || album.title.isBlank()) return
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp, if (centered) Alignment.CenterHorizontally else Alignment.Start),
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onAlbumClick)
+                .padding(vertical = 2.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.album),
+            contentDescription = stringResource(R.string.album_name),
+            tint = color,
+            modifier = Modifier.size(14.dp),
+        )
+        Text(
+            text = album.title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
         )
     }
 }

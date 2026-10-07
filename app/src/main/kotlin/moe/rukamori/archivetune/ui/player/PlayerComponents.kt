@@ -340,6 +340,12 @@ fun PlayerTitleSection(
                 fadeWidth = PlayerFadeConfig.forStyle(playerDesignStyle).fadeWidth,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            PlayerAlbumLink(
+                mediaMetadata = mediaMetadata,
+                onAlbumClick = actions.onAlbumClick,
+                color = textBackgroundColor.copy(alpha = 0.6f),
+            )
         }
     }
 }
@@ -1349,6 +1355,7 @@ fun V8PlayerControlsContent(
             }
 
             V8MetadataActions(
+                mediaMetadata = mediaMetadata,
                 title = mediaMetadata.title,
                 explicit = mediaMetadata.explicit,
                 artists = mediaMetadata.artists,
@@ -1357,6 +1364,7 @@ fun V8PlayerControlsContent(
                 onToggleLike = onToggleLike,
                 onMoreClick = onMoreClick,
                 onTitleClick = onTitleClick,
+                onAlbumClick = titleActions.onAlbumClick,
                 onArtistClick = onArtistClick,
             )
 
@@ -1402,6 +1410,7 @@ fun V8PlayerControlsContent(
 
 @Composable
 private fun V8MetadataActions(
+    mediaMetadata: MediaMetadata,
     title: String,
     explicit: Boolean,
     artists: List<MediaMetadata.Artist>,
@@ -1410,6 +1419,7 @@ private fun V8MetadataActions(
     onToggleLike: () -> Unit,
     onMoreClick: () -> Unit,
     onTitleClick: () -> Unit,
+    onAlbumClick: () -> Unit,
     onArtistClick: (artistId: String) -> Unit,
 ) {
     Row(
@@ -1449,6 +1459,11 @@ private fun V8MetadataActions(
                         Modifier
                             .fillMaxWidth()
                             .basicMarquee(),
+                )
+                PlayerAlbumLink(
+                    mediaMetadata = mediaMetadata,
+                    onAlbumClick = onAlbumClick,
+                    color = foreground.copy(alpha = 0.6f),
                 )
             }
         }
@@ -1923,6 +1938,7 @@ fun V9PlayerContent(
             lyricsSyncOffset = lyricsSyncOffset,
             onLyricsSyncOffsetChange = onLyricsSyncOffsetChange,
             onTitleClick = onTitleClick,
+            onAlbumClick = titleActions.onAlbumClick,
             onArtistClick = onArtistClick,
             onPreviousClick = playerConnection::seekToPrevious,
             onPlayPauseClick = onPlayPauseClick,
@@ -1965,6 +1981,7 @@ fun V9PlayerContent(
             lyricsSyncOffset = lyricsSyncOffset,
             onLyricsSyncOffsetChange = onLyricsSyncOffsetChange,
             onTitleClick = onTitleClick,
+            onAlbumClick = titleActions.onAlbumClick,
             onArtistClick = onArtistClick,
             onPreviousClick = playerConnection::seekToPrevious,
             onPlayPauseClick = onPlayPauseClick,
@@ -2013,6 +2030,7 @@ private fun V9PortraitContent(
     onSliderValueChange: (Long) -> Unit,
     onSliderValueChangeFinished: () -> Unit,
     onTitleClick: () -> Unit,
+    onAlbumClick: () -> Unit,
     onArtistClick: (artistId: String) -> Unit,
     liked: Boolean,
     onToggleLike: () -> Unit,
@@ -2114,6 +2132,11 @@ private fun V9PortraitContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .basicMarquee(),
+                    )
+                    PlayerAlbumLink(
+                        mediaMetadata = mediaMetadata,
+                        onAlbumClick = onAlbumClick,
+                        color = textBackgroundColor.copy(alpha = 0.55f),
                     )
                 }
 
@@ -2245,6 +2268,7 @@ private fun V9LandscapeContent(
     onSliderValueChange: (Long) -> Unit,
     onSliderValueChangeFinished: () -> Unit,
     onTitleClick: () -> Unit,
+    onAlbumClick: () -> Unit,
     onArtistClick: (artistId: String) -> Unit,
     shuffleModeEnabled: Boolean,
     repeatMode: Int,
@@ -2311,6 +2335,8 @@ private fun V9LandscapeContent(
                 Spacer(Modifier.height(14.dp))
 
                 V9Metadata(
+                    mediaMetadata = mediaMetadata,
+                    onAlbumClick = onAlbumClick,
                     title = title,
                     explicit = explicit,
                     artists = artists,
@@ -2503,6 +2529,8 @@ private fun V9Artwork(
 
 @Composable
 private fun V9Metadata(
+    mediaMetadata: MediaMetadata,
+    onAlbumClick: () -> Unit,
     title: String,
     explicit: Boolean,
     artists: List<MediaMetadata.Artist>,
@@ -2542,6 +2570,12 @@ private fun V9Metadata(
                 Modifier
                     .fillMaxWidth()
                     .basicMarquee(),
+        )
+        PlayerAlbumLink(
+            mediaMetadata = mediaMetadata,
+            onAlbumClick = onAlbumClick,
+            color = textColor.copy(alpha = 0.55f),
+            centered = true,
         )
     }
 }
