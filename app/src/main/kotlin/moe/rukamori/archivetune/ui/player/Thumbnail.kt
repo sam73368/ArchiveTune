@@ -731,7 +731,7 @@ private fun ThumbnailBgBlurApi30(
                             .diskCachePolicy(CachePolicy.ENABLED)
                             .networkCachePolicy(CachePolicy.ENABLED)
                             .allowHardware(false)
-                            .size(500)
+                            .size(128)
                             .build()
                     val result = imageLoader.execute(request)
                     when (result) {

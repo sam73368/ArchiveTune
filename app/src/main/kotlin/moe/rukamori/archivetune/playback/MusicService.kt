@@ -126,6 +126,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -6816,12 +6818,7 @@ class MusicService :
             scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
         }
 
-        scope.launch(SilentHandler) {
-            val shouldSave = withContext(Dispatchers.IO) { dataStore.get(PersistentQueueKey, true) }
-            if (shouldSave) {
-                saveQueueToDisk()
-            }
-        }
+        requestQueueSave()
         ensurePresenceManager()
         if (!isCrossfading) {
             scheduleCrossfade()
@@ -6865,7 +6862,15 @@ class MusicService :
 
         if (mediaId.isLocalMediaId() || mediaId.isTelegramMediaId()) return
 
-        if (playbackUrlCache[mediaId] != null) return
+        // An expired URL (long pause, repeat) is not worth keeping: refresh it ahead of time.
+        val prefetchAuthFingerprint = YouTube.currentPlaybackAuthState().fingerprint
+        if (playbackUrlCache[mediaId]?.isValidFor(
+                authFingerprint = prefetchAuthFingerprint,
+                minimumRemainingMs = YTPlayerUtils.STREAM_URL_EXPIRY_SAFETY_MS,
+            ) == true
+        ) {
+            return
+        }
         if (hasFreshDirectStream(mediaId)) return
 
         if (isLowDataModeActive()) return
@@ -6980,12 +6985,7 @@ class MusicService :
         widgetUpdater.update()
         widgetUpdater.updateProgressTracking()
 
-        scope.launch(SilentHandler) {
-            val shouldSave = withContext(Dispatchers.IO) { dataStore.get(PersistentQueueKey, true) }
-            if (shouldSave) {
-                saveQueueToDisk()
-            }
-        }
+        requestQueueSave()
     }
 
     override fun onPlayWhenReadyChanged(
@@ -7273,11 +7273,7 @@ class MusicService :
         }
 
         if (events.contains(Player.EVENT_PLAY_WHEN_READY_CHANGED) && player.mediaItemCount > 0) {
-            scope.launch(SilentHandler) {
-                if (withContext(Dispatchers.IO) { dataStore.get(PersistentQueueKey, true) }) {
-                    saveQueueToDisk()
-                }
-            }
+            requestQueueSave()
         }
     }
 
@@ -7317,11 +7313,7 @@ class MusicService :
             applyCurrentFirstShuffleOrder()
         }
 
-        scope.launch {
-            if (dataStore.get(PersistentQueueKey, true)) {
-                saveQueueToDisk()
-            }
-        }
+        requestQueueSave()
         if (!isCrossfading) {
             scheduleCrossfade()
         }
@@ -7335,11 +7327,7 @@ class MusicService :
             }
         }
 
-        scope.launch {
-            if (dataStore.get(PersistentQueueKey, true)) {
-                saveQueueToDisk()
-            }
-        }
+        requestQueueSave()
         if (!isCrossfading) {
             scheduleCrossfade()
         }
@@ -7969,7 +7957,9 @@ class MusicService :
         if (preloadCount <= 0) return
         val currentIndex = player.currentMediaItemIndex
         if (currentIndex < 0) return
-        val upcoming = player.mediaItems.drop(currentIndex + 1).take(preloadCount)
+        val upcoming =
+            (currentIndex + 1 until minOf(player.mediaItemCount, currentIndex + 1 + preloadCount))
+                .map { player.getMediaItemAt(it) }
         if (upcoming.isEmpty()) return
         songPreloadJob =
             ioScope.launch(SilentHandler) {
@@ -8032,8 +8022,13 @@ class MusicService :
                     .header("Accept-Encoding", "identity")
                     .header("Connection", "keep-alive")
                     .build()
-            runCatching {
-                mediaOkHttpClient.newCall(request).execute().use { response ->
+            // A skipped track's preload must stop pulling bytes: they compete with the new current track.
+            val call = mediaOkHttpClient.newCall(request)
+            val cancelOnCompletion =
+                currentCoroutineContext().job.invokeOnCompletion { cause -> if (cause != null) call.cancel() }
+            try {
+                runCatching {
+                call.execute().use { response ->
                     if (!response.isSuccessful) return@runCatching false
                     val contentLength = response.header("Content-Length")?.toLongOrNull() ?: -1L
                     val dataSpec =
@@ -8057,6 +8052,7 @@ class MusicService :
                         cacheSink.open(dataSpec)
                         response.body?.byteStream()?.use { input ->
                             while (true) {
+                                currentCoroutineContext().ensureActive()
                                 val read = input.read(buffer)
                                 if (read < 0) break
                                 cacheSink.write(buffer, 0, read)
@@ -8080,7 +8076,10 @@ class MusicService :
                     }
                     playerCache.getCachedSpans(cacheKey).isNotEmpty()
                 }
-            }.getOrDefault(false)
+                }.getOrDefault(false)
+            } finally {
+                cancelOnCompletion.dispose()
+            }
         }
 
     private fun resolveMediaItemForCast(mediaItem: MediaItem): MediaItem {
@@ -11724,6 +11723,24 @@ class MusicService :
         }
     }
 
+    private var queueSaveJob: Job? = null
+
+    /**
+     * Saving serialises the whole queue, and these listeners fire several times per track change
+     * (transition, buffering flips, play/pause, shuffle, repeat): coalesce them. onDestroy and
+     * onTaskRemoved still save immediately.
+     */
+    private fun requestQueueSave() {
+        queueSaveJob?.cancel()
+        queueSaveJob =
+            scope.launch(SilentHandler) {
+                delay(QUEUE_SAVE_DEBOUNCE_MS)
+                if (withContext(Dispatchers.IO) { dataStore.get(PersistentQueueKey, true) }) {
+                    saveQueueToDisk()
+                }
+            }
+    }
+
     private suspend fun saveQueueToDisk() {
         val saveGeneration = persistentSaveGeneration.get()
         val snapshot =
@@ -12000,6 +12017,7 @@ class MusicService :
         private const val ALTERNATE_UPLOAD_CACHE_KEY_PREFIX = "ytalt:"
         private const val ALTERNATE_SEARCH_TIMEOUT_MS = 8_000L
         private const val STUDIO_MIN_TITLE_SCORE = 0.92
+        private const val QUEUE_SAVE_DEBOUNCE_MS = 2_000L
         private const val ALTERNATE_CANDIDATE_TIMEOUT_MS = 10_000L
         private const val ALTERNATE_TOTAL_TIMEOUT_MS = 15_000L
 
