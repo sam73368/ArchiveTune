@@ -9,10 +9,13 @@
 
 package moe.rukamori.archivetune.ui.screens.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -68,6 +71,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,6 +80,7 @@ import androidx.navigation.NavController
 import androidx.hilt.navigation.compose.hiltViewModel
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.constants.AppBarHeight
 import moe.rukamori.archivetune.constants.DefaultSearchSourceKey
 import moe.rukamori.archivetune.constants.DisableBlurKey
 import moe.rukamori.archivetune.constants.SearchProvider
@@ -103,7 +108,7 @@ fun SearchScreen(
     headerScrollConnection: NestedScrollConnection? = null,
     historyViewModel: SearchHistoryViewModel = hiltViewModel(),
 ) {
-    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var searchQuery by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
     var searchProvider by rememberEnumPreference(DefaultSearchSourceKey, SearchProvider.YOUTUBE)
 
     val onSearchSourceSelection: (SearchSource, SearchProvider) -> Unit = { _, provider ->
@@ -124,6 +129,10 @@ fun SearchScreen(
             attempt++
         }
         keyboardController?.show()
+    }
+
+    BackHandler(enabled = searchQuery.text.isNotEmpty()) {
+        searchQuery = TextFieldValue()
     }
 
     val barState = rememberSearchResultsBarState()
@@ -170,7 +179,7 @@ fun SearchScreen(
                 // Live results: as soon as something is typed, suggestions and top matches update
                 // while typing (debounced in OnlineSearchSuggestionViewModel); Enter still opens
                 // the full results page.
-                val showLiveResults = searchQuery.isNotBlank()
+                val showLiveResults = searchQuery.text.isNotBlank()
                 Column(
                     modifier =
                         Modifier
@@ -189,14 +198,17 @@ fun SearchScreen(
                                     .fillMaxWidth(),
                         ) {
                             OnlineSearchScreen(
-                                query = searchQuery,
-                                onQueryChange = { searchQuery = it.text },
+                                query = searchQuery.text,
+                                onQueryChange = { searchQuery = it },
                                 navController = navController,
                                 onSearch = onSearchQuery,
                                 onDismiss = { keyboardController?.hide() },
                                 pureBlack = false,
                                 searchProvider = searchProvider,
                                 transparentBackground = true,
+                                topContentPadding =
+                                    WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding() +
+                                        AppBarHeight + 8.dp,
                             )
                         }
                     } else {
@@ -327,8 +339,8 @@ private fun RecentSearchesPanel(
 @Composable
 private fun SearchTabBottomChrome(
     barState: SearchResultsBarState,
-    query: String,
-    onQueryChange: (String) -> Unit,
+    query: TextFieldValue,
+    onQueryChange: (TextFieldValue) -> Unit,
     onSearch: (String) -> Unit,
     onVoiceSearch: () -> Unit,
     onBack: () -> Unit,
@@ -423,8 +435,8 @@ private fun SearchTabBottomChrome(
                 keyboardActions =
                     KeyboardActions(
                         onSearch = {
-                            if (query.isNotEmpty()) {
-                                onSearch(query)
+                            if (query.text.isNotEmpty()) {
+                                onSearch(query.text)
                                 keyboardController?.hide()
                             }
                         },
@@ -439,7 +451,7 @@ private fun SearchTabBottomChrome(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.CenterStart,
                     ) {
-                        if (query.isEmpty()) {
+                        if (query.text.isEmpty()) {
                             Text(
                                 text =
                                     stringResource(

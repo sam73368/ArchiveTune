@@ -543,6 +543,11 @@ fun LyricsV2(
         selectedIndices.clear()
     }
 
+    LaunchedEffect(mediaMetadata?.id, lyrics) {
+        isSelectionModeActive = false
+        selectedIndices.clear()
+    }
+
     LaunchedEffect(showMaxSelectionToast) {
         if (showMaxSelectionToast) {
             Toast

@@ -53,7 +53,13 @@ fun rememberPlayerTitleActions(
                 ?.takeIf { it.id.isNotBlank() }
                 ?.let { album ->
                     state.collapseSoft()
-                    navController.navigate("album/${album.id}") { launchSingleTop = true }
+                    val currentEntry = navController.currentBackStackEntry
+                    val isSameAlbum =
+                        currentEntry?.destination?.route == "album/{albumId}" &&
+                            currentEntry?.arguments?.getString("albumId") == album.id
+                    if (!isSameAlbum) {
+                        navController.navigate("album/${album.id}")
+                    }
                 }
         }
         PlayerTitleActions(

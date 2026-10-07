@@ -171,6 +171,9 @@ class YearInMusicViewModel
 
         init {
             viewModelScope.launch {
+                // Each update re-emits the list, and artists whose page has no thumbnail stay null,
+                // so only try each artist once per ViewModel to avoid an endless refetch loop.
+                val refreshAttemptedArtistIds = HashSet<String>()
                 topArtists.collect { artists ->
                     artists
                         .map { it.artist }
@@ -179,7 +182,8 @@ class YearInMusicViewModel
                                 it.lastUpdateTime,
                                 LocalDateTime.now(),
                             ) > Duration.ofDays(10)
-                        }.forEach { artist ->
+                        }.filter { refreshAttemptedArtistIds.add(it.id) }
+                        .forEach { artist ->
                             YouTube.artist(artist.id).onSuccess { artistPage ->
                                 database.query {
                                     update(artist, artistPage)

@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,6 +65,7 @@ fun OnlineSearchScreen(
     pureBlack: Boolean,
     searchProvider: SearchProvider = SearchProvider.YOUTUBE,
     transparentBackground: Boolean = false,
+    topContentPadding: Dp? = null,
     viewModel: OnlineSearchSuggestionViewModel = hiltViewModel(),
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -111,7 +113,9 @@ fun OnlineSearchScreen(
             state = lazyListState,
             contentPadding =
                 PaddingValues(
-                    top = maxOf(12.dp, WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding()),
+                    top =
+                        topContentPadding
+                            ?: maxOf(12.dp, WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding()),
                     bottom =
                         WindowInsets.systemBars
                             .only(WindowInsetsSides.Bottom)

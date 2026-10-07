@@ -147,7 +147,13 @@ fun MoodAndGenresScreen(
                     stripeColor = item.stripeColor,
                     endpoint = item.endpoint,
                     onClick = {
-                        navController.navigate("youtube_browse/${item.endpoint.browseId}?params=${item.endpoint.params}")
+                        val encodedBrowseId = android.net.Uri.encode(item.endpoint.browseId)
+                        val paramsQuery =
+                            item.endpoint.params
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { "?params=${android.net.Uri.encode(it)}" }
+                                .orEmpty()
+                        navController.navigate("youtube_browse/$encodedBrowseId$paramsQuery")
                     },
                     modifier =
                         Modifier

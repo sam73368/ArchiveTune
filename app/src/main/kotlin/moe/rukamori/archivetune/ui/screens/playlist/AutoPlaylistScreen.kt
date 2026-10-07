@@ -326,6 +326,14 @@ fun AutoPlaylistScreen(
             }
         }
 
+    // Selection only applies to the songs currently visible (search filter): drop hidden ones.
+    LaunchedEffect(selection, filteredSongs) {
+        if (selection) {
+            val visibleSongs = filteredSongs.toHashSet()
+            wrappedSongs.forEach { if (it !in visibleSongs) it.isSelected = false }
+        }
+    }
+
     val lazyListState = rememberLazyListState()
     val surfaceColor = MaterialTheme.colorScheme.surface
 
@@ -688,24 +696,25 @@ fun AutoPlaylistScreen(
                         .padding(end = 12.dp, top = systemBarsTopPadding + 12.dp),
             ) {
                 if (selection) {
+                    val allVisibleSelected = filteredSongs.isNotEmpty() && filteredSongs.all { it.isSelected }
                     Box(
                         modifier = Modifier.size(48.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         androidx.compose.material3.IconButton(
                             onClick = {
-                                if (selectedCount == wrappedSongs.size) {
+                                if (allVisibleSelected) {
                                     wrappedSongs.forEach { it.isSelected = false }
                                     selection = false
                                 } else {
-                                    wrappedSongs.forEach { it.isSelected = true }
+                                    filteredSongs.forEach { it.isSelected = true }
                                 }
                             },
                         ) {
                             Icon(
                                 painter =
                                     painterResource(
-                                        if (selectedCount == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all,
+                                        if (allVisibleSelected) R.drawable.deselect else R.drawable.select_all,
                                     ),
                                 contentDescription = null,
                                 tint = liquidGlassContentColor(),
@@ -716,7 +725,7 @@ fun AutoPlaylistScreen(
                         menuState.show {
                             SelectionSongMenu(
                                 songSelection =
-                                    wrappedSongs
+                                    filteredSongs
                                         .filter { it.isSelected }
                                         .map { it.item },
                                 onDismiss = menuState::dismiss,
@@ -911,20 +920,21 @@ fun AutoPlaylistScreen(
             },
             actions = {
                 if (selection) {
+                    val allVisibleSelected = filteredSongs.isNotEmpty() && filteredSongs.all { it.isSelected }
                     androidx.compose.material3.IconButton(
                         onClick = {
-                            if (selectedCount == wrappedSongs.size) {
+                            if (allVisibleSelected) {
                                 wrappedSongs.forEach { it.isSelected = false }
                                 selection = false
                             } else {
-                                wrappedSongs.forEach { it.isSelected = true }
+                                filteredSongs.forEach { it.isSelected = true }
                             }
                         },
                     ) {
                         Icon(
                             painter =
                                 painterResource(
-                                    if (selectedCount == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all,
+                                    if (allVisibleSelected) R.drawable.deselect else R.drawable.select_all,
                                 ),
                             contentDescription = null,
                         )
@@ -935,7 +945,7 @@ fun AutoPlaylistScreen(
                             menuState.show {
                                 SelectionSongMenu(
                                     songSelection =
-                                        wrappedSongs
+                                        filteredSongs
                                             .filter { it.isSelected }
                                             .map { it.item },
                                     onDismiss = menuState::dismiss,

@@ -29,7 +29,9 @@ import moe.rukamori.archivetune.constants.HideVideoKey
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.SearchHistory
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import moe.rukamori.archivetune.innertube.YouTube
+import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.YTItem
 import moe.rukamori.archivetune.innertube.models.filterExplicit
 import moe.rukamori.archivetune.innertube.models.filterVideo
@@ -106,35 +108,56 @@ class OnlineSearchSuggestionViewModel
                                 )
                             }
                         } else {
-                            val result = YouTube.searchSuggestions(query).getOrNull()
-                            val aiContentFilterPolicy = loadAiContentFilterPolicy()
-                            database
-                                .searchHistory(query)
-                                .map { it.take(3) }
-                                .map { history ->
-                                    SearchSuggestionViewState(
-                                        history = history,
-                                        suggestions =
-                                            result
-                                                ?.queries
-                                                ?.filter { suggestion ->
-                                                    history.none { it.query == suggestion }
-                                                }.orEmpty(),
-                                        items =
-                                            filterAiContent(
-                                                result
-                                                    ?.recommendedItems
-                                                    ?.filterExplicit(
-                                                        context.dataStore.get(
-                                                            HideExplicitKey,
-                                                            false,
-                                                        ),
-                                                    )?.filterVideo(context.dataStore.get(HideVideoKey, false))
-                                                    .orEmpty(),
-                                                aiContentFilterPolicy,
+                            // Live results: suggestions + top matches first (fast), then a real
+                            // song search for the typed text so results show up without Enter.
+                            val liveResults =
+                                flow {
+                                    val result = YouTube.searchSuggestions(query).getOrNull()
+                                    val aiContentFilterPolicy = loadAiContentFilterPolicy()
+                                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                                    val hideVideo = context.dataStore.get(HideVideoKey, false)
+
+                                    fun <T : YTItem> List<T>.cleaned(): List<T> =
+                                        filterAiContent(
+                                            filterExplicit(hideExplicit).filterVideo(hideVideo),
+                                            aiContentFilterPolicy,
+                                        )
+
+                                    val suggestions = result?.queries.orEmpty()
+                                    val topItems: List<YTItem> = result?.recommendedItems.orEmpty().cleaned()
+                                    emit(LiveSearchResults(suggestions, topItems))
+
+                                    val songs =
+                                        YouTube
+                                            .search(query, YouTube.SearchFilter.FILTER_SONG)
+                                            .getOrNull()
+                                            ?.items
+                                            ?.filterIsInstance<SongItem>()
+                                            ?.cleaned()
+                                            ?.take(LIVE_SONG_RESULTS)
+                                            .orEmpty()
+                                    if (songs.isNotEmpty()) {
+                                        emit(
+                                            LiveSearchResults(
+                                                suggestions,
+                                                (topItems + songs).distinctBy { it.id },
                                             ),
-                                    )
+                                        )
+                                    }
                                 }
+                            combine(
+                                liveResults,
+                                database.searchHistory(query).map { it.take(3) },
+                            ) { live, history ->
+                                SearchSuggestionViewState(
+                                    history = history,
+                                    suggestions =
+                                        live.suggestions.filter { suggestion ->
+                                            history.none { it.query == suggestion }
+                                        },
+                                    items = live.items,
+                                )
+                            }
                         }
                     }.collect {
                         _viewState.value = it
@@ -156,6 +179,13 @@ class OnlineSearchSuggestionViewModel
             }
         }
     }
+
+private const val LIVE_SONG_RESULTS = 12
+
+private data class LiveSearchResults(
+    val suggestions: List<String>,
+    val items: List<YTItem>,
+)
 
 data class SearchSuggestionViewState(
     val history: List<SearchHistory> = emptyList(),
