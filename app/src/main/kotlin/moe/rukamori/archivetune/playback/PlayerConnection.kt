@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.constants.HideVideoKey
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -112,8 +113,12 @@ class PlayerConnection(
     // video player, but the album cover. The service keeps the raw metadata (it needs the clip
     // flag to pick the studio audio), only this UI-facing flow is rewritten.
     private val hideMusicVideos =
-        context.dataStore.data
-            .map { it[HideVideoKey] ?: false }
+        runCatching {
+            context.dataStore.data
+                .map { it[HideVideoKey] ?: false }
+        }.getOrElse { flowOf(false) }
+            // A settings read problem must never take the player UI down: assume "off".
+            .catch { emit(false) }
             .distinctUntilChanged()
     private val currentAlbumCover =
         service.currentMediaMetadata
