@@ -1349,7 +1349,9 @@ interface DatabaseDao {
         playlist: Playlist,
         songEntries: List<Pair<String, String?>>,
     ) {
-        var position = playlist.songCount
+        // Read the real end of the playlist inside the transaction: `playlist` can be a stale copy
+        // (e.g. parallel imports sharing one), which gave every song the same position.
+        var position = maxOf(playlist.songCount, (maxPlaylistSongPosition(playlist.id) ?: -1) + 1)
         songEntries.forEach { (songId, setVideoId) ->
             insert(
                 PlaylistSongMap(
@@ -1456,9 +1458,11 @@ interface DatabaseDao {
     )
     fun libraryTopMixSongs(mixId: String): List<Song>
 
+    // Event timestamps are written from LocalDateTime.now() (already local wall-clock time, stored as
+    // if it were UTC), so no 'localtime' conversion here: it would shift every slot by the UTC offset.
     @Query(
         """
-        SELECT CAST(strftime('%H', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS slot,
+        SELECT CAST(strftime('%H', datetime(timestamp / 1000, 'unixepoch')) AS INTEGER) AS slot,
                SUM(playTime) AS timeListened
         FROM event
         WHERE timestamp > :fromTimestamp AND timestamp <= :toTimestamp
@@ -1473,7 +1477,7 @@ interface DatabaseDao {
 
     @Query(
         """
-        SELECT CAST(strftime('%w', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS slot,
+        SELECT CAST(strftime('%w', datetime(timestamp / 1000, 'unixepoch')) AS INTEGER) AS slot,
                SUM(playTime) AS timeListened
         FROM event
         WHERE timestamp > :fromTimestamp AND timestamp <= :toTimestamp
@@ -1500,10 +1504,10 @@ interface DatabaseDao {
     ): Flow<ListeningTotals>
 
     @Transaction
-    @Query("SELECT * FROM event ORDER BY rowId ASC LIMIT 1")
+    @Query("SELECT * FROM event ORDER BY timestamp ASC, rowId ASC LIMIT 1")
     fun firstEvent(): Flow<EventWithSong?>
 
-    @Query("SELECT songId FROM event ORDER BY rowId DESC LIMIT 1")
+    @Query("SELECT songId FROM event ORDER BY timestamp DESC, rowId DESC LIMIT 1")
     fun lastEventSongId(): Flow<String?>
 
     @Transaction

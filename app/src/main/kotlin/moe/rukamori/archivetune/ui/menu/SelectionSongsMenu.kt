@@ -985,7 +985,14 @@ fun SelectionMediaMetadataMenu(
 
                                 coroutineScope.launch(Dispatchers.IO) {
                                     database.withTransaction {
-                                        updatedSongs.forEach(::update)
+                                        updatedSongs.forEach { entity ->
+                                            // Only the like state changes; keep play time, custom title, etc.
+                                            val current = getSongByIdBlocking(entity.id)?.song
+                                            update(
+                                                current?.copy(liked = entity.liked, likedDate = entity.likedDate)
+                                                    ?: entity,
+                                            )
+                                        }
                                     }
                                     syncUtils.likeSongs(updatedSongs)
                                 }

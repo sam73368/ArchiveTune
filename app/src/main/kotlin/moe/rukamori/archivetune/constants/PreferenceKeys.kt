@@ -315,10 +315,16 @@ object DownloadSourceConfig {
 
     val YOUTUBE_MUSIC_CACHE_KEY_PREFIX = "ytm:"
 
+    // Must use cacheKeyPrefix() so YouTube Music maps to "ytm:" (its real key prefix), not
+    // "youtube_music:" which no download key ever carries.
     val CACHE_KEY_PREFIXES: List<String> =
-        DownloadSource.entries
-            .filterNot { it == DownloadSource.AUTO }
-            .map { "${it.name.lowercase(Locale.US)}:" }
+        DownloadSource.entries.mapNotNull { source ->
+            when (source) {
+                DownloadSource.AUTO -> null
+                DownloadSource.YOUTUBE_MUSIC -> YOUTUBE_MUSIC_CACHE_KEY_PREFIX
+                else -> "${source.name.lowercase(Locale.US)}:"
+            }
+        }
 
     fun cacheKeyPrefix(source: DownloadSource): String? =
         when (source) {

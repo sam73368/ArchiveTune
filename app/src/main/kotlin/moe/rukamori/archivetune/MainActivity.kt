@@ -2171,7 +2171,10 @@ class MainActivity : ComponentActivity() {
                         if (pendingIntent != null) {
                             handleIntent(pendingIntent, navController)
                             pendingIntent = null
-                        } else {
+                        } else if (savedInstanceState == null) {
+                            // Not on recreation (theme / language change): the launch intent was
+                            // already handled and would otherwise restart playback, rejoin a
+                            // Listen Together room, relaunch song recognition, etc.
                             handleIntent(intent, navController)
                         }
                     }
@@ -3667,8 +3670,11 @@ class MainActivity : ComponentActivity() {
     ) {
         if (intent == null) return
         intent.getStringExtra("navigate_to")?.takeIf { it.isNotBlank() }?.let { route ->
-            navController.navigate(route) {
-                launchSingleTop = true
+            // The activity is exported, so an unknown route must not crash the app.
+            runCatching {
+                navController.navigate(route) {
+                    launchSingleTop = true
+                }
             }
             intent.removeExtra("navigate_to")
             return
@@ -3837,32 +3843,32 @@ class MainActivity : ComponentActivity() {
 
         when (val path = uri.pathSegments.firstOrNull()) {
             "playlist" -> {
-                uri.getQueryParameter("list")?.let { playlistId ->
+                uri.getQueryParameter("list")?.takeIf { it.isNotBlank() }?.let { playlistId ->
                     if (playlistId.startsWith("OLAK5uy_")) {
                         coroutineScope.launch {
                             YouTube
                                 .albumSongs(playlistId)
                                 .onSuccess { songs ->
                                     songs.firstOrNull()?.album?.id?.let { browseId ->
-                                        navController.navigate("album/$browseId")
+                                        runCatching { navController.navigate("album/${Uri.encode(browseId)}") }
                                     }
                                 }.onFailure { reportException(it) }
                         }
                     } else {
-                        navController.navigate("online_playlist/$playlistId")
+                        runCatching { navController.navigate("online_playlist/${Uri.encode(playlistId)}") }
                     }
                 }
             }
 
             "browse" -> {
-                uri.lastPathSegment?.let { browseId ->
-                    navController.navigate("album/$browseId")
+                uri.lastPathSegment?.takeIf { it.isNotBlank() }?.let { browseId ->
+                    runCatching { navController.navigate("album/${Uri.encode(browseId)}") }
                 }
             }
 
             "channel", "c" -> {
-                uri.lastPathSegment?.let { artistId ->
-                    navController.navigate("artist/$artistId")
+                uri.lastPathSegment?.takeIf { it.isNotBlank() }?.let { artistId ->
+                    runCatching { navController.navigate("artist/${Uri.encode(artistId)}") }
                 }
             }
 

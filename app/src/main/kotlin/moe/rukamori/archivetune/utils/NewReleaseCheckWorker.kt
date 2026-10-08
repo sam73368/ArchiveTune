@@ -66,9 +66,11 @@ class NewReleaseCheckWorker(
                 }
 
             if (seenIds.isEmpty()) {
+                // First run: remember what already exists. The marker keeps the list non-empty even
+                // when there is nothing yet, otherwise the first real release would be swallowed.
                 NewReleaseNotificationManager.writeSeenReleaseIds(
                     applicationContext,
-                    subscribedReleases.map { it.releaseId },
+                    listOf(NewReleaseNotificationManager.BASELINE_MARKER) + subscribedReleases.map { it.releaseId },
                 )
                 return@withContext Result.success()
             }

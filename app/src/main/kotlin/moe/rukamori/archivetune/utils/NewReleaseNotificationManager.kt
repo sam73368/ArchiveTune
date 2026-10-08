@@ -21,7 +21,6 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import kotlinx.coroutines.flow.first
@@ -102,7 +101,6 @@ object NewReleaseNotificationManager {
         val request =
             OneTimeWorkRequestBuilder<NewReleaseCheckWorker>()
                 .setConstraints(constraints)
-                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             "$WORK_NAME-immediate",
@@ -114,6 +112,8 @@ object NewReleaseNotificationManager {
     fun cancelPeriodicCheck(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
     }
+
+    const val BASELINE_MARKER = "__baseline__"
 
     data class NewRelease(
         val releaseId: String,
@@ -146,7 +146,9 @@ object NewReleaseNotificationManager {
 
         val openAppIntent =
             Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                // No CLEAR_TASK: it would finish the running MainActivity (stopping playback when
+                // "stop music on task clear" is on). onNewIntent already handles navigate_to.
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("navigate_to", "new_release")
             }
         val openAppPendingIntent =

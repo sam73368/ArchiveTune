@@ -5259,11 +5259,20 @@ class MusicService :
                     var pagesLoaded = 0
                     while (queue.hasNextPage() && pagesLoaded < 200) {
                         pagesLoaded++
+                        // A failing continuation page must not cancel the whole play request:
+                        // start with what was already loaded.
                         val nextItems =
-                            withContext(Dispatchers.IO) {
-                                queue
-                                    .nextPage()
-                                    .filterPlaybackContent(hideExplicit, hideVideo)
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    queue
+                                        .nextPage()
+                                        .filterPlaybackContent(hideExplicit, hideVideo)
+                                }
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                reportException(e)
+                                break
                             }
                         if (nextItems.isNotEmpty()) {
                             expandedItems += nextItems

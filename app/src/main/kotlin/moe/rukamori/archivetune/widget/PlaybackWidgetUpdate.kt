@@ -11,7 +11,9 @@ import android.content.ComponentName
 import android.content.Context
 import moe.rukamori.archivetune.playback.MusicService
 
-internal suspend fun requestPlaybackWidgetUpdate(context: Context) {
+internal suspend fun requestPlaybackWidgetUpdate(receiverContext: Context) {
+    // A manifest receiver's own context may not bind services; the application context can.
+    val context = receiverContext.applicationContext ?: receiverContext
     val serviceIntent = android.content.Intent(context, MusicService::class.java)
     val connection =
         object : android.content.ServiceConnection {
@@ -27,7 +29,9 @@ internal suspend fun requestPlaybackWidgetUpdate(context: Context) {
             override fun onServiceDisconnected(name: ComponentName?) = Unit
         }
 
-    runCatching {
-        context.bindService(serviceIntent, connection, 0)
+    val bound = runCatching { context.bindService(serviceIntent, connection, 0) }.getOrDefault(false)
+    if (!bound) {
+        // bindService returns false without ever calling back; release the connection.
+        runCatching { context.unbindService(connection) }
     }
 }
