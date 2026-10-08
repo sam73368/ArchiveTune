@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import moe.rukamori.archivetune.ForkRepositoryUrl
 import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.about.AboutContributor
@@ -415,7 +416,7 @@ class AboutViewModel
                             id = "github",
                             iconResId = R.drawable.github,
                             labelResId = R.string.about_content_desc_github,
-                            url = "https://github.com/rukamori/ArchiveTune",
+                            url = ForkRepositoryUrl,
                         ),
                         AboutLinkUiModel(
                             id = "website",

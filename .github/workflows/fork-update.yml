@@ -32,6 +32,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: true
+          fetch-depth: 0
 
       - name: Compute version code
         run: echo "VERSION_CODE_OVERRIDE=$((100000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
@@ -87,17 +88,35 @@ jobs:
           TS="$(date -u +'%Y%m%d%H%M')"
           TAG="N${TS}"
           SHORT_SHA="$(git rev-parse --short HEAD)"
-          NOTES="Build ${VERSION_CODE_OVERRIDE} (${SHORT_SHA}) - ${GITHUB_REF_NAME}
 
-          $(git log -1 --pretty=%s)
+          # Changelog shown in the app: the commits since the previous published build.
+          PREV_TAG="$(gh release list --limit 100 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | test("^N[0-9]{8}([0-9]{4})?$"))] | sort_by(.createdAt) | last | .tagName // empty' || true)"
+          PREV_SHA=""
+          if [ -n "$PREV_TAG" ]; then
+            PREV_SHA="$(gh release view "$PREV_TAG" --json targetCommitish --jq '.targetCommitish' || true)"
+          fi
+          if [ -n "$PREV_SHA" ] && git cat-file -e "${PREV_SHA}^{commit}" 2>/dev/null; then
+            RANGE="${PREV_SHA}..HEAD"
+          else
+            RANGE="-n 10"
+          fi
+          CHANGES="$(git log --no-merges --pretty='- %s' $RANGE | head -n 25 || true)"
+          [ -n "$CHANGES" ] || CHANGES="- $(git log -1 --pretty=%s)"
 
-          <!-- at-build:${VERSION_CODE_OVERRIDE} -->"
+          {
+            echo "## Build ${VERSION_CODE_OVERRIDE} (${SHORT_SHA})"
+            echo
+            echo "$CHANGES"
+            echo
+            echo "<!-- at-build:${VERSION_CODE_OVERRIDE} -->"
+          } > release-notes.md
 
           gh release create "$TAG" dist/app-gms-mobile-universal-nightly.apk \
             --target "$GITHUB_SHA" \
             --prerelease \
             --title "Build ${VERSION_CODE_OVERRIDE} (${SHORT_SHA})" \
-            --notes "$NOTES"
+            --notes-file release-notes.md
 
       - name: Prune old builds
         shell: bash

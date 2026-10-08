@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
+import moe.rukamori.archivetune.ForkRepositoryUrl
 import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.R
 import javax.inject.Inject
@@ -227,7 +228,7 @@ class BuildOnboardingUiStateUseCase
                         titleResId = R.string.support_development_star,
                         descriptionResId = R.string.onboarding_community_github_desc,
                         iconResId = R.drawable.github,
-                        url = "https://github.com/rukamori/ArchiveTune",
+                        url = ForkRepositoryUrl,
                     ),
                     OnboardingCommunityActionUiModel(
                         id = "discord",

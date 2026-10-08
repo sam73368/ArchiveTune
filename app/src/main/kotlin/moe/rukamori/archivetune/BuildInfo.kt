@@ -9,6 +9,13 @@ package moe.rukamori.archivetune
 
 import moe.rukamori.archivetune.constants.UpdateChannel
 
+/**
+ * The GitHub repository this build is published from. The in-app updater, the "GitHub" buttons and
+ * the update changelog all read it from here so they can never point back at the original project.
+ */
+internal const val ForkRepository = "sam73368/ArchiveTune"
+internal const val ForkRepositoryUrl = "https://github.com/$ForkRepository"
+
 internal val isCanaryBuild: Boolean
     get() = BuildConfig.IS_NIGHTLY
 

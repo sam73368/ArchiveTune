@@ -365,6 +365,7 @@ import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.ui.utils.resetHeightOffset
 import moe.rukamori.archivetune.utils.PreferenceStore
 import moe.rukamori.archivetune.utils.SyncUtils
+import moe.rukamori.archivetune.utils.AppUpdateService
 import moe.rukamori.archivetune.utils.Updater
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
@@ -891,8 +892,28 @@ class MainActivity : ComponentActivity() {
                 androidx.compose.material3.Button(
                     onClick = {
                         bottomSheetPageState.dismiss()
-                        this@MainActivity.navController.navigate("settings/update") {
-                            launchSingleTop = true
+                        val downloadUrl =
+                            when (latestUpdateChannel) {
+                                UpdateChannel.CANARY -> Updater.getLatestCanaryDownloadUrl()
+                                UpdateChannel.STABLE -> Updater.getLatestDownloadUrl()
+                            }
+                        // One tap: download in the background service, then hand the APK to the
+                        // system installer. Falls back to the update screen when that isn't possible.
+                        val started =
+                            AppUpdateService.isSupported() &&
+                                downloadUrl.isNotBlank() &&
+                                runCatching {
+                                    AppUpdateService
+                                        .startPendingIntent(
+                                            this@MainActivity,
+                                            downloadUrl,
+                                            latestVersionName,
+                                        ).send()
+                                }.isSuccess
+                        if (!started) {
+                            this@MainActivity.navController.navigate("settings/update") {
+                                launchSingleTop = true
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -901,7 +922,19 @@ class MainActivity : ComponentActivity() {
                     Text(text = stringResource(R.string.update_text))
                 }
 
-                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        bottomSheetPageState.dismiss()
+                        this@MainActivity.navController.navigate(
+                            "settings/changelog?channel=$latestUpdateChannel",
+                        ) {
+                            launchSingleTop = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(text = stringResource(R.string.view_changelog))
+                }
 
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier.fillMaxWidth(),

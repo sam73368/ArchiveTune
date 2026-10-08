@@ -17,6 +17,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 import moe.rukamori.archivetune.App
 import moe.rukamori.archivetune.BuildConfig
+import moe.rukamori.archivetune.ForkRepository
 import moe.rukamori.archivetune.constants.CanaryReleasesEtagKey
 import moe.rukamori.archivetune.constants.CanaryReleasesFingerprintKey
 import moe.rukamori.archivetune.constants.CanaryReleasesJsonKey
@@ -57,7 +58,7 @@ object Updater {
     private const val ReleaseCacheCheckIntervalMs: Long = 6 * 60 * 60 * 1000L
     private const val CanaryCacheCheckIntervalMs: Long = 15 * 60 * 1000L
     // This fork publishes its own builds (see .github/workflows/fork-update.yml).
-    private const val OWNER = "sam73368/ArchiveTune"
+    private const val OWNER = ForkRepository
     private const val StableReleaseBaseUrl = "https://github.com/$OWNER/releases"
     private const val CanaryReleaseBaseUrl =
         "https://github.com/$OWNER/releases"
