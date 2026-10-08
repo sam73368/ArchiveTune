@@ -6882,6 +6882,21 @@ class MusicService :
                     Timber.tag(TAG).d("Prefetching stream URL for next media item: %s", mediaId)
 
                     val lowData = isLowDataModeActive()
+                    if (!lowData && studioVariantPins.getOrPut(mediaId) { prefersStudioAudio(mediaId) }) {
+                        // The clip's own stream will not be played ("Hide music videos"): warm up the
+                        // studio version instead of resolving the clip through up to 7 YouTube clients.
+                        val studioWarm =
+                            runCatching {
+                                resolvePlaybackDataSpec(
+                                    DataSpec.Builder().setUri(mediaId.toUri()).setKey(mediaId).build(),
+                                    allowCacheShortCircuit = false,
+                                )
+                            }.getOrNull()
+                        if (studioWarm != null && mediaId in studioServedIds) {
+                            Timber.tag(TAG).d("Prefetch: studio version resolved for %s", mediaId)
+                            return@runCatching
+                        }
+                    }
                     if (!lowData) {
                         val dataSpec = DataSpec.Builder()
                             .setUri("placeholder:$mediaId".toUri())
