@@ -870,6 +870,7 @@ fun EditTextPreference(
     keyboardOptions: KeyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
     isInputValid: (String) -> Boolean = { it.isNotEmpty() },
     isEnabled: Boolean = true,
+    masked: Boolean = false,
 ) {
     var showDialog by remember {
         mutableStateOf(false)
@@ -894,7 +895,7 @@ fun EditTextPreference(
     PreferenceEntry(
         modifier = modifier,
         title = title,
-        description = value,
+        description = if (masked && value.isNotEmpty()) "•".repeat(value.length.coerceAtMost(12)) else value,
         icon = icon,
         onClick = { showDialog = true },
         isEnabled = isEnabled,

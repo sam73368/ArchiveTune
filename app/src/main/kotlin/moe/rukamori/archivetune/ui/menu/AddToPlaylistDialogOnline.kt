@@ -440,7 +440,8 @@ fun AddToPlaylistDialogOnline(
                                     .fillMaxWidth()
                                     .height(150.dp),
                         ) {
-                            items(summary.failedItems, key = { it }) { title ->
+                            items(summary.failedItems.size, key = { it }) { failedIndex ->
+                                val title = summary.failedItems[failedIndex]
                                 Text(
                                     text = "• $title",
                                     style = MaterialTheme.typography.bodySmall,

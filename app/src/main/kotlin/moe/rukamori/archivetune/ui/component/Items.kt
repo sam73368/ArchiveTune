@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.ui.component
 
+import kotlinx.coroutines.flow.flowOf
+import moe.rukamori.archivetune.ui.utils.aggregateDownloadState
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
@@ -519,7 +521,7 @@ fun AlbumListItem(
             mutableStateOf(emptyList<Song>())
         }
 
-        LaunchedEffect(Unit) {
+        LaunchedEffect(album.id) {
             database.albumSongs(album.id).collect {
                 songs = it
             }
@@ -531,23 +533,11 @@ fun AlbumListItem(
 
         LaunchedEffect(songs) {
             if (songs.isEmpty()) return@LaunchedEffect
-            downloadUtil.downloads.collect { downloads ->
-                downloadState =
-                    when {
-                        songs.all { downloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
-
-                        songs.all {
-                            downloads[it.id]?.state in
-                                listOf(
-                                    STATE_QUEUED,
-                                    STATE_DOWNLOADING,
-                                    STATE_COMPLETED,
-                                )
-                        } -> STATE_DOWNLOADING
-
-                        else -> Download.STATE_STOPPED
-                    }
-            }
+            val songIds = songs.map { it.id }
+            downloadUtil.downloads
+                .map { aggregateDownloadState(songIds, it) }
+                .distinctUntilChanged()
+                .collect { downloadState = it }
         }
 
         if (showLikedIcon && album.album.bookmarkedAt != null) {
@@ -594,7 +584,7 @@ fun AlbumGridItem(
         val downloadUtil = LocalDownloadUtil.current
         var songs by remember { mutableStateOf(emptyList<Song>()) }
 
-        LaunchedEffect(Unit) {
+        LaunchedEffect(album.id) {
             database.albumSongs(album.id).collect { songs = it }
         }
 
@@ -602,23 +592,11 @@ fun AlbumGridItem(
 
         LaunchedEffect(songs) {
             if (songs.isEmpty()) return@LaunchedEffect
-            downloadUtil.downloads.collect { downloads ->
-                downloadState =
-                    when {
-                        songs.all { downloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
-
-                        songs.all {
-                            downloads[it.id]?.state in
-                                listOf(
-                                    STATE_QUEUED,
-                                    STATE_DOWNLOADING,
-                                    STATE_COMPLETED,
-                                )
-                        } -> STATE_DOWNLOADING
-
-                        else -> Download.STATE_STOPPED
-                    }
-            }
+            val songIds = songs.map { it.id }
+            downloadUtil.downloads
+                .map { aggregateDownloadState(songIds, it) }
+                .distinctUntilChanged()
+                .collect { downloadState = it }
         }
 
         if (album.album.bookmarkedAt != null) {
@@ -797,8 +775,12 @@ fun YouTubeListItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
-        val song by database.song(item.id).collectAsStateWithLifecycle(initialValue = null)
-        val album by database.album(item.id).collectAsStateWithLifecycle(initialValue = null)
+        val song by remember(item.id) {
+            if (item is SongItem) database.song(item.id) else flowOf(null)
+        }.collectAsStateWithLifecycle(initialValue = null)
+        val album by remember(item.id) {
+            if (item is AlbumItem) database.album(item.id) else flowOf(null)
+        }.collectAsStateWithLifecycle(initialValue = null)
 
         if ((item is SongItem && song?.song?.liked == true) ||
             (item is AlbumItem && album?.album?.bookmarkedAt != null)
@@ -814,7 +796,7 @@ fun YouTubeListItem(
             // row on each progress tick of any download.
             val downloadUtil = LocalDownloadUtil.current
             val download by remember(item.id) {
-                downloadUtil.downloads.map { it[item.id] }.distinctUntilChanged()
+                downloadUtil.getDownload(item.id).distinctUntilChanged()
             }.collectAsStateWithLifecycle(initialValue = null)
             Icon.Download(download?.state, percent = download?.percentDownloaded ?: -1f)
         }
@@ -910,8 +892,12 @@ fun YouTubeGridItem(
     coroutineScope: CoroutineScope? = null,
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
-        val song by database.song(item.id).collectAsStateWithLifecycle(initialValue = null)
-        val album by database.album(item.id).collectAsStateWithLifecycle(initialValue = null)
+        val song by remember(item.id) {
+            if (item is SongItem) database.song(item.id) else flowOf(null)
+        }.collectAsStateWithLifecycle(initialValue = null)
+        val album by remember(item.id) {
+            if (item is AlbumItem) database.album(item.id) else flowOf(null)
+        }.collectAsStateWithLifecycle(initialValue = null)
 
         if (item is SongItem && song?.song?.liked == true ||
             item is AlbumItem && album?.album?.bookmarkedAt != null
@@ -925,7 +911,7 @@ fun YouTubeGridItem(
             // row on each progress tick of any download.
             val downloadUtil = LocalDownloadUtil.current
             val download by remember(item.id) {
-                downloadUtil.downloads.map { it[item.id] }.distinctUntilChanged()
+                downloadUtil.getDownload(item.id).distinctUntilChanged()
             }.collectAsStateWithLifecycle(initialValue = null)
             Icon.Download(download?.state, percent = download?.percentDownloaded ?: -1f)
         }

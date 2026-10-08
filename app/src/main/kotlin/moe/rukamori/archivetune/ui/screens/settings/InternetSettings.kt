@@ -252,6 +252,7 @@ fun InternetSettings(navController: NavController, scrollTo: String? = null) {
                             }
                         },
                         onValueSelected = { newValue ->
+                            if (newValue == ytMusicRegion) return@ListPreference
 
                             val deviceLocale = Locale.getDefault()
                             val resolvedGl =
@@ -394,6 +395,7 @@ fun InternetSettings(navController: NavController, scrollTo: String? = null) {
                             modifier = positions.modifierFor("proxy_username"),
                             title = { Text(stringResource(R.string.proxy_username)) },
                             value = proxyUsername,
+                            isInputValid = { true },
                             onValueChange = {
                                 onProxyUsernameChange(it)
                                 ProxyUtils.applyYouTubeProxy(proxyEnabled, proxyType, proxyHost, proxyPort, it, proxyPassword)
@@ -406,6 +408,8 @@ fun InternetSettings(navController: NavController, scrollTo: String? = null) {
                             modifier = positions.modifierFor("proxy_password"),
                             title = { Text(stringResource(R.string.proxy_password)) },
                             value = proxyPassword,
+                            isInputValid = { true },
+                            masked = true,
                             onValueChange = {
                                 onProxyPasswordChange(it)
                                 ProxyUtils.applyYouTubeProxy(proxyEnabled, proxyType, proxyHost, proxyPort, proxyUsername, it)

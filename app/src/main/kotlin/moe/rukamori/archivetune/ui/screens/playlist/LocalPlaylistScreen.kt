@@ -251,6 +251,7 @@ fun LocalPlaylistScreen(
 
     var savedScrollIndex by remember { mutableIntStateOf(0) }
     var savedScrollOffset by remember { mutableIntStateOf(0) }
+    var wasSearching by remember { mutableStateOf(false) }
     LaunchedEffect(isSearching) {
         if (isSearching) {
             focusRequester.requestFocus()
@@ -481,9 +482,11 @@ fun LocalPlaylistScreen(
 
     LaunchedEffect(isSearching) {
         if (isSearching) {
+            wasSearching = true
             savedScrollIndex = lazyListState.firstVisibleItemIndex
             savedScrollOffset = lazyListState.firstVisibleItemScrollOffset
-        } else {
+        } else if (wasSearching) {
+            wasSearching = false
             withFrameNanos {}
             lazyListState.scrollToItem(savedScrollIndex, savedScrollOffset)
         }

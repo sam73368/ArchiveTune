@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.ui.menu
 
+import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
+import moe.rukamori.archivetune.ui.utils.aggregateDownloadState
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
@@ -134,18 +136,7 @@ fun YouTubeAlbumMenu(
         val songs = album?.songs?.map { it.id } ?: return@LaunchedEffect
         downloadUtil.downloads.collect { downloads ->
             downloadState =
-                if (songs.all { downloads[it]?.state == Download.STATE_COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it]?.state == Download.STATE_QUEUED ||
-                            downloads[it]?.state == Download.STATE_DOWNLOADING ||
-                            downloads[it]?.state == Download.STATE_COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
+                aggregateDownloadState(songs, downloads)
         }
     }
 
@@ -575,14 +566,7 @@ fun YouTubeAlbumMenu(
                             },
                             modifier =
                                 Modifier.clickable {
-                                    album?.songs?.forEach { song ->
-                                        DownloadService.sendRemoveDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            song.id,
-                                            false,
-                                        )
-                                    }
+                                    album?.songs?.map { it.id }?.let { ids -> sendRemoveDownloads(context, ids) }
                                 },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         )
@@ -598,14 +582,7 @@ fun YouTubeAlbumMenu(
                             },
                             modifier =
                                 Modifier.clickable {
-                                    album?.songs?.forEach { song ->
-                                        DownloadService.sendRemoveDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            song.id,
-                                            false,
-                                        )
-                                    }
+                                    album?.songs?.map { it.id }?.let { ids -> sendRemoveDownloads(context, ids) }
                                 },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         )

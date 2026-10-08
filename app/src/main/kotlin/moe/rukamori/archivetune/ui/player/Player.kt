@@ -835,7 +835,9 @@ fun BottomSheetPlayer(
             while (isActive) {
                 sleepTimerTimeLeft =
                     if (playerConnection.service.sleepTimer.pauseWhenSongEnd) {
-                        playerConnection.player.duration - playerConnection.player.currentPosition
+                        playerConnection.player.duration.let { total ->
+                            if (total == androidx.media3.common.C.TIME_UNSET) 0L else (total - playerConnection.player.currentPosition).coerceAtLeast(0L)
+                        }
                     } else {
                         playerConnection.service.sleepTimer.triggerTime - System.currentTimeMillis()
                     }
@@ -1231,7 +1233,10 @@ fun BottomSheetPlayer(
                             lastKeyboardTapTime = now
                             val skipAmount = 5000L * keyboardSkipMultiplier
                             playerConnection.player.seekTo(
-                                (playerConnection.player.currentPosition + skipAmount).coerceAtMost(playerConnection.player.duration),
+                                playerConnection.player.duration.let { total ->
+                                    val target = playerConnection.player.currentPosition + skipAmount
+                                    if (total == C.TIME_UNSET || total <= 0L) target else target.coerceAtMost(total)
+                                },
                             )
                             true
                         }
@@ -1976,7 +1981,6 @@ fun BottomSheetPlayer(
                             isLoading = isLoading,
                             canSkipPrevious = canSkipPrevious,
                             canSkipNext = canSkipNext,
-                            position = position,
                             duration = duration,
                             playerConnection = playerConnection,
                             navController = navController,
@@ -1984,7 +1988,7 @@ fun BottomSheetPlayer(
                             menuState = menuState,
                             bottomSheetPageState = bottomSheetPageState,
                             currentFormat = currentFormat,
-                            positionProvider = { position },
+                            positionProvider = positionProvider,
                             canvasPrimaryUrl = artworkCanvas?.animated,
                             canvasFallbackUrl = artworkCanvas?.videoUrl,
                             appIsDark = useDarkTheme,
@@ -2522,7 +2526,6 @@ fun BottomSheetPlayer(
                             isLoading = isLoading,
                             canSkipPrevious = canSkipPrevious,
                             canSkipNext = canSkipNext,
-                            position = position,
                             duration = duration,
                             playerConnection = playerConnection,
                             navController = navController,
@@ -2530,7 +2533,7 @@ fun BottomSheetPlayer(
                             menuState = menuState,
                             bottomSheetPageState = bottomSheetPageState,
                             currentFormat = currentFormat,
-                            positionProvider = { position },
+                            positionProvider = positionProvider,
                             canvasPrimaryUrl = artworkCanvas?.animated,
                             canvasFallbackUrl = artworkCanvas?.videoUrl,
                             appIsDark = useDarkTheme,

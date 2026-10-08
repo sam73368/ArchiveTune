@@ -18,7 +18,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -272,7 +271,7 @@ fun FloatingNavigationToolbar(
     val itemColors =
         when {
             canLiquidGlass -> {
-                val glassIsNight = isSystemInDarkTheme()
+                val glassIsNight = MaterialTheme.colorScheme.surface.luminance() < 0.5f
                 val glassSelectedColor =
                     if (glassIsNight) Color.White else MaterialTheme.colorScheme.onSurface
                 val glassUnselectedColor =
@@ -743,7 +742,7 @@ fun FloatingNavigationToolbar(
                                                     painterResource(
                                                         if (isSelected) screen.iconIdActive else screen.iconIdInactive,
                                                     ),
-                                                contentDescription = null,
+                                                contentDescription = stringResource(screen.titleId),
                                                 modifier =
                                                     Modifier.graphicsLayer {
                                                         scaleX = iconScale.value
@@ -759,7 +758,7 @@ fun FloatingNavigationToolbar(
                                     {
                                         if (canLiquidGlass) {
                                             val nightGlassLabelStyle =
-                                                if (isSystemInDarkTheme()) {
+                                                if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) {
                                                     LocalTextStyle.current.copy(
                                                         shadow =
                                                             Shadow(
@@ -802,7 +801,7 @@ fun FloatingNavigationToolbar(
             val dragAnim = dampedDragAnimation
             if (pillWidth > 0.dp && pillHeight > 0.dp && dragAnim != null && tabWidthPx > 0f) {
                 val pillShape = RoundedCornerShape(percent = 50)
-                val isDark = isSystemInDarkTheme()
+                val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
                 val pillFallbackColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 Box(
@@ -901,7 +900,7 @@ fun FloatingNavigationToolbar(
                     ) {
                         Icon(
                             painter = painterResource(displayScreen.iconIdActive),
-                            contentDescription = null,
+                            contentDescription = stringResource(displayScreen.titleId),
 
                             tint = pillContentColor,
                             modifier =

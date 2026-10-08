@@ -2369,7 +2369,10 @@ private fun AppleMusicSeekBar(
                             dragging = false
                             onScrubFinished()
                         },
-                        onDragCancel = { dragging = false },
+                        onDragCancel = {
+                            dragging = false
+                            onScrubFinished()
+                        },
                         onHorizontalDrag = { change, _ ->
                             change.consume()
                             dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)

@@ -136,6 +136,7 @@ fun DownloadsSettings(
             onDismiss = { showExternalDownloaderPackageDialog = false },
             singleLine = true,
             maxLines = 1,
+            isInputValid = { true },
         )
     }
 

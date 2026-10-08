@@ -286,6 +286,11 @@ fun Thumbnail(
 
     var lastHandledSwipeTarget by remember { mutableStateOf<String?>(null) }
 
+    // Forget the handled target once the swipe settles so swiping to the same page again still skips.
+    LaunchedEffect(thumbnailLazyGridState.isScrollInProgress) {
+        if (!thumbnailLazyGridState.isScrollInProgress) lastHandledSwipeTarget = null
+    }
+
     LaunchedEffect(itemScrollOffset) {
         if (!thumbnailLazyGridState.isScrollInProgress || !swipeThumbnail || itemScrollOffset != 0 ||
             currentMediaIndex < 0
@@ -545,7 +550,13 @@ fun Thumbnail(
                                                         context.getString(R.string.seek_backward_dynamic, skipAmount / 1000)
                                                 } else {
                                                     playerConnection.player.seekTo(
-                                                        (currentPosition + skipAmount).coerceAtMost(duration),
+                                                        playerConnection.player.duration.let { total ->
+                                                            if (total == C.TIME_UNSET || total <= 0L) {
+                                                                currentPosition + skipAmount
+                                                            } else {
+                                                                (currentPosition + skipAmount).coerceAtMost(total)
+                                                            }
+                                                        },
                                                     )
                                                     seekDirection = context.getString(R.string.seek_forward_dynamic, skipAmount / 1000)
                                                 }

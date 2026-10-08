@@ -197,17 +197,17 @@ fun LibraryPlaylistsScreen(
     val playlists by viewModel.allPlaylists.collectAsStateWithLifecycle()
     val filteredPlaylistIds by database
         .playlistIdsByTags(
-            if (selectedTagIds.isEmpty()) emptyList() else selectedTagIds.toList(),
+            if (activeSelectedTagIds.isEmpty()) emptyList() else activeSelectedTagIds.toList(),
         ).collectAsStateWithLifecycle(initialValue = emptyList())
 
     var showHidden by rememberSaveable { mutableStateOf(false) }
 
     val visiblePlaylists =
-        remember(playlists, selectedTagIds, filteredPlaylistIds, showHidden) {
+        remember(playlists, activeSelectedTagIds, filteredPlaylistIds, showHidden) {
             playlists.filter { playlist ->
                 val name = playlist.playlist.name
                 val matchesName = !name.contains("episode", ignoreCase = true)
-                val matchesTags = selectedTagIds.isEmpty() || playlist.id in filteredPlaylistIds
+                val matchesTags = activeSelectedTagIds.isEmpty() || playlist.id in filteredPlaylistIds
                 val matchesVisibility = showHidden || !playlist.playlist.isHidden
                 matchesName && matchesTags && matchesVisibility
             }

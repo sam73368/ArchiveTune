@@ -1348,13 +1348,16 @@ class MainActivity : ComponentActivity() {
                         searchBarFocusRequester.requestFocus()
                     }
 
-                    val onSearch: (String) -> Unit = {
-                        if (it.isNotEmpty()) {
+                    val onSearch: (String) -> Unit = { rawQuery ->
+                        val query = rawQuery.trim()
+                        if (query.isNotEmpty()) {
                             onActiveChange(false)
-                            navController.navigate(onlineSearchResultRoute(it, searchProvider))
+                            navController.navigate(onlineSearchResultRoute(query, searchProvider)) {
+                                launchSingleTop = true
+                            }
                             if (!pauseSearchHistory) {
                                 database.query {
-                                    insert(SearchHistory(query = it))
+                                    insert(SearchHistory(query = query))
                                 }
                             }
                         }
@@ -3936,7 +3939,7 @@ class MainActivity : ComponentActivity() {
                                     pendingDeepLinkQueue = YouTubeQueue.playlist(it)
                                     startMusicServiceSafely()
                                     playPendingDeepLinkQueueIfReady()
-                                } ?: navController.navigate("online_playlist/$playlistId")
+                                } ?: navController.navigate("online_playlist/${Uri.encode(playlistId)}")
                             }.onFailure {
                                 reportException(it)
                             }

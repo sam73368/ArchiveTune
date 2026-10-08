@@ -1160,7 +1160,7 @@ private fun RemoteHistoryFeed(
 
                         itemsIndexed(
                             items = section.songs,
-                            key = { _, song -> "${section.title}_${song.id}" },
+                            key = { index, song -> "${section.title}_${song.id}_$index" },
                             contentType = { _, _ -> "remote_history_song" },
                         ) { index, song ->
                             val isActive = song.id == activeMediaId

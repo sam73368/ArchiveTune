@@ -156,6 +156,7 @@ fun SpotifyPlaylistScreen(
 
     var savedScrollIndex by remember { mutableIntStateOf(0) }
     var savedScrollOffset by remember { mutableIntStateOf(0) }
+    var wasSearching by remember { mutableStateOf(false) }
 
     val downloadState =
         remember(state.downloadItems, downloads) {
@@ -302,10 +303,12 @@ fun SpotifyPlaylistScreen(
 
     LaunchedEffect(isSearching) {
         if (isSearching) {
+            wasSearching = true
             savedScrollIndex = lazyListState.firstVisibleItemIndex
             savedScrollOffset = lazyListState.firstVisibleItemScrollOffset
             focusRequester.requestFocus()
-        } else {
+        } else if (wasSearching) {
+            wasSearching = false
             withFrameNanos {}
             lazyListState.scrollToItem(savedScrollIndex, savedScrollOffset)
         }
