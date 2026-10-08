@@ -54,6 +54,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -381,8 +383,8 @@ fun SongListItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current
-                .getDownload(song.id)
+            val downloadUtil = LocalDownloadUtil.current
+            val download by remember(song.id) { downloadUtil.getDownload(song.id) }
                 .collectAsStateWithLifecycle(initialValue = null)
             Icon.Download(download?.state, percent = download?.percentDownloaded ?: -1f)
         }
@@ -808,8 +810,12 @@ fun YouTubeListItem(
             Icon.Library()
         }
         if (item is SongItem) {
-            val downloads by LocalDownloadUtil.current.downloads.collectAsStateWithLifecycle()
-            val download = downloads[item.id]
+            // Observe only this item's entry: reading the whole map recomposed every visible
+            // row on each progress tick of any download.
+            val downloadUtil = LocalDownloadUtil.current
+            val download by remember(item.id) {
+                downloadUtil.downloads.map { it[item.id] }.distinctUntilChanged()
+            }.collectAsStateWithLifecycle(initialValue = null)
             Icon.Download(download?.state, percent = download?.percentDownloaded ?: -1f)
         }
     },
@@ -915,8 +921,12 @@ fun YouTubeGridItem(
         if (item.explicit) Icon.Explicit()
         if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
         if (item is SongItem) {
-            val downloads by LocalDownloadUtil.current.downloads.collectAsStateWithLifecycle()
-            val download = downloads[item.id]
+            // Observe only this item's entry: reading the whole map recomposed every visible
+            // row on each progress tick of any download.
+            val downloadUtil = LocalDownloadUtil.current
+            val download by remember(item.id) {
+                downloadUtil.downloads.map { it[item.id] }.distinctUntilChanged()
+            }.collectAsStateWithLifecycle(initialValue = null)
             Icon.Download(download?.state, percent = download?.percentDownloaded ?: -1f)
         }
     },

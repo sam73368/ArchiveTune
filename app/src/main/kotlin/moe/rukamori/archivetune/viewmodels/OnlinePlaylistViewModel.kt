@@ -217,7 +217,7 @@ class OnlinePlaylistViewModel
 
                                 try {
                                     viewCountsSemaphore.withPermit {
-                                        val count = YouTube.getMediaInfo(videoId).getOrNull()?.viewCount
+                                        val count = YouTube.getViewCount(videoId).getOrNull()
                                         if (count != null && count >= 0) {
                                             _viewCounts.update { current -> current + (videoId to count) }
                                         }

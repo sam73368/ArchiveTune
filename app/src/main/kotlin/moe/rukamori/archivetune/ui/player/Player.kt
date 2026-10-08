@@ -818,10 +818,6 @@ fun BottomSheetPlayer(
             }
         }
 
-    val download by LocalDownloadUtil.current
-        .getDownload(mediaMetadata?.id ?: "")
-        .collectAsStateWithLifecycle(initialValue = null)
-
     val sleepTimerEnabled =
         remember(
             playerConnection.service.sleepTimer.triggerTime,
