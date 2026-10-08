@@ -159,6 +159,7 @@ fun UpdateScreen(
     var commits by remember { mutableStateOf<List<GitCommit>>(emptyList()) }
     var isLoadingCommits by remember { mutableStateOf(true) }
     var latestVersion by remember { mutableStateOf<String?>(null) }
+    var latestReleaseNotes by remember { mutableStateOf<String?>(null) }
     var isExpanded by rememberSaveable { mutableStateOf(true) }
     var showCanaryChannelConfirmDialog by rememberSaveable { mutableStateOf(false) }
     var showEnableUpdateNotificationConfirmDialog by rememberSaveable { mutableStateOf(false) }
@@ -469,20 +470,32 @@ fun UpdateScreen(
             return@LaunchedEffect
         }
 
-        val versionResult =
+        var commitRef = "main"
+        val releaseResult =
             when (updateChannel) {
-                UpdateChannel.CANARY -> Updater.getLatestCanaryVersionName()
-                else -> Updater.getLatestVersionName()
+                UpdateChannel.CANARY -> Updater.getLatestCanaryReleaseInfo()
+                else -> Updater.getLatestReleaseInfo()
             }
-        versionResult.onSuccess {
-            latestVersion = it
-            if (!Updater.isUpdateAvailable(it, BuildConfig.VERSION_NAME)) {
+        releaseResult.onSuccess { release ->
+            val version =
+                when (updateChannel) {
+                    UpdateChannel.CANARY -> Updater.getCanaryReleaseVersionName(release)
+                    else -> Updater.getReleaseVersionName(release)
+                }
+            latestVersion = version
+            latestReleaseNotes = release.body
+            // Fork builds record the exact commit they were built from, so the history below
+            // matches the build rather than whatever branch happens to be the default.
+            release.body
+                ?.let { Regex("""<!--\s*sha:([0-9a-f]{40})\s*-->""").find(it)?.groupValues?.get(1) }
+                ?.let { commitRef = it }
+            if (!Updater.isUpdateAvailable(version, BuildConfig.VERSION_NAME)) {
                 onUpToDate()
             }
         }
 
         Updater
-            .getCommitHistory(50)
+            .getCommitHistory(50, commitRef)
             .onSuccess {
                 commits = it
             }.onFailure {
@@ -601,6 +614,29 @@ fun UpdateScreen(
                             .fillMaxWidth()
                             .widthIn(max = maximumContentWidth),
                 )
+            }
+
+            if (isUpdateAvailable) {
+                item(key = "update_details", contentType = "update_details") {
+                    val availableDownloadUrl =
+                        when (updateChannel) {
+                            UpdateChannel.CANARY -> Updater.getLatestCanaryDownloadUrl()
+                            UpdateChannel.STABLE -> Updater.getLatestDownloadUrl()
+                        }
+                    UpdateDetailsCard(
+                        version = latestVersion.orEmpty(),
+                        notes = latestReleaseNotes,
+                        isBusy = showUpdateDownloadDialog,
+                        onUpdate = {
+                            updateSheetVersion = latestVersion
+                            installUpdate(availableDownloadUrl)
+                        },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = maximumContentWidth),
+                    )
+                }
             }
 
             item(key = "fork_warning", contentType = "warning") {
@@ -1445,3 +1481,76 @@ private fun formatCommitDate(isoDate: String): String =
     } catch (e: Exception) {
         isoDate.take(10)
     }
+
+@Composable
+private fun UpdateDetailsCard(
+    version: String,
+    notes: String?,
+    isBusy: Boolean,
+    onUpdate: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.new_update_available),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ) {
+                Text(
+                    text = version,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 260.dp)
+                        .verticalScroll(rememberScrollState()),
+            ) {
+                if (!notes.isNullOrBlank()) {
+                    MarkdownText(
+                        markdown = notes,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.release_notes_unavailable),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+            Button(
+                onClick = onUpdate,
+                enabled = !isBusy,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                shapes = ButtonDefaults.shapes(),
+            ) {
+                Text(text = stringResource(R.string.update_text))
+            }
+        }
+    }
+}

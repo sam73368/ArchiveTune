@@ -113,7 +113,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -389,6 +391,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
@@ -980,6 +983,38 @@ class MainActivity : ComponentActivity() {
                         }
 
                     bottomSheetPageState.show(updateSheetContent)
+                }
+            }
+
+            // Keep looking for new builds while the app is open (and each time it comes back to the
+            // foreground), so the update popup also shows up mid-session, not only at cold start.
+            LaunchedEffect(Unit) {
+                this@MainActivity.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    delay(5_000)
+                    while (true) {
+                        if (BuildConfig.UPDATER_AVAILABLE) {
+                            val channelString =
+                                withContext(Dispatchers.IO) { dataStore.data.first()[UpdateChannelKey] }
+                            val actualChannel =
+                                if (isCanaryBuild) {
+                                    UpdateChannel.CANARY
+                                } else {
+                                    UpdateChannel.fromStoredName(channelString, defaultUpdateChannel)
+                                }
+                            val versionResult =
+                                when (actualChannel) {
+                                    UpdateChannel.CANARY -> Updater.getLatestCanaryVersionName()
+                                    UpdateChannel.STABLE -> Updater.getLatestVersionName()
+                                }
+                            versionResult.onSuccess {
+                                if (Updater.isUpdateAvailable(it, BuildConfig.VERSION_NAME)) {
+                                    latestUpdateChannel = actualChannel
+                                    latestVersionName = it
+                                }
+                            }
+                        }
+                        delay(10.minutes)
+                    }
                 }
             }
 

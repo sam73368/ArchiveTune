@@ -109,6 +109,7 @@ jobs:
             echo
             echo "$CHANGES"
             echo
+            echo "<!-- sha:${GITHUB_SHA} -->"
             echo "<!-- at-build:${VERSION_CODE_OVERRIDE} -->"
           } > release-notes.md
 
