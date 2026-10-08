@@ -10,6 +10,8 @@ package moe.rukamori.archivetune.utils
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
+import android.os.Build
 import androidx.core.content.FileProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -222,7 +224,79 @@ object AppUpdateInstaller {
         return apkFile
     }
 
+    /**
+     * Installs [apkFile] through a [PackageInstaller] session. Being the installer of record lets
+     * Android 12+ apply later updates of this app without asking again; the first one (or any
+     * device that insists) shows the system confirmation, surfaced by [UpdateInstallResultReceiver].
+     * Falls back to the classic "open the APK" intent if the session cannot be created.
+     */
     fun installApk(
+        context: Context,
+        apkFile: File,
+    ) {
+        val appContext = context.applicationContext
+        if (!appContext.packageManager.canRequestPackageInstalls()) {
+            // "Install unknown apps" is off for ArchiveTune: send the user to the switch.
+            runCatching {
+                appContext.startActivity(
+                    Intent(
+                        android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        android.net.Uri.parse("package:${appContext.packageName}"),
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+            return
+        }
+        Thread {
+            val committed = runCatching { commitInstallSession(appContext, apkFile) }.isSuccess
+            if (!committed) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    runCatching { installApkWithViewIntent(appContext, apkFile) }
+                }
+            }
+        }.start()
+    }
+
+    private fun commitInstallSession(
+        context: Context,
+        apkFile: File,
+    ) {
+        val installer = context.packageManager.packageInstaller
+        val params =
+            PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(context.packageName)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                }
+            }
+        val sessionId = installer.createSession(params)
+        try {
+            installer.openSession(sessionId).use { session ->
+                apkFile.inputStream().use { input ->
+                    session.openWrite("archivetune-update", 0, apkFile.length()).use { output ->
+                        input.copyTo(output, STREAM_BUFFER_SIZE)
+                        session.fsync(output)
+                    }
+                }
+                val resultIntent =
+                    Intent(context, UpdateInstallResultReceiver::class.java)
+                        .setAction(UpdateInstallResultReceiver.ACTION_INSTALL_RESULT)
+                val pendingIntent =
+                    PendingIntent.getBroadcast(
+                        context,
+                        sessionId,
+                        resultIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+                    )
+                session.commit(pendingIntent.intentSender)
+            }
+        } catch (error: Throwable) {
+            runCatching { installer.abandonSession(sessionId) }
+            throw error
+        }
+    }
+
+    private fun installApkWithViewIntent(
         context: Context,
         apkFile: File,
     ) {

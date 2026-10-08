@@ -109,6 +109,7 @@ import moe.rukamori.archivetune.constants.EnableUpdateNotificationKey
 import moe.rukamori.archivetune.constants.UpdateChannel
 import moe.rukamori.archivetune.constants.UpdateChannelKey
 import moe.rukamori.archivetune.defaultUpdateChannel
+import moe.rukamori.archivetune.isCanaryBuild
 import moe.rukamori.archivetune.ui.component.BottomSheetPage
 import moe.rukamori.archivetune.ui.component.BottomSheetPageState
 import moe.rukamori.archivetune.ui.component.FrostedHeaderPill
@@ -147,7 +148,7 @@ fun UpdateScreen(
     val (enableUpdateNotification, onEnableUpdateNotificationChange) =
         rememberPreference(
             EnableUpdateNotificationKey,
-            defaultValue = false,
+            defaultValue = isCanaryBuild,
         )
     val (updateChannel, onUpdateChannelChange) =
         rememberEnumPreference(
