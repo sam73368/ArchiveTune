@@ -1375,9 +1375,9 @@ fun PreferenceGroupTitle(
 ) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Medium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-        modifier = modifier.padding(vertical = 7.dp),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+        modifier = modifier.padding(top = 9.dp, bottom = 6.dp),
     )
 }

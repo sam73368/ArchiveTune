@@ -104,7 +104,7 @@ fun InternetWarningBox(modifier: Modifier = Modifier) {
         shape = RoundedCornerShape(SettingsDimensions.BannerCardCornerRadius),
         colors =
             CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f),
             ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {

@@ -646,7 +646,7 @@ fun UpdateScreen(
                             .fillMaxWidth()
                             .widthIn(max = maximumContentWidth),
                     shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     tonalElevation = 0.dp,
                 ) {
