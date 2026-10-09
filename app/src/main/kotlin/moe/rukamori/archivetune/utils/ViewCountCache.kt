@@ -80,6 +80,8 @@ object ViewCountCache {
     }
 }
 
+private val YouTubeVideoIdRegex = Regex("^[A-Za-z0-9_-]{11}$")
+
 /**
  * The compact "1.2M views" label for [videoId], or null while unknown / disabled. The request only
  * runs while the row is composed, so fast scrolling cancels the rows that were skipped.
@@ -92,7 +94,7 @@ fun rememberViewCountText(
     val context = LocalContext.current
     val showViewCounts by rememberPreference(ShowViewCountsKey, defaultValue = true)
     val lowDataMode by rememberPreference(LowDataModeKey, defaultValue = false)
-    val active = enabled && showViewCounts && !videoId.isNullOrBlank()
+    val active = enabled && showViewCounts && videoId != null && YouTubeVideoIdRegex.matches(videoId)
 
     LaunchedEffect(videoId, active, lowDataMode) {
         if (active && !lowDataMode && videoId != null) {

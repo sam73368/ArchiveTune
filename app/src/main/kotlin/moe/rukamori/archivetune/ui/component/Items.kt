@@ -737,8 +737,13 @@ fun MediaMetadataListItem(
     ListItem(
         title = mediaMetadata.title,
         subtitle = {
+            val viewCountLabel = rememberViewCountText(mediaMetadata.id)
             Text(
-                text = mediaMetadata.artists.joinToString { it.name },
+                text =
+                    joinByBullet(
+                        mediaMetadata.artists.joinToString { it.name }.takeIf { it.isNotBlank() },
+                        viewCountLabel,
+                    ),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
