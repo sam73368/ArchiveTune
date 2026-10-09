@@ -7,6 +7,8 @@
 
 package moe.rukamori.archivetune.playback
 
+import androidx.media3.exoplayer.PlayerMessage
+import android.os.Looper
 import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -95,6 +97,66 @@ class PlayerConnection(
         get() = service.localPlayer
 
     private var attachedPlayer: Player? = null
+
+    /** A–B repeat of the current song. `endMs == null` while only the start (A) has been set. */
+    data class AbLoop(
+        val mediaId: String,
+        val startMs: Long,
+        val endMs: Long?,
+    )
+
+    val abLoop = MutableStateFlow<AbLoop?>(null)
+    private var abLoopMessage: PlayerMessage? = null
+
+    fun setAbLoopStart() {
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        cancelAbLoopMessage()
+        abLoop.value = AbLoop(mediaId, player.currentPosition.coerceAtLeast(0L), null)
+    }
+
+    fun setAbLoopEnd() {
+        val current = abLoop.value ?: return
+        val end = player.currentPosition
+        if (end < current.startMs + AB_LOOP_MIN_LENGTH_MS) return
+        abLoop.value = current.copy(endMs = end)
+        armAbLoop()
+    }
+
+    fun clearAbLoop() {
+        abLoop.value = null
+        cancelAbLoopMessage()
+    }
+
+    private fun cancelAbLoopMessage() {
+        abLoopMessage?.cancel()
+        abLoopMessage = null
+    }
+
+    // A position message is delivered by the player exactly when playback reaches B, so the jump
+    // back to A does not depend on a polling loop.
+    private fun armAbLoop() {
+        cancelAbLoopMessage()
+        val loop = abLoop.value ?: return
+        val end = loop.endMs ?: return
+        val exo = localPlayer
+        if (exo.currentMediaItem?.mediaId != loop.mediaId) return
+        abLoopMessage =
+            exo
+                .createMessage { _, _ -> exo.seekTo(loop.startMs) }
+                .setLooper(Looper.getMainLooper())
+                .setPosition(exo.currentMediaItemIndex, end)
+                .setDeleteAfterDelivery(false)
+                .send()
+    }
+
+    private fun syncAbLoopWithCurrentItem() {
+        val loop = abLoop.value ?: return
+        if (player.currentMediaItem?.mediaId != loop.mediaId) {
+            clearAbLoop()
+        } else if (loop.endMs != null) {
+            armAbLoop()
+        }
+    }
 
     val playbackState = MutableStateFlow(player.playbackState)
     private val playWhenReady = MutableStateFlow(player.playWhenReady)
@@ -525,6 +587,7 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
+        syncAbLoopWithCurrentItem()
         if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && mediaItem != null) {
             _songEndedEvents.tryEmit(Unit)
         }
@@ -539,6 +602,7 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
+        syncAbLoopWithCurrentItem()
     }
 
     override fun onShuffleModeEnabledChanged(enabled: Boolean) {
@@ -599,12 +663,14 @@ class PlayerConnection(
     fun dispose() {
         if (disposed) return
         disposed = true
+        cancelAbLoopMessage()
         connectionJob.cancel()
         attachedPlayer?.removeListener(this)
         attachedPlayer = null
     }
 
     private companion object {
+        const val AB_LOOP_MIN_LENGTH_MS = 1_000L
         const val TELEGRAM_FORMAT_REFINE_ATTEMPTS = 10
         const val TELEGRAM_FORMAT_REFINE_INTERVAL_MS = 1_500L
     }

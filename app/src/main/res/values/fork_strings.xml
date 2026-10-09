@@ -176,4 +176,16 @@
     <string name="tiktok_main_lyrics">Show lyrics on main player</string>
     <string name="tiktok_main_lyrics_desc">Display a scrolling karaoke lyrics strip with word animation, translation and romanisation on the TikTok player screen, aligned with the song info</string>
 
+    <string name="download_wifi_only">Download on Wi-Fi only</string>
+    <string name="download_wifi_only_desc">Downloads wait for an unmetered connection and resume on their own</string>
+    <string name="ab_loop_set_a">A–B loop: set start (A)</string>
+    <string name="ab_loop_set_b">A–B loop: set end (B) — A at %1$s</string>
+    <string name="ab_loop_clear">Clear A–B loop (%1$s – %2$s)</string>
+    <string name="app_lock">App lock</string>
+    <string name="app_lock_desc">Ask for your fingerprint, PIN or pattern when the app is opened</string>
+    <string name="app_lock_title">ArchiveTune is locked</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_lock_prompt">Unlock ArchiveTune</string>
+    <string name="app_lock_no_screen_lock">Set a screen lock on your device to use this</string>
+
 </resources>

@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.constants.DownloadWifiOnlyKey
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -95,6 +96,8 @@ fun DownloadsSettings(
     val context = LocalContext.current
     val (autoDownloadOnLike, onAutoDownloadOnLikeChange) =
         rememberPreference(AutoDownloadOnLikeKey, defaultValue = false)
+    val (downloadWifiOnly, onDownloadWifiOnlyChange) =
+        rememberPreference(DownloadWifiOnlyKey, defaultValue = false)
 
     val (downloadSourceOrderRaw, onDownloadSourceOrderChange) =
         rememberPreference(DownloadSourceOrderKey, defaultValue = "")
@@ -235,6 +238,16 @@ fun DownloadsSettings(
                         icon = { Icon(painterResource(R.drawable.download), null) },
                         checked = autoDownloadOnLike,
                         onCheckedChange = onAutoDownloadOnLikeChange,
+                    )
+                }
+
+                item {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.download_wifi_only)) },
+                        description = stringResource(R.string.download_wifi_only_desc),
+                        icon = { Icon(painterResource(R.drawable.wifi_proxy), null) },
+                        checked = downloadWifiOnly,
+                        onCheckedChange = onDownloadWifiOnlyChange,
                     )
                 }
 

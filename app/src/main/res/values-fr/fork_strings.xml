@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_wifi_only">Télécharger en Wi-Fi seulement</string>
+    <string name="download_wifi_only_desc">Les téléchargements attendent une connexion non limitée et reprennent automatiquement</string>
+    <string name="ab_loop_set_a">Boucle A-B : définir le début (A)</string>
+    <string name="ab_loop_set_b">Boucle A-B : définir la fin (B) — A à %1$s</string>
+    <string name="ab_loop_clear">Effacer la boucle A-B (%1$s – %2$s)</string>
+    <string name="app_lock">Verrou de l\'application</string>
+    <string name="app_lock_desc">Demander l\'empreinte, le code ou le schéma de l\'appareil à l\'ouverture</string>
+    <string name="app_lock_title">ArchiveTune est verrouillé</string>
+    <string name="app_lock_unlock">Déverrouiller</string>
+    <string name="app_lock_prompt">Déverrouiller ArchiveTune</string>
+    <string name="app_lock_no_screen_lock">Configure un verrouillage d\'écran sur l\'appareil pour l\'utiliser</string>
+</resources>

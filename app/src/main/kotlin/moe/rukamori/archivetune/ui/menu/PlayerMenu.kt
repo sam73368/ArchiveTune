@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.menu
 
+import moe.rukamori.archivetune.utils.makeTimeString
 import android.content.Intent
 import android.media.audiofx.AudioEffect
 import android.widget.Toast
@@ -211,6 +212,7 @@ fun PlayerMenu(
     val playerDesignStyle by rememberEnumPreference(PlayerDesignStyleKey, defaultValue = PlayerDesignStyle.APPLE_MUSIC)
     val lowDataModeActive = rememberLowDataModeActive()
     val isCanvasArtworkRefetching by playerConnection.isCanvasArtworkRefetching.collectAsStateWithLifecycle()
+    val abLoop by playerConnection.abLoop.collectAsStateWithLifecycle()
 
     var hasCanvasArtwork by remember(mediaMetadata.id) { mutableStateOf(false) }
     LaunchedEffect(mediaMetadata.id, isCanvasArtworkRefetching) {
@@ -1460,6 +1462,49 @@ fun PlayerMenu(
                                 thickness = 0.5.dp,
                             )
                         }
+
+                        val loop = abLoop
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    text =
+                                        when {
+                                            loop == null -> stringResource(R.string.ab_loop_set_a)
+
+                                            loop.endMs == null ->
+                                                stringResource(R.string.ab_loop_set_b, makeTimeString(loop.startMs))
+
+                                            else ->
+                                                stringResource(
+                                                    R.string.ab_loop_clear,
+                                                    makeTimeString(loop.startMs),
+                                                    makeTimeString(loop.endMs),
+                                                )
+                                        },
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    painter = painterResource(if (loop?.endMs != null) R.drawable.repeat_on else R.drawable.repeat),
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier =
+                                Modifier.clickable {
+                                    when {
+                                        loop == null -> playerConnection.setAbLoopStart()
+                                        loop.endMs == null -> playerConnection.setAbLoopEnd()
+                                        else -> playerConnection.clearAbLoop()
+                                    }
+                                },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            thickness = 0.5.dp,
+                        )
 
                         ListItem(
                             headlineContent = { Text(text = stringResource(R.string.equalizer)) },

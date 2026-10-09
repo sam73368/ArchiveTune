@@ -398,6 +398,8 @@ import androidx.compose.runtime.setValue
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val appLock = moe.rukamori.archivetune.utils.AppLockController(this)
+
     @Inject
     lateinit var database: MusicDatabase
 
@@ -552,8 +554,14 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    override fun onPostCreate(savedInstanceState: Bundle?) {
+        super.onPostCreate(savedInstanceState)
+        appLock.install()
+    }
+
     override fun onStart() {
         super.onStart()
+        appLock.onStart()
         registerAodScreenOffReceiver()
         serviceBindingJob = lifecycleScope.launch {
             try {
@@ -609,6 +617,7 @@ class MainActivity : ComponentActivity() {
         serviceBindingJob?.cancel()
         serviceBindingJob = null
         safeUnbindMusicService()
+        appLock.onStop()
         super.onStop()
     }
 
@@ -698,6 +707,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        appLock.onCreate()
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
 

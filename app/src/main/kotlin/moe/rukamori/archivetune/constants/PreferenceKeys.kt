@@ -566,6 +566,8 @@ val LastwaveAudioProcessingKey = booleanPreferencesKey("lastwaveAudioProcessing"
 
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")
+val DownloadWifiOnlyKey = booleanPreferencesKey("downloadWifiOnly")
+val AppLockKey = booleanPreferencesKey("appLock")
 val AutoSkipNextOnErrorKey = booleanPreferencesKey("autoSkipNextOnError")
 val PauseOnDeviceMuteKey = booleanPreferencesKey("pauseOnDeviceMute")
 val DeviceMutePlaybackRecoveryVolumeKey = intPreferencesKey("deviceMutePlaybackRecoveryVolume")

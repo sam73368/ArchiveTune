@@ -7,6 +7,8 @@
 
 package moe.rukamori.archivetune.playback
 
+import moe.rukamori.archivetune.constants.DownloadWifiOnlyKey
+import androidx.media3.exoplayer.scheduler.Requirements
 import android.content.Context
 import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
@@ -618,6 +620,18 @@ class DownloadUtil
                     }
             }
         }
+
+        // Wi-Fi only: downloads wait for an unmetered network, and resume on their own when one is back.
+        private val networkRequirementJob =
+            downloadScope.launch(Dispatchers.Main) {
+                context.dataStore.data
+                    .map { it[DownloadWifiOnlyKey] ?: false }
+                    .distinctUntilChanged()
+                    .collect { wifiOnly ->
+                        downloadManager.requirements =
+                            Requirements(if (wifiOnly) Requirements.NETWORK_UNMETERED else Requirements.NETWORK)
+                    }
+            }
 
         fun getDownload(songId: String): Flow<Download?> =
             downloads.map { map ->
