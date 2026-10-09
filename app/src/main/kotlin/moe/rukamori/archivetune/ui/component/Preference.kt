@@ -202,7 +202,7 @@ fun PreferenceEntry(
                         indication = LocalIndication.current,
                         enabled = isEnabled && onClick != null,
                         onClick = onClick ?: {},
-                    ).alpha(if (isEnabled) 1f else 0.5f)
+                    ).alpha(if (isEnabled) 1f else 0.62f)
                     .padding(
                         horizontal = PreferenceEntryHorizontalPadding,
                         vertical = PreferenceEntryVerticalPadding,

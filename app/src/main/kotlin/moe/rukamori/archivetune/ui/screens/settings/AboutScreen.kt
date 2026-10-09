@@ -882,7 +882,7 @@ private fun AboutIdentity(
         ) {
             AboutMetadataBadge(text = model.versionName)
             model.buildHash?.let { buildHash ->
-                AboutMetadataBadge(text = buildHash)
+                AboutMetadataBadge(text = buildHash.take(7))
             }
             AboutMetadataBadge(text = model.buildVariant)
         }
