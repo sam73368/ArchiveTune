@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.library
 
+import moe.rukamori.archivetune.ui.menu.AiPlaylistDialog
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
@@ -216,6 +217,7 @@ fun LibraryPlaylistsScreen(
 
     @Suppress("UnusedVariable") val isGridView = false
     var showCreatePlaylistDialog by rememberSaveable { mutableStateOf(false) }
+    var showAiPlaylistDialog by rememberSaveable { mutableStateOf(false) }
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val lazyListState = rememberLazyListState()
     var pendingPlaylistOrderUpdate by remember { mutableStateOf(false) }
@@ -252,6 +254,11 @@ fun LibraryPlaylistsScreen(
             onDismiss = { showCreatePlaylistDialog = false },
         )
     }
+
+    AiPlaylistDialog(
+        isVisible = showAiPlaylistDialog,
+        onDismiss = { showAiPlaylistDialog = false },
+    )
 
     val playerAwareBottomPadding =
         LocalPlayerAwareWindowInsets.current
@@ -467,6 +474,24 @@ fun LibraryPlaylistsScreen(
 
                     if (!glassHeaderActive) {
                         Spacer(modifier = Modifier.width(12.dp))
+
+                        IconButton(
+                            onClick = { showAiPlaylistDialog = true },
+                            colors =
+                                IconButtonDefaults.iconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                ),
+                            modifier = Modifier.size(40.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.auto_awesome),
+                                contentDescription = stringResource(R.string.ai_playlist_title),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         IconButton(
                             onClick = { showCreatePlaylistDialog = true },
@@ -686,6 +711,20 @@ fun LibraryPlaylistsScreen(
                                 tint = liquidGlassContentColor(),
                             )
                         }
+                    }
+                }
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.IconButton(
+                        onClick = { showAiPlaylistDialog = true },
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.auto_awesome),
+                            contentDescription = stringResource(R.string.ai_playlist_title),
+                            tint = liquidGlassContentColor(),
+                        )
                     }
                 }
                 Box(

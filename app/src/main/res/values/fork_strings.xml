@@ -189,4 +189,14 @@
     <string name="app_lock_no_screen_lock">Set a screen lock on your device to use this</string>
     <string name="smart_shuffle">Smart Shuffle</string>
     <string name="smart_shuffle_desc">While shuffling, slip in a similar song every few tracks</string>
+    <string name="ai_playlist_title">AI playlist</string>
+    <string name="ai_playlist_label">Describe your playlist</string>
+    <string name="ai_playlist_placeholder">Rainy night jazz, 90s road trip, focus without lyrics…</string>
+    <string name="ai_playlist_generate">Create</string>
+    <string name="ai_playlist_generating">Asking the AI…</string>
+    <string name="ai_playlist_searching">Finding songs: %1$d/%2$d</string>
+    <string name="ai_playlist_not_configured">Set up an AI provider in Settings > AI integration first</string>
+    <string name="ai_playlist_no_matches">No songs could be found for this description</string>
+    <string name="ai_playlist_failed">Could not create the playlist: %1$s</string>
+    <string name="ai_playlist_success">Created “%1$s” with %2$d songs</string>
 </resources>

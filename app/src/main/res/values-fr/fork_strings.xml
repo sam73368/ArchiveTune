@@ -13,4 +13,14 @@
     <string name="app_lock_no_screen_lock">Configure un verrouillage d\'écran sur l\'appareil pour l\'utiliser</string>
     <string name="smart_shuffle">Smart Shuffle</string>
     <string name="smart_shuffle_desc">En mode aléatoire, glisse une chanson similaire toutes les quelques pistes</string>
+    <string name="ai_playlist_title">Playlist IA</string>
+    <string name="ai_playlist_label">Décris ta playlist</string>
+    <string name="ai_playlist_placeholder">Jazz d\'une nuit pluvieuse, road trip années 90, concentration sans paroles…</string>
+    <string name="ai_playlist_generate">Créer</string>
+    <string name="ai_playlist_generating">L\'IA réfléchit…</string>
+    <string name="ai_playlist_searching">Recherche des chansons : %1$d/%2$d</string>
+    <string name="ai_playlist_not_configured">Configure d\'abord un fournisseur d\'IA dans Réglages > Intégration IA</string>
+    <string name="ai_playlist_no_matches">Aucune chanson trouvée pour cette description</string>
+    <string name="ai_playlist_failed">Impossible de créer la playlist : %1$s</string>
+    <string name="ai_playlist_success">« %1$s » créée avec %2$d chansons</string>
 </resources>
