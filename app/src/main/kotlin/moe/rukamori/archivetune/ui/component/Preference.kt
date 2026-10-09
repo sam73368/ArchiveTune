@@ -162,6 +162,8 @@ private fun preferenceItemShapeForPosition(position: PreferenceGroupPosition?): 
         PreferenceGroupPosition.Last -> segmentedPreferenceItemShape(index = 1, count = 2)
     }
 
+private const val PreferenceDescriptionCollapsedLines = 4
+
 @Composable
 fun PreferenceEntry(
     modifier: Modifier = Modifier,
@@ -232,11 +234,31 @@ fun PreferenceEntry(
                 }
                 if (description != null) {
                     Spacer(Modifier.height(1.dp))
+                    // Long descriptions are folded to a few lines so the page stays scannable.
+                    var expanded by remember(description) { mutableStateOf(false) }
+                    var overflowing by remember(description) { mutableStateOf(false) }
                     Text(
                         text = description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = if (expanded) Int.MAX_VALUE else PreferenceDescriptionCollapsedLines,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { result ->
+                            if (!expanded) overflowing = result.hasVisualOverflow
+                        },
                     )
+                    if (overflowing || expanded) {
+                        Text(
+                            text = stringResource(if (expanded) R.string.show_less else R.string.show_more),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier =
+                                Modifier
+                                    .clickable { expanded = !expanded }
+                                    .padding(top = 2.dp, bottom = 2.dp),
+                        )
+                    }
                 }
                 content?.invoke()
             }
@@ -1168,7 +1190,7 @@ fun CrossfadeSliderPreference(
 
     PreferenceEntry(
         modifier = modifier,
-        title = { Text(stringResource(R.string.audio_crossfade_title)) },
+        title = { Text(stringResource(R.string.audio_crossfade_dialog_title)) },
         description = descriptionText,
         icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
         onClick = { if (isEnabled) showDialog = true },

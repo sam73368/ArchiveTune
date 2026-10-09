@@ -388,16 +388,7 @@ private fun PercentageSliderEntry(
                 valueRange = range,
                 steps = if (range == 0f..2f) 39 else 19,
                 enabled = enabled,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = 56.dp),
-            )
-            Text(
-                text = percentText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 56.dp, top = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
         },
     )

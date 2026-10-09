@@ -199,4 +199,6 @@
     <string name="ai_playlist_no_matches">No songs could be found for this description</string>
     <string name="ai_playlist_failed">Could not create the playlist: %1$s</string>
     <string name="ai_playlist_success">Created “%1$s” with %2$d songs</string>
+    <string name="show_more">Show more</string>
+    <string name="show_less">Show less</string>
 </resources>
