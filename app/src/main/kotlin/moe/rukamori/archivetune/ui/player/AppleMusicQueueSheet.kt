@@ -477,6 +477,14 @@ fun AppleMusicQueueSheet(
                                                     tint = adaptivePrimary,
                                                 )
                                             }
+                                        } else {
+                                            IconButton(onClick = { locked = false }) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.drag_handle),
+                                                    contentDescription = "Unlock to reorder",
+                                                    tint = adaptivePrimary.copy(alpha = 0.45f),
+                                                )
+                                            }
                                         }
                                     }
                                 },
