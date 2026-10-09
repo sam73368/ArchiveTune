@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.playback
 
+import moe.rukamori.archivetune.constants.SmartShuffleKey
 import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -653,6 +654,11 @@ class MusicService :
     private var blockedArtistIds: Set<String> = emptySet()
     private var hideMusicVideos = false
     private var infiniteQueueJob: Job? = null
+
+    // Smart Shuffle: while shuffling, one similar song from the radio is slipped in every few tracks.
+    private var smartShuffleTransitions = 0
+    private var smartShuffleJob: Job? = null
+    private val smartShuffleSuggested: MutableSet<String> = java.util.Collections.synchronizedSet(mutableSetOf())
     private var infiniteQueueGeneration = 0L
     private var initialQueueLoadGeneration = 0L
 
@@ -5231,6 +5237,8 @@ class MusicService :
 
         clearAutomix()
         autoAddedMediaIds.clear()
+        smartShuffleTransitions = 0
+        smartShuffleSuggested.clear()
         scope.launch(SilentHandler) {
             var autoLoadMoreEnabled = true
             try {
@@ -6834,6 +6842,45 @@ class MusicService :
         }
 
         prefetchNextMediaItemStream()
+
+        if (!suppressAutoPlayback &&
+            !timelineEmpty &&
+            (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) &&
+            player.shuffleModeEnabled &&
+            dataStore.get(SmartShuffleKey, false)
+        ) {
+            maybeAddSmartShuffleSuggestion(mediaItem?.mediaId)
+        }
+    }
+
+    private fun maybeAddSmartShuffleSuggestion(seedMediaId: String?) {
+        val seed = seedMediaId?.trim()?.takeIf { it.isNotBlank() } ?: return
+        if (seed.isLocalMediaId() || seed.isTelegramMediaId()) return
+        smartShuffleTransitions++
+        if (smartShuffleTransitions % SMART_SHUFFLE_EVERY != 0) return
+        if (smartShuffleJob?.isActive == true) return
+        smartShuffleJob =
+            scope.launch(SilentHandler) {
+                val hideExplicit = dataStore.get(HideExplicitKey, false)
+                val hideVideo = dataStore.get(HideVideoKey, false)
+                val status =
+                    withContext(Dispatchers.IO) {
+                        YouTubeQueue(WatchEndpoint(videoId = seed), followAutomixPreview = true)
+                            .getInitialStatus()
+                            .filterPlaybackContent(hideExplicit, hideVideo)
+                    }
+                // The user may have skipped on, or turned shuffle off, while the radio loaded.
+                if (!player.shuffleModeEnabled || player.currentMediaItem?.mediaId != seed) return@launch
+                val knownIds =
+                    (0 until player.mediaItemCount).mapTo(HashSet()) { player.getMediaItemAt(it).mediaId }
+                val candidates =
+                    status.items
+                        .filter { it.mediaId !in knownIds && it.mediaId !in smartShuffleSuggested }
+                        .take(SMART_SHUFFLE_CANDIDATES)
+                val suggestion = candidates.randomOrNull() ?: return@launch
+                smartShuffleSuggested += suggestion.mediaId
+                playNext(listOf(suggestion))
+            }
     }
 
     private fun isCurrentPlaybackItemLocal(currentMediaMetadata: MediaMetadata): Boolean =
@@ -12071,6 +12118,8 @@ class MusicService :
         private const val AUDIO_EFFECT_INITIALIZATION_MAX_ATTEMPTS = 4
         private const val AUDIO_EFFECT_INITIALIZATION_RETRY_DELAY_MS = 250L
         private const val INFINITE_QUEUE_MAX_BOOTSTRAP_PAGES = 3
+        private const val SMART_SHUFFLE_EVERY = 3
+        private const val SMART_SHUFFLE_CANDIDATES = 5
         private const val DISCORD_SYNC_TAG = "DiscordSync"
         private const val DISCORD_HOLD_TIMEOUT_MS = 7_000L
         const val CHANNEL_ID = "music_channel_01"

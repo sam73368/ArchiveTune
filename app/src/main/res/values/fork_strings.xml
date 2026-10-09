@@ -187,5 +187,6 @@
     <string name="app_lock_unlock">Unlock</string>
     <string name="app_lock_prompt">Unlock ArchiveTune</string>
     <string name="app_lock_no_screen_lock">Set a screen lock on your device to use this</string>
-
+    <string name="smart_shuffle">Smart Shuffle</string>
+    <string name="smart_shuffle_desc">While shuffling, slip in a similar song every few tracks</string>
 </resources>

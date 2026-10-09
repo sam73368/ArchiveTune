@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.constants.SmartShuffleKey
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -142,6 +143,11 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
     val (permanentShuffle, onPermanentShuffleChange) =
         rememberPreference(
             PermanentShuffleKey,
+            defaultValue = false,
+        )
+    val (smartShuffle, onSmartShuffleChange) =
+        rememberPreference(
+            SmartShuffleKey,
             defaultValue = false,
         )
     val (skipSilence, onSkipSilenceChange) =
@@ -797,6 +803,18 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                             icon = { Icon(painterResource(R.drawable.shuffle), null) },
                             checked = permanentShuffle,
                             onCheckedChange = onPermanentShuffleChange,
+                        )
+                    }
+                }
+
+                item {
+                    Column(modifier = positions.modifierFor("smart_shuffle")) {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.smart_shuffle)) },
+                            description = stringResource(R.string.smart_shuffle_desc),
+                            icon = { Icon(painterResource(R.drawable.shuffle), null) },
+                            checked = smartShuffle,
+                            onCheckedChange = onSmartShuffleChange,
                         )
                     }
                 }

@@ -11,4 +11,6 @@
     <string name="app_lock_unlock">Déverrouiller</string>
     <string name="app_lock_prompt">Déverrouiller ArchiveTune</string>
     <string name="app_lock_no_screen_lock">Configure un verrouillage d\'écran sur l\'appareil pour l\'utiliser</string>
+    <string name="smart_shuffle">Smart Shuffle</string>
+    <string name="smart_shuffle_desc">En mode aléatoire, glisse une chanson similaire toutes les quelques pistes</string>
 </resources>
