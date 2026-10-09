@@ -107,6 +107,7 @@ import moe.rukamori.archivetune.constants.RandomThemeOnStartupKey
 import moe.rukamori.archivetune.constants.ShowPlayerVolumeBarKey
 import moe.rukamori.archivetune.constants.SliderStyle
 import moe.rukamori.archivetune.constants.SliderStyleKey
+import moe.rukamori.archivetune.constants.ShowViewCountsKey
 import moe.rukamori.archivetune.constants.TabletModeEnabledKey
 import moe.rukamori.archivetune.constants.ThumbnailCornerRadiusKey
 import moe.rukamori.archivetune.constants.WallpaperExtractionFailedKey
@@ -257,6 +258,8 @@ fun AppearanceSettings(
             TabletModeEnabledKey,
             defaultValue = false,
         )
+    val (showViewCounts, onShowViewCountsChange) =
+        rememberPreference(ShowViewCountsKey, defaultValue = true)
     val (blurRadius, onBlurRadiusChange) = rememberPreference(BlurRadiusKey, defaultValue = 48f)
     val (backdropEnabled, onBackdropEnabledChange) = rememberPreference(BackdropEnabledKey, defaultValue = true)
     val (backdropBlurAmount, onBackdropBlurAmountChange) = rememberPreference(BackdropBlurAmountKey, defaultValue = 60)
@@ -1157,6 +1160,17 @@ fun AppearanceSettings(
                         icon = { Icon(painterResource(R.drawable.desktop_windows), null) },
                         checked = tabletModeEnabled,
                         onCheckedChange = onTabletModeEnabledChange,
+                    )
+                }
+
+                item {
+                    SwitchPreference(
+                        modifier = positions.modifierFor("show_view_counts"),
+                        title = { Text(stringResource(R.string.show_view_counts)) },
+                        description = stringResource(R.string.show_view_counts_desc),
+                        icon = { Icon(painterResource(R.drawable.trending_up), null) },
+                        checked = showViewCounts,
+                        onCheckedChange = onShowViewCountsChange,
                     )
                 }
 

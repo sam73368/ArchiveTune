@@ -273,6 +273,7 @@ val EnableDeezerLyricsKey = booleanPreferencesKey("enableDeezerLyrics")
 val PrioritizeWordSyncedLyricsKey = booleanPreferencesKey("prioritizeWordSyncedLyrics")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoKey = booleanPreferencesKey("hideVideo")
+val ShowViewCountsKey = booleanPreferencesKey("showViewCounts")
 
 val HomeCatalogueSwitchKey = booleanPreferencesKey("homeCatalogueSwitch")
 

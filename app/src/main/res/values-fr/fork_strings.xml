@@ -33,4 +33,12 @@
     <string name="player_section_misc_desc">Comportement en arrière-plan, séparateurs d\'artistes et étiquettes de playlists</string>
     <string name="appearance_section_theme_desc">Thème, couleurs, polices et icône de l\'application</string>
     <string name="appearance_section_player_desc">Style du lecteur, arrière-plan, paroles et curseurs</string>
+    <string name="show_view_counts">Afficher le nombre de vues</string>
+    <string name="show_view_counts_desc">Affiche le nombre de vues YouTube Music sous chaque titre. Les nombres sont chargés en arrière-plan puis mis en cache ; désactivé en mode économie de données.</string>
+    <string name="reorder_enable_title">Réorganiser les titres</string>
+    <string name="reorder_convert_message">Les titres sont actuellement triés automatiquement. Utiliser cet ordre comme ordre personnalisé ? Tu pourras ensuite les déplacer avec la poignée.</string>
+    <string name="reorder_synced_message">Cette liste est synchronisée avec YouTube Music. Revenir à son propre ordre pour déplacer les titres par glisser-déposer ?</string>
+    <string name="reorder_use_current_order">Utiliser cet ordre</string>
+    <string name="reorder_switch_order">Basculer</string>
+    <string name="reorder_unlocked_hint">Modification déverrouillée. Glisse les titres par leur poignée.</string>
 </resources>

@@ -20,6 +20,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -140,7 +142,6 @@ import moe.rukamori.archivetune.ui.utils.HeaderDownloadItem
 import moe.rukamori.archivetune.ui.utils.HeaderDownloadProgressIndicator
 import moe.rukamori.archivetune.ui.utils.HeaderDownloadState
 import moe.rukamori.archivetune.ui.utils.backToMain
-import moe.rukamori.archivetune.ui.utils.formatCompactCount
 import moe.rukamori.archivetune.ui.utils.headerDownloadState
 import moe.rukamori.archivetune.ui.utils.sendAddMissingDownloads
 import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
@@ -178,7 +179,6 @@ fun LocalPlaylistScreen(
     val playlist by viewModel.playlist.collectAsStateWithLifecycle()
     val songs by viewModel.playlistSongs.collectAsStateWithLifecycle()
 
-    val viewCounts by viewModel.viewCounts.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val coverState by viewModel.coverState.collectAsStateWithLifecycle()
     val mutableSongs = remember { mutableStateListOf<PlaylistSong>() }
@@ -406,6 +406,50 @@ fun LocalPlaylistScreen(
                     shapes = ButtonDefaults.shapes(),
                 ) {
                     Text(text = stringResource(android.R.string.ok))
+                }
+            },
+        )
+    }
+
+    var showReorderDialog by remember { mutableStateOf(false) }
+    if (showReorderDialog) {
+        val isSynced = playlist?.playlist?.browseId != null
+        DefaultDialog(
+            onDismiss = { showReorderDialog = false },
+            content = {
+                Text(
+                    text = stringResource(R.string.reorder_enable_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 18.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(if (isSynced) R.string.reorder_synced_message else R.string.reorder_convert_message),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(horizontal = 18.dp),
+                )
+            },
+            buttons = {
+                TextButton(
+                    onClick = { showReorderDialog = false },
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(text = stringResource(android.R.string.cancel))
+                }
+                TextButton(
+                    onClick = {
+                        showReorderDialog = false
+                        viewModel.adoptDisplayedOrderAsCustom(keepDisplayedOrder = !isSynced)
+                        locked = false
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(
+                        text =
+                            stringResource(
+                                if (isSynced) R.string.reorder_switch_order else R.string.reorder_use_current_order,
+                            ),
+                    )
                 }
             },
         )
@@ -852,8 +896,6 @@ fun LocalPlaylistScreen(
                         val content: @Composable () -> Unit = {
                             SongListItem(
                                 song = song.song,
-                                viewCountText =
-                                    viewCounts[song.song.id]?.let { count -> formatCompactCount(count.toLong()) },
                                 isActive = song.song.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
                                 showInLibraryIcon = true,
@@ -889,7 +931,25 @@ fun LocalPlaylistScreen(
                                         ) {
                                             Icon(
                                                 painter = painterResource(R.drawable.drag_handle),
-                                                contentDescription = null,
+                                                contentDescription = stringResource(R.string.reorder_enable_title),
+                                            )
+                                        }
+                                    } else if (editable && !selection && !isSearching) {
+                                        // Handle stays visible so reordering is discoverable; a tap explains / unlocks it.
+                                        IconButton(
+                                            onClick = {
+                                                if (sortType != PlaylistSongSortType.CUSTOM) {
+                                                    showReorderDialog = true
+                                                } else {
+                                                    locked = false
+                                                }
+                                            },
+                                            onLongClick = {},
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.drag_handle),
+                                                contentDescription = stringResource(R.string.reorder_enable_title),
+                                                modifier = Modifier.graphicsLayer { alpha = 0.45f },
                                             )
                                         }
                                     }
@@ -950,8 +1010,6 @@ fun LocalPlaylistScreen(
                         val content: @Composable () -> Unit = {
                             SongListItem(
                                 song = song.song,
-                                viewCountText =
-                                    viewCounts[song.song.id]?.let { count -> formatCompactCount(count.toLong()) },
                                 isActive = song.song.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
                                 showInLibraryIcon = true,

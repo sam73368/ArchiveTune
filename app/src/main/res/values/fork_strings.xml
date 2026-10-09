@@ -209,4 +209,12 @@
     <string name="player_section_misc_desc">Background behaviour, artist separators and playlist tags</string>
     <string name="appearance_section_theme_desc">Theme, colours, fonts and app icon</string>
     <string name="appearance_section_player_desc">Player style, background, lyrics and sliders</string>
+    <string name="show_view_counts">Show view counts</string>
+    <string name="show_view_counts_desc">Display the YouTube Music view count under each song. Counts are loaded in the background and cached; disabled in low data mode.</string>
+    <string name="reorder_enable_title">Reorder songs</string>
+    <string name="reorder_convert_message">Songs are currently sorted automatically. Use this order as your custom order? You will then be able to drag songs by their handle.</string>
+    <string name="reorder_synced_message">This playlist is synced with YouTube Music. Switch to its own order to move songs by drag and drop?</string>
+    <string name="reorder_use_current_order">Use this order</string>
+    <string name="reorder_switch_order">Switch</string>
+    <string name="reorder_unlocked_hint">Editing unlocked. Drag songs by their handle.</string>
 </resources>

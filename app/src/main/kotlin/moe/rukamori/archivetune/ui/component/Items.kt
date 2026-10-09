@@ -135,6 +135,7 @@ import moe.rukamori.archivetune.ui.utils.resize
 import moe.rukamori.archivetune.ui.utils.thumbnailSourceRatio
 import moe.rukamori.archivetune.utils.joinByBullet
 import moe.rukamori.archivetune.utils.rememberPreference
+import moe.rukamori.archivetune.utils.rememberViewCountText
 import moe.rukamori.archivetune.utils.reportException
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -402,12 +403,18 @@ fun SongListItem(
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = true)
     val resolvedSwipeContentBackgroundColor = swipeContentBackgroundColor ?: MaterialTheme.colorScheme.surface
+    val fetchedViewCount = rememberViewCountText(song.id, enabled = viewCountText == null && !song.song.isLocal)
+    val viewCountLabel = viewCountText ?: fetchedViewCount
 
     val content: @Composable () -> Unit = {
         ListItem(
             title = song.song.title,
 
-            subtitle = song.artists.joinToString { it.name }.takeIf { it.isNotBlank() },
+            subtitle =
+                joinByBullet(
+                    song.artists.joinToString { it.name }.takeIf { it.isNotBlank() },
+                    viewCountLabel,
+                ).takeIf { it.isNotEmpty() },
             badges = badges,
             thumbnailContent = {
                 ItemThumbnail(
@@ -803,13 +810,23 @@ fun YouTubeListItem(
     },
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = true)
+    val fetchedViewCount =
+        rememberViewCountText(
+            videoId = (item as? SongItem)?.id,
+            enabled = viewCountText.isNullOrBlank(),
+        )
+    val viewCountLabel = viewCountText?.takeIf { it.isNotBlank() } ?: fetchedViewCount
 
     val content: @Composable () -> Unit = {
         ListItem(
             title = item.title,
             subtitle =
                 when (item) {
-                    is SongItem -> item.artists.joinToString { it.name }.takeIf { it.isNotBlank() }
+                    is SongItem ->
+                        joinByBullet(
+                            item.artists.joinToString { it.name }.takeIf { it.isNotBlank() },
+                            viewCountLabel,
+                        ).takeIf { it.isNotEmpty() }
 
                     is AlbumItem -> {
                         joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
