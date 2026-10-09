@@ -201,4 +201,12 @@
     <string name="ai_playlist_success">Created “%1$s” with %2$d songs</string>
     <string name="show_more">Show more</string>
     <string name="show_less">Show less</string>
+    <string name="player_settings_sections">Sections</string>
+    <string name="player_section_video_desc">Music videos and Picture-in-Picture</string>
+    <string name="player_section_playback_desc">Crossfade, Automix, silence, seeking, mute and Bluetooth</string>
+    <string name="player_section_artwork_desc">Canvas, animated covers and artwork sources</string>
+    <string name="player_section_queue_desc">Saved queue, shuffle and swipe gestures</string>
+    <string name="player_section_misc_desc">Background behaviour, artist separators and playlist tags</string>
+    <string name="appearance_section_theme_desc">Theme, colours, fonts and app icon</string>
+    <string name="appearance_section_player_desc">Player style, background, lyrics and sliders</string>
 </resources>

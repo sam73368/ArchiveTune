@@ -25,4 +25,12 @@
     <string name="ai_playlist_success">« %1$s » créée avec %2$d chansons</string>
     <string name="show_more">Voir plus</string>
     <string name="show_less">Voir moins</string>
+    <string name="player_settings_sections">Sections</string>
+    <string name="player_section_video_desc">Clips musicaux et Picture-in-Picture</string>
+    <string name="player_section_playback_desc">Fondu enchaîné, Automix, silences, avance rapide, sourdine et Bluetooth</string>
+    <string name="player_section_artwork_desc">Canvas, pochettes animées et sources de pochettes</string>
+    <string name="player_section_queue_desc">File enregistrée, lecture aléatoire et gestes de balayage</string>
+    <string name="player_section_misc_desc">Comportement en arrière-plan, séparateurs d\'artistes et étiquettes de playlists</string>
+    <string name="appearance_section_theme_desc">Thème, couleurs, polices et icône de l\'application</string>
+    <string name="appearance_section_player_desc">Style du lecteur, arrière-plan, paroles et curseurs</string>
 </resources>
