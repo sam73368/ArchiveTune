@@ -50,6 +50,8 @@ object StudioAudioResolver {
         val studioOnly: Boolean,
         /** "Hide explicit" is on: never swap in an explicit upload. */
         val hideExplicit: Boolean = false,
+        /** The original is explicit: among equally good uploads, pick the explicit one, not the clean edit. */
+        val preferExplicit: Boolean = false,
     )
 
     private val negativeCache = ConcurrentHashMap<String, Long>()
@@ -137,6 +139,7 @@ object StudioAudioResolver {
                     }
                 }.sortedWith(
                     compareBy<SongItem> { if (comparable(it.title) == wantedKey) 0 else 1 }
+                        .thenBy { if (request.preferExplicit && !it.explicit) 1 else 0 }
                         .thenBy { durationDistance(request.durationMs, it.duration) },
                 ).map { it.id }
                 .toList()

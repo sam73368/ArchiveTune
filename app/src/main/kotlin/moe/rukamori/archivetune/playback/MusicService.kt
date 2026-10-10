@@ -8221,6 +8221,9 @@ class MusicService :
         val directDeezerTrackId: String? = null,
 
         val directTidalTrackId: String? = null,
+
+        /** Flagged explicit by the catalogue: lossless sources must not substitute the clean edit. */
+        val explicit: Boolean = false,
     )
 
     private fun sourceResolutionChain(): List<AudioSourceType> {
@@ -8313,6 +8316,7 @@ class MusicService :
             directQobuzBackupVideoId = directQobuzBackupVideoId,
             directDeezerTrackId = directDeezerTrackId,
             directTidalTrackId = directTidalTrackId,
+            explicit = song?.song?.explicit ?: queuedMetadata?.explicit ?: false,
         )
     }
 
@@ -9226,6 +9230,7 @@ class MusicService :
 
                             isrc = query.isrc,
                             durationMs = query.durationMs,
+                            explicit = query.explicit,
                         ),
                     cacheDir = cacheDir,
                     preferAtmos = false,
@@ -9298,6 +9303,7 @@ class MusicService :
                             album = query.album,
                             durationMs = query.durationMs,
                             directTrackId = query.directQobuzTrackId,
+                            explicit = query.explicit,
                         ),
                     formatId = formatId,
                 )
@@ -9389,6 +9395,7 @@ class MusicService :
                                 album = query.album,
                                 durationMs = query.durationMs,
                                 isrc = query.isrc,
+                                explicit = query.explicit,
                             ),
                         format = quality.toFormatName(),
                     )
@@ -9788,6 +9795,7 @@ class MusicService :
                 durationMs = query.durationMs,
                 studioOnly = studioOnly,
                 hideExplicit = dataStore.get(HideExplicitKey, false),
+                preferExplicit = query.explicit,
             )
         val found =
             runCatching {

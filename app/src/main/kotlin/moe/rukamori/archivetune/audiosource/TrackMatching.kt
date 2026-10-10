@@ -44,6 +44,8 @@ internal object TrackMatching {
         val artists: List<String>,
         val album: String?,
         val durationMs: Long?,
+        /** The song being played is flagged explicit: do not settle for the clean edit. */
+        val explicit: Boolean = false,
     )
 
     data class Candidate(
@@ -52,7 +54,25 @@ internal object TrackMatching {
         val artists: List<String>,
         val album: String?,
         val durationMs: Long?,
+        /** null when the catalogue does not say. */
+        val explicit: Boolean? = null,
     )
+
+    /**
+     * Clean and explicit editions share title, album and length, so without this they tie and the
+     * first search hit (often the clean one) wins. Only applied when the wanted song is explicit.
+     */
+    fun explicitAdjustment(
+        wantedExplicit: Boolean,
+        candidateExplicit: Boolean?,
+    ): Int =
+        when {
+            !wantedExplicit || candidateExplicit == null -> 0
+            candidateExplicit -> EXPLICIT_MATCH_BONUS
+            else -> -EXPLICIT_MATCH_BONUS
+        }
+
+    const val EXPLICIT_MATCH_BONUS = 25
 
     fun best(
         target: Target,
@@ -69,7 +89,7 @@ internal object TrackMatching {
                         candidateArtist = normalize(candidate.artists.firstOrNull()),
                         wantedDurationMs = target.durationMs,
                         candidateDurationMs = candidate.durationMs,
-                    )
+                    ) + explicitAdjustment(target.explicit, candidate.explicit)
             }.filter { (_, score) -> score >= MIN_MATCH_SCORE }
             .maxByOrNull { (_, score) -> score }
             ?.first
