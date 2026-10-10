@@ -209,7 +209,11 @@ class LyricsHelper
 
             if (results.isEmpty()) return null
 
-            val first = results.first()
+            // Skip word-synced files that stop long before the song ends: the normal flow below
+            // will then compare every provider and keep the most complete one.
+            val first =
+                results.firstOrNull { !LyricsUtils.isLikelyTruncated(it.second, mediaMetadata.duration) }
+                    ?: return null
             return LyricsResult(providerName = first.first, lyrics = first.second)
         }
 
@@ -297,13 +301,23 @@ class LyricsHelper
 
             if (results.isEmpty()) return LyricsResult(providerName = "", lyrics = LYRICS_NOT_FOUND)
 
-            val wordSynced = results.firstOrNull { LyricsUtils.hasWordSyncedLyrics(it.second) }
+            // Lyrics that end far before the song does are partial: prefer any complete candidate,
+            // and if every candidate is partial keep the one that reaches furthest into the song.
+            val complete = results.filter { !LyricsUtils.isLikelyTruncated(it.second, mediaMetadata.duration) }
+            val pool =
+                if (complete.isNotEmpty()) {
+                    complete
+                } else {
+                    listOf(results.maxBy { LyricsUtils.lastTimedLineMs(it.second) ?: -1L })
+                }
+
+            val wordSynced = pool.firstOrNull { LyricsUtils.hasWordSyncedLyrics(it.second) }
             if (wordSynced != null) return LyricsResult(providerName = wordSynced.first, lyrics = wordSynced.second)
 
-            val lineSynced = results.firstOrNull { LyricsUtils.isLineSyncedLrc(it.second) }
+            val lineSynced = pool.firstOrNull { LyricsUtils.isLineSyncedLrc(it.second) }
             if (lineSynced != null) return LyricsResult(providerName = lineSynced.first, lyrics = lineSynced.second)
 
-            val first = results.first()
+            val first = pool.first()
             return LyricsResult(providerName = first.first, lyrics = first.second)
         }
 

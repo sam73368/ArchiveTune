@@ -603,6 +603,32 @@ object LyricsUtils {
         }
     }
 
+    /** Start time of the last timed line, or null for unsynced / unparsable lyrics. */
+    fun lastTimedLineMs(lyrics: String): Long? {
+        val normalized = normalizeLyricsText(lyrics)
+        val entries =
+            when {
+                isTtml(normalized) -> parseTtml(lyrics)
+                isLineSyncedLrc(lyrics) -> parseLyrics(lyrics)
+                else -> return null
+            }
+        return entries.filter { it.text.isNotBlank() && it.time >= 0L }.maxOfOrNull { it.time }
+    }
+
+    /**
+     * True when timed lyrics stop well before the song does (partial file, shorter edit, wrong
+     * version). Unsynced lyrics carry no timing, so they are never flagged.
+     */
+    fun isLikelyTruncated(
+        lyrics: String,
+        durationSeconds: Int,
+    ): Boolean {
+        if (durationSeconds <= 0) return false
+        val lastMs = lastTimedLineMs(lyrics) ?: return false
+        val durationMs = durationSeconds * 1000L
+        return lastMs < durationMs * 65 / 100 && durationMs - lastMs > 40_000L
+    }
+
     fun parseTtml(
         lyrics: String,
         durationSeconds: Int? = null,
