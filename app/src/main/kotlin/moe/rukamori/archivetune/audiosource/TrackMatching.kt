@@ -89,7 +89,9 @@ internal object TrackMatching {
                         candidateArtist = normalize(candidate.artists.firstOrNull()),
                         wantedDurationMs = target.durationMs,
                         candidateDurationMs = candidate.durationMs,
-                    ) + explicitAdjustment(target.explicit, candidate.explicit)
+                    ).let { base ->
+                        if (base == Int.MIN_VALUE) base else base + explicitAdjustment(target.explicit, candidate.explicit)
+                    }
             }.filter { (_, score) -> score >= MIN_MATCH_SCORE }
             .maxByOrNull { (_, score) -> score }
             ?.first

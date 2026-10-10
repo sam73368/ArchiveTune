@@ -860,7 +860,7 @@ object TidalAudioProvider {
         wantedIsrc: String?,
         wantedDurationMs: Long?,
     ): Int =
-        scoreTrack(track, wantedTitle, wantedArtists, wantedAlbum, wantedIsrc, wantedDurationMs, query.explicit) - track.qualityScoreBoost()
+        scoreTrack(track, wantedTitle, wantedArtists, wantedAlbum, wantedIsrc, wantedDurationMs) - track.qualityScoreBoost()
 
     private fun selectArtworkCandidates(
         results: JSONArray,
