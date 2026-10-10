@@ -14,6 +14,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.core.DataMigration
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -43,6 +44,8 @@ import kotlin.properties.ReadOnlyProperty
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
     name = "settings",
+    // A corrupted or half-restored settings file must not crash-loop the app: start from defaults.
+    corruptionHandler = ReplaceFileCorruptionHandler { androidx.datastore.preferences.core.emptyPreferences() },
     produceMigrations = { _ ->
         listOf(
             object : DataMigration<Preferences> {
@@ -162,9 +165,11 @@ operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? {
     if (snapshot != null) return snapshot[key]
 
     val loaded =
-        runBlocking(Dispatchers.IO) {
-            withTimeoutOrNull(1500) { PreferenceStore.awaitSnapshot() }
-        }
+        runCatching {
+            runBlocking(Dispatchers.IO) {
+                withTimeoutOrNull(1500) { PreferenceStore.awaitSnapshot() }
+            }
+        }.getOrNull()
     return loaded?.get(key)
 }
 

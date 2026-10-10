@@ -20,6 +20,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -88,6 +90,7 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.LocalDatabase
@@ -139,12 +142,12 @@ import moe.rukamori.archivetune.ui.utils.HeaderDownloadItem
 import moe.rukamori.archivetune.ui.utils.HeaderDownloadProgressIndicator
 import moe.rukamori.archivetune.ui.utils.HeaderDownloadState
 import moe.rukamori.archivetune.ui.utils.backToMain
-import moe.rukamori.archivetune.ui.utils.formatCompactCount
 import moe.rukamori.archivetune.ui.utils.headerDownloadState
 import moe.rukamori.archivetune.ui.utils.sendAddMissingDownloads
 import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
 import moe.rukamori.archivetune.ui.utils.sendPauseRunningDownloads
 import moe.rukamori.archivetune.ui.utils.sendResumePausedDownloads
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.utils.makeTimeString
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.viewmodels.LocalPlaylistViewModel
@@ -176,7 +179,6 @@ fun LocalPlaylistScreen(
     val playlist by viewModel.playlist.collectAsStateWithLifecycle()
     val songs by viewModel.playlistSongs.collectAsStateWithLifecycle()
 
-    val viewCounts by viewModel.viewCounts.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val coverState by viewModel.coverState.collectAsStateWithLifecycle()
     val mutableSongs = remember { mutableStateListOf<PlaylistSong>() }
@@ -249,6 +251,7 @@ fun LocalPlaylistScreen(
 
     var savedScrollIndex by remember { mutableIntStateOf(0) }
     var savedScrollOffset by remember { mutableIntStateOf(0) }
+    var wasSearching by remember { mutableStateOf(false) }
     LaunchedEffect(isSearching) {
         if (isSearching) {
             focusRequester.requestFocus()
@@ -308,35 +311,6 @@ fun LocalPlaylistScreen(
     val downloadUtil = LocalDownloadUtil.current
     var downloads by remember { mutableStateOf<Map<String, Download>>(emptyMap()) }
     var downloadState by remember { mutableStateOf<HeaderDownloadState>(HeaderDownloadState.None) }
-    val globalDownloadState = remember(downloads) {
-        val activeDownloads = downloads.values.filter {
-            it.state == Download.STATE_DOWNLOADING ||
-            it.state == Download.STATE_QUEUED ||
-            it.state == Download.STATE_RESTARTING ||
-            it.state == Download.STATE_STOPPED
-        }
-        if (activeDownloads.isEmpty()) {
-            HeaderDownloadState.None
-        } else {
-            var progressTotal = 0f
-            var hasRunning = false
-            var hasPaused = false
-            activeDownloads.forEach { download ->
-                val progress = download.percentDownloaded.takeIf { it >= 0f }?.div(100f) ?: 0f
-                progressTotal += progress.coerceIn(0f, 1f)
-                if (download.state == Download.STATE_STOPPED) {
-                    hasPaused = hasPaused || download.stopReason == 1
-                } else {
-                    hasRunning = true
-                }
-            }
-            HeaderDownloadState.Partial(
-                progress = progressTotal / activeDownloads.size,
-                paused = hasPaused && !hasRunning,
-            )
-        }
-    }
-
     val editable: Boolean = playlist?.playlist?.isEditable == true
     val isReorderingEnabled =
         editable &&
@@ -437,6 +411,50 @@ fun LocalPlaylistScreen(
         )
     }
 
+    var showReorderDialog by remember { mutableStateOf(false) }
+    if (showReorderDialog) {
+        val isSynced = playlist?.playlist?.browseId != null
+        DefaultDialog(
+            onDismiss = { showReorderDialog = false },
+            content = {
+                Text(
+                    text = stringResource(R.string.reorder_enable_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 18.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(if (isSynced) R.string.reorder_synced_message else R.string.reorder_convert_message),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(horizontal = 18.dp),
+                )
+            },
+            buttons = {
+                TextButton(
+                    onClick = { showReorderDialog = false },
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(text = stringResource(android.R.string.cancel))
+                }
+                TextButton(
+                    onClick = {
+                        showReorderDialog = false
+                        viewModel.adoptDisplayedOrderAsCustom(keepDisplayedOrder = !isSynced)
+                        locked = false
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(
+                        text =
+                            stringResource(
+                                if (isSynced) R.string.reorder_switch_order else R.string.reorder_use_current_order,
+                            ),
+                    )
+                }
+            },
+        )
+    }
+
     var showDeletePlaylistDialog by remember { mutableStateOf(false) }
     if (showDeletePlaylistDialog) {
         DefaultDialog(
@@ -508,9 +526,11 @@ fun LocalPlaylistScreen(
 
     LaunchedEffect(isSearching) {
         if (isSearching) {
+            wasSearching = true
             savedScrollIndex = lazyListState.firstVisibleItemIndex
             savedScrollOffset = lazyListState.firstVisibleItemScrollOffset
-        } else {
+        } else if (wasSearching) {
+            wasSearching = false
             withFrameNanos {}
             lazyListState.scrollToItem(savedScrollIndex, savedScrollOffset)
         }
@@ -519,34 +539,47 @@ fun LocalPlaylistScreen(
     LaunchedEffect(reorderableState.isAnyItemDragging) {
         if (!reorderableState.isAnyItemDragging) {
             dragInfo?.let { (from, to) ->
+                // `songs` hides blocked artists / music videos, so its indexes are not the stored
+                // positions: translate through the real `position` of both rows.
                 val orderedBeforeMove = songs
                 val browseId =
                     viewModel.playlist.value
                         ?.playlist
                         ?.browseId
-                val movedSetVideoId = orderedBeforeMove.getOrNull(from)?.map?.setVideoId
-                val successorIndex = if (from > to) to else to + 1
-                val successorSetVideoId = orderedBeforeMove.getOrNull(successorIndex)?.map?.setVideoId
+                val fromPosition = orderedBeforeMove.getOrNull(from)?.map?.position
+                val toPosition = orderedBeforeMove.getOrNull(to)?.map?.position
 
-                coroutineScope.launch(Dispatchers.IO) {
-                    database.withTransaction {
-                        move(viewModel.playlistId, from, to)
-                    }
+                if (fromPosition != null && toPosition != null) {
+                    coroutineScope.launch(Dispatchers.IO) {
+                        val fullPlaylist = database.playlistSongs(viewModel.playlistId).first()
+                        val movedSetVideoId = fullPlaylist.firstOrNull { it.map.position == fromPosition }?.map?.setVideoId
+                        val targetIndex = fullPlaylist.indexOfFirst { it.map.position == toPosition }
+                        val successorSetVideoId =
+                            if (targetIndex < 0) {
+                                null
+                            } else {
+                                fullPlaylist.getOrNull(if (fromPosition > toPosition) targetIndex else targetIndex + 1)?.map?.setVideoId
+                            }
 
-                    if (browseId != null && movedSetVideoId != null) {
-                        runCatching {
-                            YouTube
-                                .moveSongPlaylist(
-                                    browseId,
-                                    movedSetVideoId,
-                                    successorSetVideoId,
-                                ).getOrThrow()
-                        }.onFailure {
-                            withContext(Dispatchers.Main) {
-                                snackbarHostState.showSnackbar(
-                                    message = context.getString(R.string.error_unknown),
-                                    withDismissAction = true,
-                                )
+                        database.withTransaction {
+                            move(viewModel.playlistId, fromPosition, toPosition)
+                        }
+
+                        if (browseId != null && movedSetVideoId != null) {
+                            runCatching {
+                                YouTube
+                                    .moveSongPlaylist(
+                                        browseId,
+                                        movedSetVideoId,
+                                        successorSetVideoId,
+                                    ).getOrThrow()
+                            }.onFailure {
+                                withContext(Dispatchers.Main) {
+                                    snackbarHostState.showSnackbar(
+                                        message = context.getString(R.string.error_unknown),
+                                        withDismissAction = true,
+                                    )
+                                }
                             }
                         }
                     }
@@ -863,8 +896,6 @@ fun LocalPlaylistScreen(
                         val content: @Composable () -> Unit = {
                             SongListItem(
                                 song = song.song,
-                                viewCountText =
-                                    viewCounts[song.song.id]?.let { count -> formatCompactCount(count.toLong()) },
                                 isActive = song.song.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
                                 showInLibraryIcon = true,
@@ -900,7 +931,25 @@ fun LocalPlaylistScreen(
                                         ) {
                                             Icon(
                                                 painter = painterResource(R.drawable.drag_handle),
-                                                contentDescription = null,
+                                                contentDescription = stringResource(R.string.reorder_enable_title),
+                                            )
+                                        }
+                                    } else if (editable && !selection && !isSearching) {
+                                        // Handle stays visible so reordering is discoverable; a tap explains / unlocks it.
+                                        IconButton(
+                                            onClick = {
+                                                if (sortType != PlaylistSongSortType.CUSTOM) {
+                                                    showReorderDialog = true
+                                                } else {
+                                                    locked = false
+                                                }
+                                            },
+                                            onLongClick = {},
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.drag_handle),
+                                                contentDescription = stringResource(R.string.reorder_enable_title),
+                                                modifier = Modifier.graphicsLayer { alpha = 0.45f },
                                             )
                                         }
                                     }
@@ -961,8 +1010,6 @@ fun LocalPlaylistScreen(
                         val content: @Composable () -> Unit = {
                             SongListItem(
                                 song = song.song,
-                                viewCountText =
-                                    viewCounts[song.song.id]?.let { count -> formatCompactCount(count.toLong()) },
                                 isActive = song.song.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
                                 showInLibraryIcon = true,
@@ -1000,7 +1047,8 @@ fun LocalPlaylistScreen(
                                                             ListQueue(
                                                                 title = playlist!!.playlist.name,
                                                                 items = songs.map { it.song.toMediaItem() },
-                                                                startIndex = index,
+                                                                // index is in filteredSongs (search); map it back to the full list.
+                                                                startIndex = songs.indexOfFirst { it.map.id == song.map.id },
                                                             ),
                                                         )
                                                     }
@@ -1170,6 +1218,19 @@ fun LocalPlaylistScreen(
                         .align(Alignment.TopEnd)
                         .padding(end = 12.dp, top = systemBarsTopPadding + 12.dp),
             ) {
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                            tint = liquidGlassContentColor(),
+                        )
+                    }
+                }
+
                 Box(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
@@ -1369,6 +1430,15 @@ fun LocalPlaylistScreen(
                     }
                 } else if (!isSearching) {
                     if (showTopBarTitle || !liquidGlassHeaderActive) {
+                        IconButton(
+                            onClick = { navController.navigateHome() },
+                            onLongClick = {},
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.home_outlined),
+                                contentDescription = stringResource(R.string.home),
+                            )
+                        }
                         IconButton(
                             onClick = { isSearching = true },
                             onLongClick = {},

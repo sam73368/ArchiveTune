@@ -44,6 +44,18 @@ object PoolAccountManager {
     @Volatile
     private var poolApiKey: String? = null
 
+    /**
+     * Key to present to the Source Pool: the personal key from Settings › Integration when the
+     * user set one, otherwise the key baked into the build. Instance discovery used to read only
+     * the build key, so a personal key never unlocked Tidal/Qobuz on builds without it.
+     */
+    fun effectiveReadKey(): String =
+        PreferenceStore
+            .get(PoolApiKeyKey)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: BuildConfig.SOURCE_PROVIDER_KEY
+
     @Volatile
     private var appContext: Context? = null
 

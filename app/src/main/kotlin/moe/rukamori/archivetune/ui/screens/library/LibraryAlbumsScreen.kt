@@ -132,14 +132,15 @@ fun LibraryAlbumsScreen(
     val albums by viewModel.allAlbums.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
-    val featuredAlbum = albums.firstOrNull()
-
     val filteredAlbums =
-        if (hideExplicit) {
-            albums.filter { !it.album.explicit }
-        } else {
-            albums
+        remember(albums, hideExplicit) {
+            if (hideExplicit) {
+                albums.filter { !it.album.explicit }
+            } else {
+                albums
+            }
         }
+    val featuredAlbum = filteredAlbums.firstOrNull()
 
     val playerAwareBottomPadding =
         LocalPlayerAwareWindowInsets.current

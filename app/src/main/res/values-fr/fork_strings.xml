@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_wifi_only">Télécharger en Wi-Fi seulement</string>
+    <string name="download_wifi_only_desc">Les téléchargements attendent une connexion non limitée et reprennent automatiquement</string>
+    <string name="ab_loop_set_a">Boucle A-B : définir le début (A)</string>
+    <string name="ab_loop_set_b">Boucle A-B : définir la fin (B) — A à %1$s</string>
+    <string name="ab_loop_clear">Effacer la boucle A-B (%1$s – %2$s)</string>
+    <string name="app_lock">Verrou de l\'application</string>
+    <string name="app_lock_desc">Demander l\'empreinte, le code ou le schéma de l\'appareil à l\'ouverture</string>
+    <string name="app_lock_title">ArchiveTune est verrouillé</string>
+    <string name="app_lock_unlock">Déverrouiller</string>
+    <string name="app_lock_prompt">Déverrouiller ArchiveTune</string>
+    <string name="app_lock_no_screen_lock">Configure un verrouillage d\'écran sur l\'appareil pour l\'utiliser</string>
+    <string name="smart_shuffle">Smart Shuffle</string>
+    <string name="smart_shuffle_desc">En mode aléatoire, glisse une chanson similaire toutes les quelques pistes</string>
+    <string name="ai_playlist_title">Playlist IA</string>
+    <string name="ai_playlist_label">Décris ta playlist</string>
+    <string name="ai_playlist_placeholder">Jazz d\'une nuit pluvieuse, road trip années 90, concentration sans paroles…</string>
+    <string name="ai_playlist_generate">Créer</string>
+    <string name="ai_playlist_generating">L\'IA réfléchit…</string>
+    <string name="ai_playlist_searching">Recherche des chansons : %1$d/%2$d</string>
+    <string name="ai_playlist_not_configured">Configure d\'abord un fournisseur d\'IA dans Réglages > Intégration IA</string>
+    <string name="ai_playlist_no_matches">Aucune chanson trouvée pour cette description</string>
+    <string name="ai_playlist_failed">Impossible de créer la playlist : %1$s</string>
+    <string name="ai_playlist_success">« %1$s » créée avec %2$d chansons</string>
+    <string name="show_more">Voir plus</string>
+    <string name="show_less">Voir moins</string>
+    <string name="player_settings_sections">Sections</string>
+    <string name="player_section_video_desc">Clips musicaux et Picture-in-Picture</string>
+    <string name="player_section_playback_desc">Fondu enchaîné, Automix, silences, avance rapide, sourdine et Bluetooth</string>
+    <string name="player_section_artwork_desc">Canvas, pochettes animées et sources de pochettes</string>
+    <string name="player_section_queue_desc">File enregistrée, lecture aléatoire et gestes de balayage</string>
+    <string name="player_section_misc_desc">Comportement en arrière-plan, séparateurs d\'artistes et étiquettes de playlists</string>
+    <string name="appearance_section_theme_desc">Thème, couleurs, polices et icône de l\'application</string>
+    <string name="appearance_section_player_desc">Style du lecteur, arrière-plan, paroles et curseurs</string>
+    <string name="show_view_counts">Afficher le nombre de vues</string>
+    <string name="show_view_counts_desc">Affiche le nombre de vues YouTube Music sous chaque titre. Les nombres sont chargés en arrière-plan puis mis en cache ; désactivé en mode économie de données.</string>
+    <string name="reorder_enable_title">Réorganiser les titres</string>
+    <string name="reorder_convert_message">Les titres sont actuellement triés automatiquement. Utiliser cet ordre comme ordre personnalisé ? Tu pourras ensuite les déplacer avec la poignée.</string>
+    <string name="reorder_synced_message">Cette liste est synchronisée avec YouTube Music. Revenir à son propre ordre pour déplacer les titres par glisser-déposer ?</string>
+    <string name="reorder_use_current_order">Utiliser cet ordre</string>
+    <string name="reorder_switch_order">Basculer</string>
+    <string name="reorder_unlocked_hint">Modification déverrouillée. Glisse les titres par leur poignée.</string>
+</resources>

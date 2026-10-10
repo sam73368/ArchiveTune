@@ -209,7 +209,7 @@ fun LyricsSettings(
                 },
                 buttons = {
                     TextButton(
-                        onClick = { tempTextSize = 24f },
+                        onClick = { tempTextSize = 26f },
                         shapes = ButtonDefaults.shapes(),
                     ) {
                         Text(stringResource(R.string.reset))

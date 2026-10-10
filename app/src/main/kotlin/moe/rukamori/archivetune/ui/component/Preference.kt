@@ -162,6 +162,8 @@ private fun preferenceItemShapeForPosition(position: PreferenceGroupPosition?): 
         PreferenceGroupPosition.Last -> segmentedPreferenceItemShape(index = 1, count = 2)
     }
 
+private const val PreferenceDescriptionCollapsedLines = 4
+
 @Composable
 fun PreferenceEntry(
     modifier: Modifier = Modifier,
@@ -202,7 +204,7 @@ fun PreferenceEntry(
                         indication = LocalIndication.current,
                         enabled = isEnabled && onClick != null,
                         onClick = onClick ?: {},
-                    ).alpha(if (isEnabled) 1f else 0.5f)
+                    ).alpha(if (isEnabled) 1f else 0.62f)
                     .padding(
                         horizontal = PreferenceEntryHorizontalPadding,
                         vertical = PreferenceEntryVerticalPadding,
@@ -232,11 +234,31 @@ fun PreferenceEntry(
                 }
                 if (description != null) {
                     Spacer(Modifier.height(1.dp))
+                    // Long descriptions are folded to a few lines so the page stays scannable.
+                    var expanded by remember(description) { mutableStateOf(false) }
+                    var overflowing by remember(description) { mutableStateOf(false) }
                     Text(
                         text = description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = if (expanded) Int.MAX_VALUE else PreferenceDescriptionCollapsedLines,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { result ->
+                            if (!expanded) overflowing = result.hasVisualOverflow
+                        },
                     )
+                    if (overflowing || expanded) {
+                        Text(
+                            text = stringResource(if (expanded) R.string.show_less else R.string.show_more),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier =
+                                Modifier
+                                    .clickable { expanded = !expanded }
+                                    .padding(top = 2.dp, bottom = 2.dp),
+                        )
+                    }
                 }
                 content?.invoke()
             }
@@ -870,6 +892,7 @@ fun EditTextPreference(
     keyboardOptions: KeyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
     isInputValid: (String) -> Boolean = { it.isNotEmpty() },
     isEnabled: Boolean = true,
+    masked: Boolean = false,
 ) {
     var showDialog by remember {
         mutableStateOf(false)
@@ -894,7 +917,7 @@ fun EditTextPreference(
     PreferenceEntry(
         modifier = modifier,
         title = title,
-        description = value,
+        description = if (masked && value.isNotEmpty()) "•".repeat(value.length.coerceAtMost(12)) else value,
         icon = icon,
         onClick = { showDialog = true },
         isEnabled = isEnabled,
@@ -1167,7 +1190,7 @@ fun CrossfadeSliderPreference(
 
     PreferenceEntry(
         modifier = modifier,
-        title = { Text(stringResource(R.string.audio_crossfade_title)) },
+        title = { Text(stringResource(R.string.audio_crossfade_dialog_title)) },
         description = descriptionText,
         icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
         onClick = { if (isEnabled) showDialog = true },
@@ -1352,9 +1375,9 @@ fun PreferenceGroupTitle(
 ) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Medium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-        modifier = modifier.padding(vertical = 7.dp),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+        modifier = modifier.padding(top = 9.dp, bottom = 6.dp),
     )
 }

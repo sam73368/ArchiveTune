@@ -33,7 +33,7 @@ const val ExtraIsPodcast = "moe.rukamori.archivetune.extra.IS_PODCAST"
 val MediaItem.metadata: MediaMetadata?
     get() = localConfiguration?.tag as? MediaMetadata
 
-private fun String?.toNotificationArtworkUri() =
+fun String?.toNotificationArtworkUri() =
     this
         ?.resize(
             width = NotificationArtworkSizePx,

@@ -96,6 +96,7 @@ import moe.rukamori.archivetune.innertube.utils.hasYouTubeLoginCookie
 import moe.rukamori.archivetune.ui.component.CreatePlaylistDialog
 import moe.rukamori.archivetune.ui.component.DefaultDialog
 import moe.rukamori.archivetune.ui.component.PlaylistListItem
+import moe.rukamori.archivetune.utils.IMPORTED_PLAYLIST_BROWSE_ID_PREFIX
 import moe.rukamori.archivetune.utils.rememberPreference
 import java.time.LocalDateTime
 import java.util.Locale
@@ -246,7 +247,11 @@ fun AddToPlaylistDialog(
     ): Int {
         if (requestedSongIds.isEmpty()) return 0
 
-        val browseId = playlist.playlist.browseId
+        // Cross-service imports carry a synthetic "import:" browseId that doesn't exist on YouTube,
+        // so they are treated as local playlists here.
+        val browseId =
+            playlist.playlist.browseId
+                ?.takeUnless { it.startsWith(IMPORTED_PLAYLIST_BROWSE_ID_PREFIX) }
         if (isLoggedIn && browseId != null) {
             val acceptedSongEntries = mutableListOf<Pair<String, String?>>()
             requestedSongIds.forEach { songId ->
@@ -661,7 +666,7 @@ fun AddToPlaylistDialog(
 
                                                 val (playlistsWithDups, playlistsWithoutDups) =
                                                     selectedPlaylists.partition { playlist ->
-                                                        val dups = database.playlistDuplicates(playlist.id, currentSongIds)
+                                                        val dups = currentSongIds.chunked(500).flatMap { database.playlistDuplicates(playlist.id, it) }
                                                         if (dups.isNotEmpty()) {
                                                             tempDuplicatesMap[playlist.id] = dups
                                                             true

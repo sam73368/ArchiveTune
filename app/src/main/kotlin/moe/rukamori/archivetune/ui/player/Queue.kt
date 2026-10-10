@@ -74,6 +74,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
@@ -385,7 +386,9 @@ fun Queue(
             while (isActive) {
                 sleepTimerTimeLeft =
                     if (playerConnection.service.sleepTimer.pauseWhenSongEnd) {
-                        playerConnection.player.duration - playerConnection.player.currentPosition
+                        playerConnection.player.duration.let { total ->
+                            if (total == androidx.media3.common.C.TIME_UNSET) 0L else (total - playerConnection.player.currentPosition).coerceAtLeast(0L)
+                        }
                     } else {
                         playerConnection.service.sleepTimer.triggerTime - System.currentTimeMillis()
                     }
@@ -943,6 +946,15 @@ fun Queue(
                                                     Icon(
                                                         painter = painterResource(R.drawable.drag_handle),
                                                         contentDescription = null,
+                                                    )
+                                                }
+                                            } else {
+                                                // Visible while locked so reordering is discoverable: a tap unlocks the queue.
+                                                IconButton(onClick = { locked = false }) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.drag_handle),
+                                                        contentDescription = null,
+                                                        modifier = Modifier.graphicsLayer { alpha = 0.45f },
                                                     )
                                                 }
                                             }

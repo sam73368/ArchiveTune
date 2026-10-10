@@ -159,7 +159,6 @@ fun SpatialFlowPlayerContent(
     isLoading: Boolean,
     canSkipPrevious: Boolean,
     canSkipNext: Boolean,
-    position: Long,
     duration: Long,
     playerConnection: PlayerConnection,
     navController: NavController,
@@ -201,8 +200,7 @@ fun SpatialFlowPlayerContent(
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
     val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
     val downloadUtil = LocalDownloadUtil.current
-    val download by downloadUtil
-        .getDownload(mediaMetadata.id)
+    val download by remember(mediaMetadata.id) { downloadUtil.getDownload(mediaMetadata.id) }
         .collectAsStateWithLifecycle(initialValue = null)
     val fetchProgressMap by moe.rukamori.archivetune.playback.DownloadFetchProgress.flow
         .collectAsStateWithLifecycle()

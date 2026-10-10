@@ -108,6 +108,7 @@ import moe.rukamori.archivetune.ui.menu.SelectionSongMenu
 import moe.rukamori.archivetune.ui.menu.SongMenu
 import moe.rukamori.archivetune.ui.utils.ItemWrapper
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.viewmodels.CachePlaylistViewModel
@@ -223,8 +224,8 @@ fun CachePlaylistScreen(
                     }
                 }.let { if (sortDescending) it.reversed() else it }
 
-            sortedSongs.map { song -> ItemWrapper(song) }
-        }.toMutableStateList()
+            sortedSongs.map { song -> ItemWrapper(song) }.toMutableStateList()
+        }
 
     var selection by remember { mutableStateOf(false) }
     var isSearching by remember { mutableStateOf(false) }
@@ -291,6 +292,14 @@ fun CachePlaylistScreen(
                 }
             }
         }
+
+    // Selection only applies to the songs currently visible (search filter): drop hidden ones.
+    LaunchedEffect(selection, filteredSongs) {
+        if (selection) {
+            val visibleSongs = filteredSongs.toHashSet()
+            wrappedSongs.forEach { if (it !in visibleSongs) it.isSelected = false }
+        }
+    }
 
     val surfaceColor = MaterialTheme.colorScheme.surface
 
@@ -481,8 +490,11 @@ fun CachePlaylistScreen(
                                                 playerConnection.playQueue(
                                                     ListQueue(
                                                         title = "Cache Songs",
-                                                        items = cachedSongs.map { it.toMediaItem() },
-                                                        startIndex = cachedSongs.indexOfFirst { it.id == songWrapper.item.id },
+                                                        items = filteredSongs.map { it.item.toMediaItem() },
+                                                        startIndex =
+                                                            filteredSongs
+                                                                .indexOfFirst { it.item.id == songWrapper.item.id }
+                                                                .coerceAtLeast(0),
                                                     ),
                                                 )
                                             }
@@ -573,24 +585,25 @@ fun CachePlaylistScreen(
                         .padding(end = 12.dp, top = systemBarsTopPadding + 12.dp),
             ) {
                 if (selection) {
+                    val allVisibleSelected = filteredSongs.isNotEmpty() && filteredSongs.all { it.isSelected }
                     Box(
                         modifier = Modifier.size(48.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         androidx.compose.material3.IconButton(
                             onClick = {
-                                if (selectedCount == wrappedSongs.size) {
+                                if (allVisibleSelected) {
                                     wrappedSongs.forEach { it.isSelected = false }
                                     selection = false
                                 } else {
-                                    wrappedSongs.forEach { it.isSelected = true }
+                                    filteredSongs.forEach { it.isSelected = true }
                                 }
                             },
                         ) {
                             Icon(
                                 painter =
                                     painterResource(
-                                        if (selectedCount == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all,
+                                        if (allVisibleSelected) R.drawable.deselect else R.drawable.select_all,
                                     ),
                                 contentDescription = null,
                                 tint = liquidGlassContentColor(),
@@ -601,7 +614,7 @@ fun CachePlaylistScreen(
                         menuState.show {
                             SelectionSongMenu(
                                 songSelection =
-                                    wrappedSongs
+                                    filteredSongs
                                         .filter { it.isSelected }
                                         .map { it.item },
                                 onDismiss = menuState::dismiss,
@@ -623,6 +636,19 @@ fun CachePlaylistScreen(
                         )
                     }
                 } else {
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                            tint = liquidGlassContentColor(),
+                        )
+                    }
+                }
+
                 Box(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
@@ -775,9 +801,9 @@ fun CachePlaylistScreen(
             },
             actions = {
                 if (selection) {
-                    val count = wrappedSongs.count { it.isSelected }
+                    val allVisibleSelected = filteredSongs.isNotEmpty() && filteredSongs.all { it.isSelected }
                     androidx.compose.material3.IconButton(onClick = {
-                        wrappedSongs.filter { it.isSelected }.forEach {
+                        filteredSongs.filter { it.isSelected }.forEach {
                             viewModel.removeSongFromCache(it.item.id)
                         }
                         selection = false
@@ -789,17 +815,17 @@ fun CachePlaylistScreen(
                     }
 
                     androidx.compose.material3.IconButton(onClick = {
-                        if (count == wrappedSongs.size) {
+                        if (allVisibleSelected) {
                             wrappedSongs.forEach { it.isSelected = false }
                             selection = false
                         } else {
-                            wrappedSongs.forEach { it.isSelected = true }
+                            filteredSongs.forEach { it.isSelected = true }
                         }
                     }) {
                         Icon(
                             painter =
                                 painterResource(
-                                    if (count == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all,
+                                    if (allVisibleSelected) R.drawable.deselect else R.drawable.select_all,
                                 ),
                             contentDescription = null,
                         )
@@ -808,7 +834,7 @@ fun CachePlaylistScreen(
                     androidx.compose.material3.IconButton(onClick = {
                         menuState.show {
                             SelectionSongMenu(
-                                songSelection = wrappedSongs.filter { it.isSelected }.map { it.item },
+                                songSelection = filteredSongs.filter { it.isSelected }.map { it.item },
                                 onDismiss = menuState::dismiss,
                                 clearAction = { selection = false },
                                 isFromCache = true,
@@ -825,6 +851,12 @@ fun CachePlaylistScreen(
                     }
                 } else if (!isSearching) {
                     if (showTopBarTitle || !liquidGlassHeaderActive) {
+                        androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                            Icon(
+                                painter = painterResource(R.drawable.home_outlined),
+                                contentDescription = stringResource(R.string.home),
+                            )
+                        }
                         androidx.compose.material3.IconButton(onClick = { isSearching = true }) {
                             Icon(
                                 painter = painterResource(R.drawable.search),

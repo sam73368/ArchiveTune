@@ -68,18 +68,43 @@ class MusicDatabase(
     val openHelper: SupportSQLiteOpenHelper
         get() = delegate.openHelper
 
+    // Set when the database is closed on purpose (backup restore swaps the db file and then
+    // restarts the process). Fire-and-forget writes queued from the UI in that window, such as
+    // a search-history insert, used to crash the app with "attempt to re-open an
+    // already-closed object" and could kill the process halfway through a restore.
+    @Volatile
+    private var isClosed = false
+
+    private inline fun runUnlessClosed(block: () -> Unit) {
+        if (isClosed) return
+        try {
+            block()
+        } catch (e: IllegalStateException) {
+            if (!isClosed) {
+                android.util.Log.e("MusicDatabase", "Background database write failed", e)
+            }
+        } catch (e: Exception) {
+            // Fire-and-forget writes run on a pool thread: an uncaught exception there would kill the app.
+            if (!isClosed) {
+                android.util.Log.e("MusicDatabase", "Background database write failed", e)
+            }
+        }
+    }
+
     fun query(block: MusicDatabase.() -> Unit) =
         with(delegate) {
             queryExecutor.execute {
-                block(this@MusicDatabase)
+                runUnlessClosed { block(this@MusicDatabase) }
             }
         }
 
     fun transaction(block: MusicDatabase.() -> Unit) =
         with(delegate) {
             transactionExecutor.execute {
-                runInTransaction {
-                    block(this@MusicDatabase)
+                runUnlessClosed {
+                    runInTransaction {
+                        block(this@MusicDatabase)
+                    }
                 }
             }
         }
@@ -96,7 +121,10 @@ class MusicDatabase(
         }
     }
 
-    fun close() = delegate.close()
+    fun close() {
+        isClosed = true
+        delegate.close()
+    }
 
     private suspend fun awaitExecutor(executor: Executor) {
         suspendCancellableCoroutine { cont ->
@@ -442,24 +470,31 @@ private object SchemaTools {
         }
 
         val oldTable = "_old_${table.name}"
-        db.execSQL("ALTER TABLE `${table.name}` RENAME TO `$oldTable`")
-        db.execSQL(table.sql!!)
+        // Since SQLite 3.26 a rename also rewrites the REFERENCES of child tables to the new name, which
+        // would leave them pointing at the dropped `_old_*` table. Keep the legacy behaviour here.
+        db.execSQL("PRAGMA legacy_alter_table=ON")
+        try {
+            db.execSQL("ALTER TABLE `${table.name}` RENAME TO `$oldTable`")
+            db.execSQL(table.sql!!)
 
-        val expectedOrdered = expectedColumns.values.sortedBy { it.cid }
-        val insertColumns = expectedOrdered.joinToString(",") { "`${it.name}`" }
-        val selectExpr =
-            expectedOrdered.joinToString(",") { col ->
-                val old = actualColumns[col.name]
-                when {
-                    old != null -> "`${col.name}`"
-                    col.defaultValue != null -> col.defaultValue
-                    col.notNull -> defaultLiteral(col.type)
-                    else -> "NULL"
+            val expectedOrdered = expectedColumns.values.sortedBy { it.cid }
+            val insertColumns = expectedOrdered.joinToString(",") { "`${it.name}`" }
+            val selectExpr =
+                expectedOrdered.joinToString(",") { col ->
+                    val old = actualColumns[col.name]
+                    when {
+                        old != null -> "`${col.name}`"
+                        col.defaultValue != null -> col.defaultValue
+                        col.notNull -> defaultLiteral(col.type)
+                        else -> "NULL"
+                    }
                 }
-            }
 
-        db.execSQL("INSERT INTO `${table.name}` ($insertColumns) SELECT $selectExpr FROM `$oldTable`")
-        db.execSQL("DROP TABLE `$oldTable`")
+            db.execSQL("INSERT INTO `${table.name}` ($insertColumns) SELECT $selectExpr FROM `$oldTable`")
+            db.execSQL("DROP TABLE `$oldTable`")
+        } finally {
+            runCatching { db.execSQL("PRAGMA legacy_alter_table=OFF") }
+        }
         expectedIndices.filter { it.tblName == table.name }.forEach { db.execSQL(it.sql!!) }
 
         if (table.sql

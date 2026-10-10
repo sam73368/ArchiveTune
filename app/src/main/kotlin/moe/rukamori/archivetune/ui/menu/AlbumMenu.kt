@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.ui.menu
 
+import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
+import moe.rukamori.archivetune.ui.utils.aggregateDownloadState
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
@@ -142,18 +144,7 @@ fun AlbumMenu(
         if (songs.isEmpty()) return@LaunchedEffect
         downloadUtil.downloads.collect { downloads ->
             downloadState =
-                if (songs.all { downloads[it.id]?.state == STATE_COMPLETED }) {
-                    STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it.id]?.state == STATE_QUEUED ||
-                            downloads[it.id]?.state == STATE_DOWNLOADING ||
-                            downloads[it.id]?.state == STATE_COMPLETED
-                    }
-                ) {
-                    STATE_DOWNLOADING
-                } else {
-                    STATE_STOPPED
-                }
+                aggregateDownloadState(songs.map { it.id }, downloads)
         }
     }
 
@@ -406,6 +397,7 @@ fun AlbumMenu(
                                                 ListQueue(
                                                     title = album.album.title,
                                                     items = songs.map(Song::toMediaItem),
+                                                    keepMusicVideos = true,
                                                 ),
                                             )
                                         }
@@ -430,6 +422,7 @@ fun AlbumMenu(
                                                 ListQueue(
                                                     title = album.album.title,
                                                     items = songs.shuffled().map(Song::toMediaItem),
+                                                    keepMusicVideos = true,
                                                 ),
                                             )
                                         }
@@ -488,7 +481,7 @@ fun AlbumMenu(
                         modifier =
                             Modifier.clickable {
                                 onDismiss()
-                                playerConnection.playNext(songs.map { it.toMediaItem() })
+                                playerConnection.playNext(songs.map { it.toMediaItem() }, keepMusicVideos = true)
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     )
@@ -510,7 +503,7 @@ fun AlbumMenu(
                         modifier =
                             Modifier.clickable {
                                 onDismiss()
-                                playerConnection.addToQueue(songs.map { it.toMediaItem() })
+                                playerConnection.addToQueue(songs.map { it.toMediaItem() }, keepMusicVideos = true)
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     )
@@ -598,14 +591,7 @@ fun AlbumMenu(
                                 },
                                 modifier =
                                     Modifier.clickable {
-                                        songs.forEach { song ->
-                                            DownloadService.sendRemoveDownload(
-                                                context,
-                                                ExoDownloadService::class.java,
-                                                song.id,
-                                                false,
-                                            )
-                                        }
+                                        sendRemoveDownloads(context, songs.map { it.id })
                                     },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             )
@@ -621,14 +607,7 @@ fun AlbumMenu(
                                 },
                                 modifier =
                                     Modifier.clickable {
-                                        songs.forEach { song ->
-                                            DownloadService.sendRemoveDownload(
-                                                context,
-                                                ExoDownloadService::class.java,
-                                                song.id,
-                                                false,
-                                            )
-                                        }
+                                        sendRemoveDownloads(context, songs.map { it.id })
                                     },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             )

@@ -192,7 +192,9 @@ fun LocalSongScreen(
             LocalSongsExcludedFoldersKey,
             emptySet<String>(),
         )
-    val sortType = remember(sortTypeName) { LocalSongSortType.valueOf(sortTypeName) }
+    val sortType = remember(sortTypeName) {
+        runCatching { LocalSongSortType.valueOf(sortTypeName) }.getOrDefault(LocalSongSortType.entries.first())
+    }
     val scanConfig =
         remember(minimumDurationSeconds, includedFolders, excludedFolders) {
             LocalSongScanConfig(

@@ -60,6 +60,7 @@ object YTPlayerUtils {
     private const val PLAYBACK_DATA_RESOLUTION_MUTEX_COUNT = 32
     const val STREAM_URL_EXPIRY_SAFETY_MS = 60_000L
     private const val SIMP_MUSIC_FAILURE_BACKOFF_MS = 60_000L
+    private const val PREMIUM_ONLY_CONFIRMATIONS = 3
     private val RETRYABLE_STREAM_RESPONSE_CODES = setOf(403, 404, 410, 416)
 
     private fun extractExpireTimestampMsFromUrl(url: String): Long? {
@@ -109,6 +110,15 @@ object YTPlayerUtils {
         val videoId: String,
         val clients: Set<String>,
     ) : IllegalStateException("YouTube playback bot detection blocked all stream clients")
+
+    /**
+     * The track itself is locked for this account (e.g. "Music Premium members only"): every
+     * client gives the same answer, so callers should look for the song elsewhere.
+     */
+    class PremiumOnlyPlaybackException(
+        val videoId: String,
+        reason: String?,
+    ) : IllegalStateException(reason)
 
     class BadStreamPlayerResponseException(
         val videoId: String,
@@ -1313,6 +1323,8 @@ object YTPlayerUtils {
 
         val botDetectedClients = mutableSetOf<String>()
         var gateFailure: PlaybackGateFailure? = null
+        var premiumOnlyReason: String? = null
+        var premiumOnlyRefusals = 0
 
         fun shouldUseCookieAuthentication(client: YouTubeClient): Boolean = canUseLoggedInPlayback && client.supportsCookieAuthentication
 
@@ -1513,6 +1525,19 @@ object YTPlayerUtils {
                             )
                     } else if (isBotDetection) {
                         botDetectedClients.add(describeClient(client))
+                    } else if (isPremiumOnlyRefusal(playabilityStatus.status, reason)) {
+                        premiumOnlyReason = playabilityStatus.reason
+                        premiumOnlyRefusals++
+                        // The lock is per track and account, not per client: once a few different
+                        // clients agree, stop walking the whole fallback list (that took 10+ s).
+                        if (premiumOnlyRefusals >= PREMIUM_ONLY_CONFIRMATIONS) {
+                            Timber.tag(logTag).i(
+                                "%s is Music Premium only for this account (%d clients agree); stopping client fallback",
+                                videoId,
+                                premiumOnlyRefusals,
+                            )
+                            break
+                        }
                     }
                     continue
                 }
@@ -1592,6 +1617,10 @@ object YTPlayerUtils {
             Timber.tag(logTag).i("Format found: ${format.mimeType}, bitrate: ${format.bitrate}")
             Timber.tag(logTag).v("Stream expires in: $streamExpiresInSeconds seconds")
             break
+        }
+
+        if (format == null && gateFailure == null && premiumOnlyReason != null) {
+            throw PremiumOnlyPlaybackException(videoId = videoId, reason = premiumOnlyReason)
         }
 
         if (streamPlayerResponse == null) {
@@ -2007,6 +2036,14 @@ object YTPlayerUtils {
             "sign in to confirm" in lower ||
             "allow" in lower && "youtube music" in lower
     }
+
+    private fun isPremiumOnlyRefusal(
+        status: String,
+        reason: String,
+    ): Boolean =
+        !status.equals("OK", ignoreCase = true) &&
+            !status.equals("LOGIN_REQUIRED", ignoreCase = true) &&
+            reason.contains("premium", ignoreCase = true)
 
     private fun isLoginRecoveryResponse(
         status: String,

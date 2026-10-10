@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -498,13 +500,19 @@ private fun BoxScope.SettingsHomeStyleHeader(
                 .padding(top = systemBarsTopPadding)
                 .height(AppBarHeight),
     ) {
-        Text(
-            text = stringResource(R.string.settings),
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleLarge,
-            maxLines = 1,
+        Surface(
+            shape = RoundedCornerShape(percent = 50),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
             modifier = Modifier.align(Alignment.Center),
-        )
+        ) {
+            Text(
+                text = stringResource(R.string.settings),
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
     }
 }

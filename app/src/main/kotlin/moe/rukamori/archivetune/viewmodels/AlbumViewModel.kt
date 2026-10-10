@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -26,10 +25,8 @@ import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.canvas.AppleMusicProvider
 import moe.rukamori.archivetune.canvas.models.CanvasArtwork
 import moe.rukamori.archivetune.constants.AlbumCanvasEnabledKey
-import moe.rukamori.archivetune.constants.HideVideoKey
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.extensions.filterBlockedArtists
-import moe.rukamori.archivetune.extensions.filterVideo
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.AlbumItem
 import moe.rukamori.archivetune.utils.dataStore
@@ -70,24 +67,21 @@ class AlbumViewModel
     ) : ViewModel() {
         val albumId = savedStateHandle.get<String>("albumId")!!
         val playlistId = MutableStateFlow("")
+        // "Hide music videos" is deliberately not applied here: some album tracks are served by
+        // YouTube as the official video, and hiding them would silently cut the album.
         val albumWithSongs =
-            combine(
-                database.albumWithSongs(albumId),
-                context.dataStore.data
-                    .map { preferences -> preferences[HideVideoKey] ?: false }
-                    .distinctUntilChanged(),
-            ) { album, hideVideo ->
-                album?.copy(
-                    songs =
-                        if (album.artists.any { it.blockedAt != null }) {
-                            emptyList()
-                        } else {
-                            album.songs
-                                .filterBlockedArtists()
-                                .filterVideo(hideVideo)
-                        },
-                )
-            }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+            database
+                .albumWithSongs(albumId)
+                .map { album ->
+                    album?.copy(
+                        songs =
+                            if (album.artists.any { it.blockedAt != null }) {
+                                emptyList()
+                            } else {
+                                album.songs.filterBlockedArtists()
+                            },
+                    )
+                }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
         var otherVersions = MutableStateFlow<List<AlbumItem>>(emptyList())
 
         private val _canvasArtwork = MutableStateFlow<CanvasArtwork?>(null)

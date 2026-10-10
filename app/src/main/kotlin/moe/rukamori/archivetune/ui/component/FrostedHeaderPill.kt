@@ -12,6 +12,7 @@ package moe.rukamori.archivetune.ui.component
 import com.kyant.backdrop.Backdrop
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,7 +42,11 @@ fun FrostedHeaderPill(
         CompositionLocalProvider(LocalPlainHeaderPill provides true) {
             ProvideTextStyle(MaterialTheme.typography.titleLarge) {
                 Row(
-                    modifier = modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    modifier =
+                        modifier
+                            .clip(pillShape)
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     content()

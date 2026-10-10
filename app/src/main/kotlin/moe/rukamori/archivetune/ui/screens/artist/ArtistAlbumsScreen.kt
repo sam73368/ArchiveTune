@@ -69,6 +69,7 @@ import moe.rukamori.archivetune.ui.screens.GlassScreenHeaderOverlay
 import moe.rukamori.archivetune.ui.screens.glassHeaderSource
 import moe.rukamori.archivetune.ui.screens.rememberGlassScreenHeader
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.viewmodels.ArtistAlbumsViewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -178,6 +179,7 @@ fun ArtistAlbumsScreen(
                 title = stringResource(R.string.albums),
                 onBack = navController::navigateUp,
                 onBackLongClick = navController::backToMain,
+                onHome = if (inSelectMode) null else ({ navController.navigateHome() }),
             )
         } else {
             TopAppBar(
@@ -200,6 +202,19 @@ fun ArtistAlbumsScreen(
                             painter = painterResource(id = R.drawable.arrow_back),
                             contentDescription = null,
                         )
+                    }
+                },
+                actions = {
+                    if (!inSelectMode) {
+                        IconButton(
+                            onClick = { navController.navigateHome() },
+                            onLongClick = {},
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.home_outlined),
+                                contentDescription = stringResource(R.string.home),
+                            )
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,

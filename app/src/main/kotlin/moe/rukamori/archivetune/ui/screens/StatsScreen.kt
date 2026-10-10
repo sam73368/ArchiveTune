@@ -120,6 +120,7 @@ import moe.rukamori.archivetune.ui.menu.SongMenu
 import moe.rukamori.archivetune.ui.screens.ScreenHeaderHaze
 import moe.rukamori.archivetune.ui.screens.rememberScreenHeaderHaze
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.utils.joinByBullet
 import moe.rukamori.archivetune.utils.makeTimeString
 import moe.rukamori.archivetune.viewmodels.StatsScreenState
@@ -270,6 +271,15 @@ fun StatsScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { navController.navigateHome() },
+                        onLongClick = {},
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                        )
+                    }
                     IconButton(
                         onClick = viewModel::showYearPicker,
                         onLongClick = {},
@@ -648,6 +658,18 @@ private fun StatsStatusScreen(
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             modifier = Modifier.padding(end = 4.dp),
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { navController.navigateHome() },
+                        onLongClick = {},
+                        modifier = Modifier.padding(end = 8.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
                         )
                     }
                 },

@@ -45,6 +45,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -90,6 +91,7 @@ import moe.rukamori.archivetune.ui.menu.YouTubeArtistMenu
 import moe.rukamori.archivetune.ui.menu.YouTubePlaylistMenu
 import moe.rukamori.archivetune.ui.menu.YouTubeSongMenu
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.viewmodels.ArtistItemsViewModel
 import androidx.compose.runtime.getValue
 
@@ -414,6 +416,7 @@ fun ArtistItemsScreen(
                 title = title,
                 onBack = navController::navigateUp,
                 onBackLongClick = navController::backToMain,
+                onHome = { navController.navigateHome() },
                 trailing = {
                     val songs = itemsPage?.items.orEmpty().filterIsInstance<SongItem>()
                     if (songs.isNotEmpty()) {
@@ -482,6 +485,15 @@ fun ArtistItemsScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { navController.navigateHome() },
+                        onLongClick = {},
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                        )
+                    }
                     val songs = itemsPage?.items.orEmpty().filterIsInstance<SongItem>()
                     if (songs.isNotEmpty()) {
                         IconButton(

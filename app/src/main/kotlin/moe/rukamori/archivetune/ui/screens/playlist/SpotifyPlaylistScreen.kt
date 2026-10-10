@@ -119,6 +119,7 @@ import moe.rukamori.archivetune.ui.utils.sendAddMissingDownloads
 import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
 import moe.rukamori.archivetune.ui.utils.sendPauseRunningDownloads
 import moe.rukamori.archivetune.ui.utils.sendResumePausedDownloads
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.utils.makeTimeString
 import dev.chrisbanes.haze.hazeSource
 import moe.rukamori.archivetune.ui.screens.ScreenHeaderHaze
@@ -155,6 +156,7 @@ fun SpotifyPlaylistScreen(
 
     var savedScrollIndex by remember { mutableIntStateOf(0) }
     var savedScrollOffset by remember { mutableIntStateOf(0) }
+    var wasSearching by remember { mutableStateOf(false) }
 
     val downloadState =
         remember(state.downloadItems, downloads) {
@@ -301,10 +303,12 @@ fun SpotifyPlaylistScreen(
 
     LaunchedEffect(isSearching) {
         if (isSearching) {
+            wasSearching = true
             savedScrollIndex = lazyListState.firstVisibleItemIndex
             savedScrollOffset = lazyListState.firstVisibleItemScrollOffset
             focusRequester.requestFocus()
-        } else {
+        } else if (wasSearching) {
+            wasSearching = false
             withFrameNanos {}
             lazyListState.scrollToItem(savedScrollIndex, savedScrollOffset)
         }
@@ -675,6 +679,19 @@ fun SpotifyPlaylistScreen(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
+                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                            tint = liquidGlassContentColor(),
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     androidx.compose.material3.IconButton(onClick = { isSearching = true }) {
                         Icon(
                             painter = painterResource(R.drawable.search),
@@ -754,6 +771,15 @@ fun SpotifyPlaylistScreen(
             },
             actions = {
                 if (!isSearching && showTopBarTitle) {
+                    IconButton(
+                        onClick = { navController.navigateHome() },
+                        onLongClick = {},
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                        )
+                    }
                     IconButton(
                         onClick = { isSearching = true },
                         onLongClick = {},

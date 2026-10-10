@@ -85,6 +85,8 @@ fun statToPeriod(
         OptionStats.MONTHS -> {
             LocalDateTime
                 .now()
+                .toLocalDate()
+                .atStartOfDay()
                 .withDayOfMonth(1)
                 .minusMonths(test.toLong())
                 .toInstant(ZoneOffset.UTC)
@@ -94,6 +96,8 @@ fun statToPeriod(
         OptionStats.YEARS -> {
             LocalDateTime
                 .now()
+                .toLocalDate()
+                .atStartOfDay()
                 .withDayOfMonth(1)
                 .withMonth(1)
                 .minusYears(test.toLong())

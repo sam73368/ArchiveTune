@@ -556,6 +556,8 @@ private fun LooperArtwork(
     val haptic = LocalHapticFeedback.current
     var dragOffset by remember { mutableStateOf(0f) }
     var artWidthPx by remember { mutableStateOf(0f) }
+    val latestOnSeekRelative by androidx.compose.runtime.rememberUpdatedState(onSeekRelative)
+    val latestOnLyricsClick by androidx.compose.runtime.rememberUpdatedState(onLyricsClick)
 
     Box(
         modifier =
@@ -580,11 +582,11 @@ private fun LooperArtwork(
                     }
                 }.pointerInput(artWidthPx) {
                     detectTapGestures(
-                        onTap = { onLyricsClick() },
+                        onTap = { latestOnLyricsClick() },
                         onDoubleTap = { offset ->
                             val isLeft = offset.x < artWidthPx / 2f
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onSeekRelative(if (isLeft) -10_000L else 10_000L)
+                            latestOnSeekRelative(if (isLeft) -10_000L else 10_000L)
                         },
                     )
                 },

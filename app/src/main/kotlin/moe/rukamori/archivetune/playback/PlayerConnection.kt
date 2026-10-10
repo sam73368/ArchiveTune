@@ -7,6 +7,8 @@
 
 package moe.rukamori.archivetune.playback
 
+import androidx.media3.exoplayer.PlayerMessage
+import android.os.Looper
 import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -29,6 +31,13 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import moe.rukamori.archivetune.utils.dataStore
+import moe.rukamori.archivetune.constants.HideVideoKey
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -89,6 +98,66 @@ class PlayerConnection(
 
     private var attachedPlayer: Player? = null
 
+    /** A–B repeat of the current song. `endMs == null` while only the start (A) has been set. */
+    data class AbLoop(
+        val mediaId: String,
+        val startMs: Long,
+        val endMs: Long?,
+    )
+
+    val abLoop = MutableStateFlow<AbLoop?>(null)
+    private var abLoopMessage: PlayerMessage? = null
+
+    fun setAbLoopStart() {
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        cancelAbLoopMessage()
+        abLoop.value = AbLoop(mediaId, player.currentPosition.coerceAtLeast(0L), null)
+    }
+
+    fun setAbLoopEnd() {
+        val current = abLoop.value ?: return
+        val end = player.currentPosition
+        if (end < current.startMs + AB_LOOP_MIN_LENGTH_MS) return
+        abLoop.value = current.copy(endMs = end)
+        armAbLoop()
+    }
+
+    fun clearAbLoop() {
+        abLoop.value = null
+        cancelAbLoopMessage()
+    }
+
+    private fun cancelAbLoopMessage() {
+        abLoopMessage?.cancel()
+        abLoopMessage = null
+    }
+
+    // A position message is delivered by the player exactly when playback reaches B, so the jump
+    // back to A does not depend on a polling loop.
+    private fun armAbLoop() {
+        cancelAbLoopMessage()
+        val loop = abLoop.value ?: return
+        val end = loop.endMs ?: return
+        val exo = localPlayer
+        if (exo.currentMediaItem?.mediaId != loop.mediaId) return
+        abLoopMessage =
+            exo
+                .createMessage { _, _ -> exo.seekTo(loop.startMs) }
+                .setLooper(Looper.getMainLooper())
+                .setPosition(exo.currentMediaItemIndex, end)
+                .setDeleteAfterDelivery(false)
+                .send()
+    }
+
+    private fun syncAbLoopWithCurrentItem() {
+        val loop = abLoop.value ?: return
+        if (player.currentMediaItem?.mediaId != loop.mediaId) {
+            clearAbLoop()
+        } else if (loop.endMs != null) {
+            armAbLoop()
+        }
+    }
+
     val playbackState = MutableStateFlow(player.playbackState)
     private val playWhenReady = MutableStateFlow(player.playWhenReady)
     val playbackParameters = MutableStateFlow(player.playbackParameters)
@@ -100,7 +169,37 @@ class PlayerConnection(
             SharingStarted.Lazily,
             player.playWhenReady && player.playbackState != STATE_ENDED,
         )
-    val mediaMetadata = service.currentMediaMetadata
+
+    // What the UI sees. With "Hide music videos" on, an official clip is played as its studio
+    // recording (see StudioAudioResolver), so it must also look like one: no clip picture and no
+    // video player, but the album cover. The service keeps the raw metadata (it needs the clip
+    // flag to pick the studio audio), only this UI-facing flow is rewritten.
+    private val hideMusicVideos =
+        runCatching {
+            context.dataStore.data
+                .map { it[HideVideoKey] ?: false }
+        }.getOrElse { flowOf(false) }
+            // A settings read problem must never take the player UI down: assume "off".
+            .catch { emit(false) }
+            .distinctUntilChanged()
+    private val currentAlbumCover =
+        service.currentMediaMetadata
+            .map { it?.album?.id }
+            .distinctUntilChanged()
+            .flatMapLatest { albumId ->
+                if (albumId.isNullOrBlank()) flowOf(null) else database.album(albumId).map { it?.album?.thumbnailUrl }
+            }
+    val mediaMetadata: StateFlow<MediaMetadata?> =
+        combine(service.currentMediaMetadata, hideMusicVideos, currentAlbumCover) { metadata, hideVideos, albumCover ->
+            if (metadata != null && hideVideos && metadata.isMusicVideo) {
+                metadata.copy(
+                    isMusicVideo = false,
+                    thumbnailUrl = albumCover?.takeIf { it.isNotBlank() } ?: metadata.thumbnailUrl,
+                )
+            } else {
+                metadata
+            }
+        }.stateIn(connectionScope, SharingStarted.Eagerly, service.currentMediaMetadata.value)
     val currentSong =
         mediaMetadata.flatMapLatest {
             database.song(it?.id)
@@ -358,8 +457,11 @@ class PlayerConnection(
 
     fun playNext(item: MediaItem) = playNext(listOf(item))
 
-    fun playNext(items: List<MediaItem>) {
-        service.playNext(items)
+    fun playNext(
+        items: List<MediaItem>,
+        keepMusicVideos: Boolean = false,
+    ) {
+        service.playNext(items, keepMusicVideos)
     }
 
     fun moveQueueItemToNext(mediaItemIndex: Int) {
@@ -368,8 +470,11 @@ class PlayerConnection(
 
     fun addToQueue(item: MediaItem) = addToQueue(listOf(item))
 
-    fun addToQueue(items: List<MediaItem>) {
-        service.addToQueue(items)
+    fun addToQueue(
+        items: List<MediaItem>,
+        keepMusicVideos: Boolean = false,
+    ) {
+        service.addToQueue(items, keepMusicVideos)
     }
 
     fun addAfterQueueIndex(index: Int, items: List<MediaItem>) {
@@ -482,6 +587,7 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
+        syncAbLoopWithCurrentItem()
         if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && mediaItem != null) {
             _songEndedEvents.tryEmit(Unit)
         }
@@ -496,6 +602,7 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
+        syncAbLoopWithCurrentItem()
     }
 
     override fun onShuffleModeEnabledChanged(enabled: Boolean) {
@@ -556,12 +663,14 @@ class PlayerConnection(
     fun dispose() {
         if (disposed) return
         disposed = true
+        cancelAbLoopMessage()
         connectionJob.cancel()
         attachedPlayer?.removeListener(this)
         attachedPlayer = null
     }
 
     private companion object {
+        const val AB_LOOP_MIN_LENGTH_MS = 1_000L
         const val TELEGRAM_FORMAT_REFINE_ATTEMPTS = 10
         const val TELEGRAM_FORMAT_REFINE_INTERVAL_MS = 1_500L
     }

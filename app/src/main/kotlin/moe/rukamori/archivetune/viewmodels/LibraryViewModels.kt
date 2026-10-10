@@ -259,6 +259,9 @@ class LibraryArtistsViewModel
 
         init {
             viewModelScope.launch(Dispatchers.IO) {
+                // Each update re-emits the list, and artists whose page has no thumbnail stay null,
+                // so only try each artist once per ViewModel to avoid an endless refetch loop.
+                val refreshAttemptedArtistIds = HashSet<String>()
                 allArtists.collect { artists ->
                     artists
                         .map { it.artist }
@@ -267,7 +270,8 @@ class LibraryArtistsViewModel
                                 it.lastUpdateTime,
                                 LocalDateTime.now(),
                             ) > Duration.ofDays(10)
-                        }.forEach { artist ->
+                        }.filter { refreshAttemptedArtistIds.add(it.id) }
+                        .forEach { artist ->
                             YouTube.artist(artist.id).onSuccess { artistPage ->
                                 database.query {
                                     update(artist, artistPage)
@@ -432,11 +436,19 @@ class LibraryPlaylistsViewModel
         val isRefreshing = _isRefreshing.asStateFlow()
 
         fun sync() {
+            if (_isRefreshing.value) return
+            _isRefreshing.value = true
             viewModelScope.launch(Dispatchers.IO) {
-                _isRefreshing.value = true
-                syncUtils.syncSavedPlaylists()
-                syncUtils.syncAutoSyncPlaylists()
-                _isRefreshing.value = false
+                try {
+                    syncUtils.syncSavedPlaylists()
+                    syncUtils.syncAutoSyncPlaylists()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    reportException(e)
+                } finally {
+                    _isRefreshing.value = false
+                }
             }
         }
 
@@ -769,6 +781,9 @@ class LibraryMixViewModel
                 }
             }
             viewModelScope.launch(Dispatchers.IO) {
+                // Only try each artist once per ViewModel: updates re-emit the list and a page without
+                // a thumbnail leaves thumbnailUrl null, which would otherwise refetch endlessly.
+                val refreshAttemptedArtistIds = HashSet<String>()
                 artists.collect { artists ->
                     artists
                         .map { it.artist }
@@ -778,7 +793,8 @@ class LibraryMixViewModel
                                     it.lastUpdateTime,
                                     LocalDateTime.now(),
                                 ) > Duration.ofDays(10)
-                        }.forEach { artist ->
+                        }.filter { refreshAttemptedArtistIds.add(it.id) }
+                        .forEach { artist ->
                             YouTube.artist(artist.id).onSuccess { artistPage ->
                                 database.query {
                                     update(artist, artistPage)

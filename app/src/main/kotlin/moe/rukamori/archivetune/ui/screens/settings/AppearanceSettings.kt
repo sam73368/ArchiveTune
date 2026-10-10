@@ -107,6 +107,7 @@ import moe.rukamori.archivetune.constants.RandomThemeOnStartupKey
 import moe.rukamori.archivetune.constants.ShowPlayerVolumeBarKey
 import moe.rukamori.archivetune.constants.SliderStyle
 import moe.rukamori.archivetune.constants.SliderStyleKey
+import moe.rukamori.archivetune.constants.ShowViewCountsKey
 import moe.rukamori.archivetune.constants.TabletModeEnabledKey
 import moe.rukamori.archivetune.constants.ThumbnailCornerRadiusKey
 import moe.rukamori.archivetune.constants.WallpaperExtractionFailedKey
@@ -142,7 +143,12 @@ import moe.rukamori.archivetune.ui.component.SettingsPageTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
+fun AppearanceSettings(
+    navController: NavController,
+    scrollTo: String? = null,
+    section: String? = null,
+) {
+    val activeSection = section ?: appearanceSectionForKey(scrollTo)
     val context = LocalContext.current
     val defaultDisableAnimations = remember(context) { context.isLowRamDevice() }
     val (wallpaperExtractionFailed) =
@@ -252,6 +258,8 @@ fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
             TabletModeEnabledKey,
             defaultValue = false,
         )
+    val (showViewCounts, onShowViewCountsChange) =
+        rememberPreference(ShowViewCountsKey, defaultValue = true)
     val (blurRadius, onBlurRadiusChange) = rememberPreference(BlurRadiusKey, defaultValue = 48f)
     val (backdropEnabled, onBackdropEnabledChange) = rememberPreference(BackdropEnabledKey, defaultValue = true)
     val (backdropBlurAmount, onBackdropBlurAmountChange) = rememberPreference(BackdropBlurAmountKey, defaultValue = 60)
@@ -473,7 +481,12 @@ fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
                 SettingsPageTopBar(
-                    titleText = stringResource(R.string.appearance),
+                    titleText =
+                        when (activeSection) {
+                            "theme" -> stringResource(R.string.theme)
+                            "player" -> stringResource(R.string.player)
+                            else -> stringResource(R.string.appearance)
+                        },
                     onBack = navController::navigateUp,
                     onBackLongClick = navController::backToMain,
                 )
@@ -500,6 +513,30 @@ fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
                 .padding(top = topPadding)
                 .padding(bottom = playerAwareBottomPadding + SettingsDimensions.ScreenBottomPadding),
         ) {
+            if (activeSection == null) {
+                PreferenceGroup(
+                    title = stringResource(R.string.player_settings_sections),
+                ) {
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.theme)) },
+                            description = stringResource(R.string.appearance_section_theme_desc),
+                            icon = { Icon(painterResource(R.drawable.palette), null) },
+                            onClick = { navController.navigate("settings/appearance?section=theme") },
+                        )
+                    }
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.player)) },
+                            description = stringResource(R.string.appearance_section_player_desc),
+                            icon = { Icon(painterResource(R.drawable.music_note), null) },
+                            onClick = { navController.navigate("settings/appearance?section=player") },
+                        )
+                    }
+                }
+            }
+
+            if (activeSection == "theme") {
             PreferenceGroup(
                 modifier = positions.modifierFor("dynamic_theme", "color_source"),
                 title = stringResource(R.string.theme),
@@ -775,7 +812,9 @@ fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
                     )
                 }
             }
+            }
 
+            if (activeSection == "player") {
             PreferenceGroup(
                 modifier = positions.modifierFor("disable_blur"),
                 title = stringResource(R.string.player),
@@ -1070,7 +1109,9 @@ fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
                     }
                 }
             }
+            }
 
+            if (activeSection == null) {
             PreferenceGroup(
                 modifier = positions.modifierFor("home_screen"),
                 title = stringResource(R.string.home),
@@ -1104,7 +1145,9 @@ fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
                     }
                 }
             }
+            }
 
+            if (activeSection == null) {
             PreferenceGroup(
                 modifier = positions.modifierFor("app_language"),
                 title = stringResource(R.string.misc),
@@ -1117,6 +1160,17 @@ fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
                         icon = { Icon(painterResource(R.drawable.desktop_windows), null) },
                         checked = tabletModeEnabled,
                         onCheckedChange = onTabletModeEnabledChange,
+                    )
+                }
+
+                item {
+                    SwitchPreference(
+                        modifier = positions.modifierFor("show_view_counts"),
+                        title = { Text(stringResource(R.string.show_view_counts)) },
+                        description = stringResource(R.string.show_view_counts_desc),
+                        icon = { Icon(painterResource(R.drawable.trending_up), null) },
+                        checked = showViewCounts,
+                        onCheckedChange = onShowViewCountsChange,
                     )
                 }
 
@@ -1153,7 +1207,9 @@ fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
                 }
 
             }
+            }
 
+            if (activeSection == null) {
             PreferenceGroup(
                 modifier = positions.modifierFor("extras"),
                 title = stringResource(R.string.extras),
@@ -1166,6 +1222,7 @@ fun AppearanceSettings(navController: NavController, scrollTo: String? = null) {
                         onClick = { navController.navigate("settings/appearance/extras") },
                     )
                 }
+            }
             }
         }
 
@@ -1326,3 +1383,12 @@ enum class LyricsPosition {
     CENTER,
     RIGHT,
 }
+
+
+private val AppearanceSectionKeys: Map<String, String> =
+    buildMap {
+        listOf("app_icon", "blur_intensity", "color_palette", "custom_font", "dark_theme", "disable_animations", "font_preference", "hide_status_bar", "liquid_glass_customisation", "pure_black", "random_theme_on_startup", "sf_pro_fonts", "ui_scale", "use_system_font", "wallpaper_permission").forEach { put(it, "theme") }
+        listOf("crop_thumbnail_to_square", "customized_background", "disable_blur", "hide_player_thumbnail", "lyrics_background_style", "mini_player_background_style", "player_background_style", "player_buttons_style", "player_design_style", "player_slider_style", "show_player_volume_bar", "thumbnail_corner_radius", "tiktok_main_lyrics").forEach { put(it, "player") }
+    }
+
+private fun appearanceSectionForKey(scrollTo: String?): String? = scrollTo?.let(AppearanceSectionKeys::get)

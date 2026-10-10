@@ -416,11 +416,17 @@ fun LibrarySongsScreen(
                     val song = songWrapper.item
                     val isActive = song.id == mediaMetadata?.id
 
+                    // The artwork palette (image decode + Palette) is only needed by the playing
+                    // row; computing it for every visible row made long libraries stutter.
                     val activeCardColor =
-                        rememberArtworkCardColor(
-                            thumbnailUrl = song.song.thumbnailUrl,
-                            fallbackColor = MaterialTheme.colorScheme.primaryContainer,
-                        )
+                        if (isActive) {
+                            rememberArtworkCardColor(
+                                thumbnailUrl = song.song.thumbnailUrl,
+                                fallbackColor = MaterialTheme.colorScheme.primaryContainer,
+                            )
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        }
                     val inactiveCardColor = MaterialTheme.colorScheme.surfaceContainerLow
 
                     val showDivider = isDarkTheme && pureBlack && index > 0

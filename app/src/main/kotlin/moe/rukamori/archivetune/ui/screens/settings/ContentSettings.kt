@@ -104,8 +104,8 @@ fun ContentSettings(
 
     val (appLanguage, onAppLanguageChange) = rememberPreference(key = AppLanguageKey, defaultValue = SYSTEM_DEFAULT)
 
-    val (contentLanguage, onContentLanguageChange) = rememberPreference(key = ContentLanguageKey, defaultValue = "system")
-    val (contentCountry, onContentCountryChange) = rememberPreference(key = ContentCountryKey, defaultValue = "system")
+    val (contentLanguage, onContentLanguageChange) = rememberPreference(key = ContentLanguageKey, defaultValue = SYSTEM_DEFAULT)
+    val (contentCountry, onContentCountryChange) = rememberPreference(key = ContentCountryKey, defaultValue = SYSTEM_DEFAULT)
     val (playlistSuggestionSource, onPlaylistSuggestionSourceChange) =
         rememberEnumPreference(
             key = PlaylistSuggestionSourceKey,

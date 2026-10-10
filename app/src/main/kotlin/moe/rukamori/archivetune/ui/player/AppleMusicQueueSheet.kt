@@ -134,7 +134,9 @@ fun AppleMusicQueueSheet(
             while (isActive) {
                 sleepTimerTimeLeft =
                     if (playerConnection.service.sleepTimer.pauseWhenSongEnd) {
-                        playerConnection.player.duration - playerConnection.player.currentPosition
+                        playerConnection.player.duration.let { total ->
+                            if (total == androidx.media3.common.C.TIME_UNSET) 0L else (total - playerConnection.player.currentPosition).coerceAtLeast(0L)
+                        }
                     } else {
                         playerConnection.service.sleepTimer.triggerTime - System.currentTimeMillis()
                     }
@@ -473,6 +475,14 @@ fun AppleMusicQueueSheet(
                                                     painter = painterResource(R.drawable.drag_handle),
                                                     contentDescription = "Drag to reorder",
                                                     tint = adaptivePrimary,
+                                                )
+                                            }
+                                        } else {
+                                            IconButton(onClick = { locked = false }) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.drag_handle),
+                                                    contentDescription = "Unlock to reorder",
+                                                    tint = adaptivePrimary.copy(alpha = 0.45f),
                                                 )
                                             }
                                         }

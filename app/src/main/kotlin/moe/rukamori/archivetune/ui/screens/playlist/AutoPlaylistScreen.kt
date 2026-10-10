@@ -117,6 +117,7 @@ import moe.rukamori.archivetune.ui.utils.sendAddMissingDownloads
 import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
 import moe.rukamori.archivetune.ui.utils.sendPauseRunningDownloads
 import moe.rukamori.archivetune.ui.utils.sendResumePausedDownloads
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.utils.makeTimeString
 import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
@@ -238,35 +239,6 @@ fun AutoPlaylistScreen(
         }
     }
 
-    val globalDownloadState = remember(downloads) {
-        val activeDownloads = downloads.values.filter {
-            it.state == Download.STATE_DOWNLOADING ||
-            it.state == Download.STATE_QUEUED ||
-            it.state == Download.STATE_RESTARTING ||
-            it.state == Download.STATE_STOPPED
-        }
-        if (activeDownloads.isEmpty()) {
-            HeaderDownloadState.None
-        } else {
-            var progressTotal = 0f
-            var hasRunning = false
-            var hasPaused = false
-            activeDownloads.forEach { download ->
-                val progress = download.percentDownloaded.takeIf { it >= 0f }?.div(100f) ?: 0f
-                progressTotal += progress.coerceIn(0f, 1f)
-                if (download.state == Download.STATE_STOPPED) {
-                    hasPaused = hasPaused || download.stopReason == 1
-                } else {
-                    hasRunning = true
-                }
-            }
-            HeaderDownloadState.Partial(
-                progress = progressTotal / activeDownloads.size,
-                paused = hasPaused && !hasRunning,
-            )
-        }
-    }
-
     LaunchedEffect(songs) {
         val songIds = songs.map { it.song.id }
         downloadUtil.downloads.collect { currentDownloads ->
@@ -324,6 +296,14 @@ fun AutoPlaylistScreen(
                 }
             }
         }
+
+    // Selection only applies to the songs currently visible (search filter): drop hidden ones.
+    LaunchedEffect(selection, filteredSongs) {
+        if (selection) {
+            val visibleSongs = filteredSongs.toHashSet()
+            wrappedSongs.forEach { if (it !in visibleSongs) it.isSelected = false }
+        }
+    }
 
     val lazyListState = rememberLazyListState()
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -687,24 +667,25 @@ fun AutoPlaylistScreen(
                         .padding(end = 12.dp, top = systemBarsTopPadding + 12.dp),
             ) {
                 if (selection) {
+                    val allVisibleSelected = filteredSongs.isNotEmpty() && filteredSongs.all { it.isSelected }
                     Box(
                         modifier = Modifier.size(48.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         androidx.compose.material3.IconButton(
                             onClick = {
-                                if (selectedCount == wrappedSongs.size) {
+                                if (allVisibleSelected) {
                                     wrappedSongs.forEach { it.isSelected = false }
                                     selection = false
                                 } else {
-                                    wrappedSongs.forEach { it.isSelected = true }
+                                    filteredSongs.forEach { it.isSelected = true }
                                 }
                             },
                         ) {
                             Icon(
                                 painter =
                                     painterResource(
-                                        if (selectedCount == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all,
+                                        if (allVisibleSelected) R.drawable.deselect else R.drawable.select_all,
                                     ),
                                 contentDescription = null,
                                 tint = liquidGlassContentColor(),
@@ -715,7 +696,7 @@ fun AutoPlaylistScreen(
                         menuState.show {
                             SelectionSongMenu(
                                 songSelection =
-                                    wrappedSongs
+                                    filteredSongs
                                         .filter { it.isSelected }
                                         .map { it.item },
                                 onDismiss = menuState::dismiss,
@@ -733,6 +714,19 @@ fun AutoPlaylistScreen(
                         )
                     }
                 } else {
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                            tint = liquidGlassContentColor(),
+                        )
+                    }
+                }
+
                 Box(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
@@ -897,20 +891,21 @@ fun AutoPlaylistScreen(
             },
             actions = {
                 if (selection) {
+                    val allVisibleSelected = filteredSongs.isNotEmpty() && filteredSongs.all { it.isSelected }
                     androidx.compose.material3.IconButton(
                         onClick = {
-                            if (selectedCount == wrappedSongs.size) {
+                            if (allVisibleSelected) {
                                 wrappedSongs.forEach { it.isSelected = false }
                                 selection = false
                             } else {
-                                wrappedSongs.forEach { it.isSelected = true }
+                                filteredSongs.forEach { it.isSelected = true }
                             }
                         },
                     ) {
                         Icon(
                             painter =
                                 painterResource(
-                                    if (selectedCount == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all,
+                                    if (allVisibleSelected) R.drawable.deselect else R.drawable.select_all,
                                 ),
                             contentDescription = null,
                         )
@@ -921,7 +916,7 @@ fun AutoPlaylistScreen(
                             menuState.show {
                                 SelectionSongMenu(
                                     songSelection =
-                                        wrappedSongs
+                                        filteredSongs
                                             .filter { it.isSelected }
                                             .map { it.item },
                                     onDismiss = menuState::dismiss,
@@ -940,6 +935,14 @@ fun AutoPlaylistScreen(
                     }
                 } else if (!isSearching) {
                     if (showTopBarTitle || !liquidGlassHeaderActive) {
+                        androidx.compose.material3.IconButton(
+                            onClick = { navController.navigateHome() },
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.home_outlined),
+                                contentDescription = stringResource(R.string.home),
+                            )
+                        }
                         androidx.compose.material3.IconButton(
                             onClick = { isSearching = true },
                         ) {

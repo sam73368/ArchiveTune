@@ -19,10 +19,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,9 +33,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.HideExplicitKey
@@ -157,12 +152,32 @@ class LocalPlaylistViewModel
             }
         }
 
-        private val _viewCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
-        val viewCounts = _viewCounts.asStateFlow()
 
-        private val viewCountsMutex = Mutex()
-        private val viewCountsInFlight = mutableSetOf<String>()
-        private val viewCountsSemaphore = Semaphore(permits = 4)
+
+        /**
+         * Makes the order currently shown on screen the playlist's custom order and switches to it.
+         * Songs hidden by filters (blocked artists, hidden videos) keep their relative order after the visible ones.
+         * Synced playlists only switch back to their own order: their remote order is the source of truth.
+         */
+        fun adoptDisplayedOrderAsCustom(keepDisplayedOrder: Boolean) {
+            viewModelScope.launch(Dispatchers.IO) {
+                if (keepDisplayedOrder) {
+                    val displayed = playlistSongs.value.map { it.map.id }
+                    val all = database.playlistSongs(playlistId).first()
+                    val hidden = all.map { it.map.id }.filterNot { it in displayed.toSet() }
+                    database.withTransaction {
+                        (displayed + hidden).forEachIndexed { index, mapId ->
+                            setPlaylistSongPosition(mapId, index)
+                        }
+                    }
+                }
+                database.updatePlaylistSortPreference(
+                    playlistId = playlistId,
+                    sortType = PlaylistSongSortType.CUSTOM.name,
+                    descending = false,
+                )
+            }
+        }
 
         private val _playlistSuggestions = MutableStateFlow<PlaylistSuggestion?>(null)
         val playlistSuggestions =
@@ -214,18 +229,6 @@ class LocalPlaylistViewModel
             }
 
             viewModelScope.launch {
-                playlistSongs.collect { songs ->
-                    prefetchViewCounts(
-                        songs
-                            .asSequence()
-                            .filter { !it.song.song.isLocal }
-                            .map { it.song.id }
-                            .toList(),
-                    )
-                }
-            }
-
-            viewModelScope.launch {
                 combine(playlist, playlistSongs) { playlist, songs ->
                     Pair(playlist, songs)
                 }.collect { (playlist, songs) ->
@@ -240,43 +243,6 @@ class LocalPlaylistViewModel
                     if (suggestions != null && suggestions.items.isEmpty() && suggestions.hasMore && !_isLoadingSuggestions.value) {
                         loadMoreSuggestions()
                     }
-                }
-            }
-        }
-
-        private fun prefetchViewCounts(videoIds: List<String>) {
-            val uniqueIds = videoIds.distinct().filter { it.isNotBlank() }
-            if (uniqueIds.isEmpty()) return
-
-            viewModelScope.launch(Dispatchers.IO) {
-                coroutineScope {
-                    uniqueIds
-                        .map { videoId ->
-                            async {
-                                val shouldFetch =
-                                    viewCountsMutex.withLock {
-                                        if (_viewCounts.value.containsKey(videoId) || viewCountsInFlight.contains(videoId)) {
-                                            false
-                                        } else {
-                                            viewCountsInFlight.add(videoId)
-                                            true
-                                        }
-                                    }
-
-                                if (!shouldFetch) return@async
-
-                                try {
-                                    viewCountsSemaphore.withPermit {
-                                        val count = YouTube.getMediaInfo(videoId).getOrNull()?.viewCount
-                                        if (count != null && count >= 0) {
-                                            _viewCounts.update { current -> current + (videoId to count) }
-                                        }
-                                    }
-                                } finally {
-                                    viewCountsMutex.withLock { viewCountsInFlight.remove(videoId) }
-                                }
-                            }
-                        }.awaitAll()
                 }
             }
         }

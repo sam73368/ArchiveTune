@@ -132,12 +132,12 @@ import moe.rukamori.archivetune.ui.utils.HeaderDownloadProgressIndicator
 import moe.rukamori.archivetune.ui.utils.HeaderDownloadState
 import moe.rukamori.archivetune.ui.utils.ItemWrapper
 import moe.rukamori.archivetune.ui.utils.backToMain
-import moe.rukamori.archivetune.ui.utils.formatCompactCount
 import moe.rukamori.archivetune.ui.utils.headerDownloadState
 import moe.rukamori.archivetune.ui.utils.sendAddMissingDownloads
 import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
 import moe.rukamori.archivetune.ui.utils.sendPauseRunningDownloads
 import moe.rukamori.archivetune.ui.utils.sendResumePausedDownloads
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.constants.AlbumCanvasEnabledKey
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.viewmodels.OnlinePlaylistViewModel
@@ -166,7 +166,6 @@ fun OnlinePlaylistScreen(
 
     val playlist by viewModel.playlist.collectAsStateWithLifecycle()
     val songs by viewModel.playlistSongs.collectAsStateWithLifecycle()
-    val viewCounts by viewModel.viewCounts.collectAsStateWithLifecycle()
     val canvasArtwork by viewModel.canvasArtwork.collectAsStateWithLifecycle()
     val pageCanvasEnabled by rememberPreference(key = AlbumCanvasEnabledKey, defaultValue = true)
     val dbPlaylist by viewModel.dbPlaylist.collectAsStateWithLifecycle()
@@ -177,35 +176,6 @@ fun OnlinePlaylistScreen(
     val downloadUtil = LocalDownloadUtil.current
     var downloads by remember { mutableStateOf<Map<String, Download>>(emptyMap()) }
     var downloadState by remember { mutableStateOf<HeaderDownloadState>(HeaderDownloadState.None) }
-    val globalDownloadState = remember(downloads) {
-        val activeDownloads = downloads.values.filter {
-            it.state == Download.STATE_DOWNLOADING ||
-            it.state == Download.STATE_QUEUED ||
-            it.state == Download.STATE_RESTARTING ||
-            it.state == Download.STATE_STOPPED
-        }
-        if (activeDownloads.isEmpty()) {
-            HeaderDownloadState.None
-        } else {
-            var progressTotal = 0f
-            var hasRunning = false
-            var hasPaused = false
-            activeDownloads.forEach { download ->
-                val progress = download.percentDownloaded.takeIf { it >= 0f }?.div(100f) ?: 0f
-                progressTotal += progress.coerceIn(0f, 1f)
-                if (download.state == Download.STATE_STOPPED) {
-                    hasPaused = hasPaused || download.stopReason == 1
-                } else {
-                    hasRunning = true
-                }
-            }
-            HeaderDownloadState.Partial(
-                progress = progressTotal / activeDownloads.size,
-                paused = hasPaused && !hasRunning,
-            )
-        }
-    }
-
     var selection by remember { mutableStateOf(false) }
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
@@ -251,12 +221,15 @@ fun OnlinePlaylistScreen(
 
     var savedScrollIndex by remember { mutableIntStateOf(0) }
     var savedScrollOffset by remember { mutableIntStateOf(0) }
+    var wasSearching by remember { mutableStateOf(false) }
     LaunchedEffect(isSearching) {
         if (isSearching) {
+            wasSearching = true
             savedScrollIndex = lazyListState.firstVisibleItemIndex
             savedScrollOffset = lazyListState.firstVisibleItemScrollOffset
             focusRequester.requestFocus()
-        } else {
+        } else if (wasSearching) {
+            wasSearching = false
             withFrameNanos {}
             lazyListState.scrollToItem(savedScrollIndex, savedScrollOffset)
         }
@@ -634,10 +607,6 @@ fun OnlinePlaylistScreen(
                     ) { song ->
                         YouTubeListItem(
                             item = song.item.second,
-                            viewCountText =
-                                viewCounts[song.item.second.id]?.let { count ->
-                                    formatCompactCount(count.toLong())
-                                },
                             isActive = mediaMetadata?.id == song.item.second.id,
                             isPlaying = isPlaying,
                             isSelected = song.isSelected && selection,
@@ -890,6 +859,19 @@ fun OnlinePlaylistScreen(
                         )
                     }
                 } else {
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                            tint = liquidGlassContentColor(),
+                        )
+                    }
+                }
+
                 Box(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,

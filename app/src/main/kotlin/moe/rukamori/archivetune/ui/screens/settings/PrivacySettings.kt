@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.constants.AppLockKey
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -86,6 +87,8 @@ fun PrivacySettings(
     val database = LocalDatabase.current
     val context = LocalContext.current
     val isAndroid12OrLater = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+    val (appLockEnabled, onAppLockEnabledChange) = rememberPreference(AppLockKey, defaultValue = false)
+    val privacyContext = LocalContext.current
     val (pauseListenHistory, onPauseListenHistoryChange) =
         rememberPreference(
             key = PauseListenHistoryKey,
@@ -229,6 +232,27 @@ fun PrivacySettings(
                 .padding(top = topPadding)
                 .padding(bottom = playerAwareBottomPadding + SettingsDimensions.ScreenBottomPadding),
         ) {
+            PreferenceGroup(
+                modifier = positions.modifierFor("app_lock"),
+                title = stringResource(R.string.app_lock),
+            ) {
+                item {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.app_lock)) },
+                        description = stringResource(R.string.app_lock_desc),
+                        icon = { Icon(painterResource(R.drawable.lock), null) },
+                        checked = appLockEnabled,
+                        onCheckedChange = { enable ->
+                            if (enable && !moe.rukamori.archivetune.utils.AppLockController.isDeviceSecure(privacyContext)) {
+                                Toast.makeText(privacyContext, R.string.app_lock_no_screen_lock, Toast.LENGTH_LONG).show()
+                            } else {
+                                onAppLockEnabledChange(enable)
+                            }
+                        },
+                    )
+                }
+            }
+
             PreferenceGroup(
                 modifier = positions.modifierFor("pause_listen_history"),
                 title = stringResource(R.string.listen_history),

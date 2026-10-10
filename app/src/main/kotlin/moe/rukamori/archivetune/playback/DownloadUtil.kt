@@ -7,6 +7,8 @@
 
 package moe.rukamori.archivetune.playback
 
+import moe.rukamori.archivetune.constants.DownloadWifiOnlyKey
+import androidx.media3.exoplayer.scheduler.Requirements
 import android.content.Context
 import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
@@ -76,6 +78,7 @@ import moe.rukamori.archivetune.constants.SongSourceQobuzBackupVideoIdKey
 import moe.rukamori.archivetune.constants.SongSourceQobuzTrackIdKey
 import moe.rukamori.archivetune.utils.AuthScopedCacheValue
 import moe.rukamori.archivetune.utils.PoolAccountManager
+import moe.rukamori.archivetune.utils.PreferenceStore
 import moe.rukamori.archivetune.utils.StreamClientUtils
 import moe.rukamori.archivetune.utils.YTPlayerUtils
 import moe.rukamori.archivetune.utils.dataStore
@@ -239,18 +242,26 @@ class DownloadUtil
             val directQobuzBackupVideoId: String?,
         )
 
-        private fun readSongSourcePreferences(mediaId: String): SongSourcePreferences =
-            runCatching {
+        private fun songSourcePreferencesFrom(
+            prefs: androidx.datastore.preferences.core.Preferences,
+            mediaId: String,
+        ) = SongSourcePreferences(
+            overrideSource = SongSourceOverride.get(prefs[SongSourceOverrideKey], mediaId),
+            directQobuzTrackId = SongSourceQobuzTrackId.get(prefs[SongSourceQobuzTrackIdKey], mediaId),
+            directQobuzBackupVideoId =
+                SongSourceQobuzBackupVideoId.get(prefs[SongSourceQobuzBackupVideoIdKey], mediaId),
+        )
+
+        // Called from getDownload(), which UI rows collect on the main thread: read the in-memory
+        // preference snapshot instead of blocking on DataStore for every row and every tick.
+        private fun readSongSourcePreferences(mediaId: String): SongSourcePreferences {
+            PreferenceStore.snapshot?.let { return songSourcePreferencesFrom(it, mediaId) }
+            return runCatching {
                 runBlocking(Dispatchers.IO) {
-                    val prefs = appContext.dataStore.data.first()
-                    SongSourcePreferences(
-                        overrideSource = SongSourceOverride.get(prefs[SongSourceOverrideKey], mediaId),
-                        directQobuzTrackId = SongSourceQobuzTrackId.get(prefs[SongSourceQobuzTrackIdKey], mediaId),
-                        directQobuzBackupVideoId =
-                            SongSourceQobuzBackupVideoId.get(prefs[SongSourceQobuzBackupVideoIdKey], mediaId),
-                    )
+                    songSourcePreferencesFrom(appContext.dataStore.data.first(), mediaId)
                 }
             }.getOrDefault(SongSourcePreferences(null, null, null))
+        }
 
         private fun downloadSourceForAudioSource(source: AudioSourceType): DownloadSource? =
             when (source) {
@@ -609,6 +620,18 @@ class DownloadUtil
                     }
             }
         }
+
+        // Wi-Fi only: downloads wait for an unmetered network, and resume on their own when one is back.
+        private val networkRequirementJob =
+            downloadScope.launch(Dispatchers.Main) {
+                context.dataStore.data
+                    .map { it[DownloadWifiOnlyKey] ?: false }
+                    .distinctUntilChanged()
+                    .collect { wifiOnly ->
+                        downloadManager.requirements =
+                            Requirements(if (wifiOnly) Requirements.NETWORK_UNMETERED else Requirements.NETWORK)
+                    }
+            }
 
         fun getDownload(songId: String): Flow<Download?> =
             downloads.map { map ->

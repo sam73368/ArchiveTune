@@ -187,6 +187,7 @@ import moe.rukamori.archivetune.constants.DarkModeKey
 import moe.rukamori.archivetune.constants.DisableBlurKey
 import moe.rukamori.archivetune.constants.EnableHapticFeedbackKey
 import moe.rukamori.archivetune.constants.EnableVideoPlaybackKey
+import moe.rukamori.archivetune.constants.HideVideoKey
 import moe.rukamori.archivetune.constants.InnerTubeCookieKey
 import moe.rukamori.archivetune.constants.MaxCanvasCacheSizeKey
 import moe.rukamori.archivetune.constants.PlayerBackgroundStyle
@@ -455,6 +456,9 @@ fun BottomSheetPlayer(
     val (showCodecOnPlayer) = rememberPreference(ShowCodecOnPlayerKey, false)
     val (incrementalSeekSkipEnabled) = rememberPreference(moe.rukamori.archivetune.constants.SeekExtraSeconds, defaultValue = false)
     val enableVideoPlayback by rememberPreference(EnableVideoPlaybackKey, defaultValue = true)
+    // "Hide music videos": clips play as audio (their studio version when one exists), so the
+    // clip picture is not shown either.
+    val hideMusicVideos by rememberPreference(HideVideoKey, defaultValue = false)
     var keyboardSkipMultiplier by remember { mutableStateOf(1) }
     var lastKeyboardTapTime by remember { mutableLongStateOf(0L) }
 
@@ -814,10 +818,6 @@ fun BottomSheetPlayer(
             }
         }
 
-    val download by LocalDownloadUtil.current
-        .getDownload(mediaMetadata?.id ?: "")
-        .collectAsStateWithLifecycle(initialValue = null)
-
     val sleepTimerEnabled =
         remember(
             playerConnection.service.sleepTimer.triggerTime,
@@ -835,7 +835,9 @@ fun BottomSheetPlayer(
             while (isActive) {
                 sleepTimerTimeLeft =
                     if (playerConnection.service.sleepTimer.pauseWhenSongEnd) {
-                        playerConnection.player.duration - playerConnection.player.currentPosition
+                        playerConnection.player.duration.let { total ->
+                            if (total == androidx.media3.common.C.TIME_UNSET) 0L else (total - playerConnection.player.currentPosition).coerceAtLeast(0L)
+                        }
                     } else {
                         playerConnection.service.sleepTimer.triggerTime - System.currentTimeMillis()
                     }
@@ -1111,7 +1113,7 @@ fun BottomSheetPlayer(
     val videoFullscreenHolder = LocalVideoFullscreenState.current
     val videoMediaId =
         mediaMetadata
-            ?.takeIf { enableVideoPlayback && it.isMusicVideo == true && !it.id.isLocalMediaId() }
+            ?.takeIf { enableVideoPlayback && !hideMusicVideos && it.isMusicVideo == true && !it.id.isLocalMediaId() }
             ?.id
 
     var videoQualityStored by rememberPreference(VideoQualityPreferredHeightKey, VideoQualityPreference.HIGH_QUALITY)
@@ -1231,7 +1233,10 @@ fun BottomSheetPlayer(
                             lastKeyboardTapTime = now
                             val skipAmount = 5000L * keyboardSkipMultiplier
                             playerConnection.player.seekTo(
-                                (playerConnection.player.currentPosition + skipAmount).coerceAtMost(playerConnection.player.duration),
+                                playerConnection.player.duration.let { total ->
+                                    val target = playerConnection.player.currentPosition + skipAmount
+                                    if (total == C.TIME_UNSET || total <= 0L) target else target.coerceAtMost(total)
+                                },
                             )
                             true
                         }
@@ -1976,7 +1981,6 @@ fun BottomSheetPlayer(
                             isLoading = isLoading,
                             canSkipPrevious = canSkipPrevious,
                             canSkipNext = canSkipNext,
-                            position = position,
                             duration = duration,
                             playerConnection = playerConnection,
                             navController = navController,
@@ -1984,7 +1988,7 @@ fun BottomSheetPlayer(
                             menuState = menuState,
                             bottomSheetPageState = bottomSheetPageState,
                             currentFormat = currentFormat,
-                            positionProvider = { position },
+                            positionProvider = positionProvider,
                             canvasPrimaryUrl = artworkCanvas?.animated,
                             canvasFallbackUrl = artworkCanvas?.videoUrl,
                             appIsDark = useDarkTheme,
@@ -2522,7 +2526,6 @@ fun BottomSheetPlayer(
                             isLoading = isLoading,
                             canSkipPrevious = canSkipPrevious,
                             canSkipNext = canSkipNext,
-                            position = position,
                             duration = duration,
                             playerConnection = playerConnection,
                             navController = navController,
@@ -2530,7 +2533,7 @@ fun BottomSheetPlayer(
                             menuState = menuState,
                             bottomSheetPageState = bottomSheetPageState,
                             currentFormat = currentFormat,
-                            positionProvider = { position },
+                            positionProvider = positionProvider,
                             canvasPrimaryUrl = artworkCanvas?.animated,
                             canvasFallbackUrl = artworkCanvas?.videoUrl,
                             appIsDark = useDarkTheme,

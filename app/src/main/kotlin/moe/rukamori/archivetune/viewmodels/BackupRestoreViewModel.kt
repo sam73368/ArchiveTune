@@ -841,7 +841,11 @@ class BackupRestoreViewModel
                     if (includeLibrary && !hasDb) throw IllegalStateException("Backup missing database")
 
                     val includeStatsMerge = !includeLibrary && hasStats
-                    val includeLyricsMerge = includeLyrics && LyricsBackup.ZIP_ENTRY_NAME in entryNames
+                    // The restored database file already carries its lyrics table, and the live
+                    // database is closed during a library restore, so merging lyrics then would
+                    // fail mid-restore.
+                    val includeLyricsMerge =
+                        includeLyrics && !includeLibrary && LyricsBackup.ZIP_ENTRY_NAME in entryNames
                     val includeFonts = BackupCategory.FONTS in categories
                     val restoreEntries =
                         entryNames.filter { name ->
@@ -880,6 +884,12 @@ class BackupRestoreViewModel
                         runCatching { database.awaitIdle() }
                         runCatching { database.checkpoint() }
                         runCatching { database.close() }
+                        // Remove the old WAL/SHM/journal files: if the backup has no -wal entry,
+                        // a leftover WAL from the previous database would be replayed onto the
+                        // restored file and corrupt or mix the libraries.
+                        listOf("-wal", "-shm", "-journal").forEach { suffix ->
+                            runCatching { context.getDatabasePath("${InternalDatabase.DB_NAME}$suffix").delete() }
+                        }
                         completedUnits++
                     }
 
@@ -950,9 +960,11 @@ class BackupRestoreViewModel
                                             val fontsDir = context.filesDir / CUSTOM_FONTS_DIR_NAME
                                             if (!fontsDir.exists()) fontsDir.mkdirs()
                                             val fontFileName = name.removePrefix("$FONTS_ZIP_PREFIX/")
-                                            val fontFile = fontsDir / fontFileName
-                                            fontFile.outputStream().use { out ->
-                                                zip.copyTo(out)
+                                            val fontFile = resolveInsideDirectory(fontsDir, fontFileName)
+                                            if (fontFile != null) {
+                                                fontFile.outputStream().use { out ->
+                                                    zip.copyTo(out)
+                                                }
                                             }
                                         } else if (includeCanvas && name.startsWith("$CANVAS_ZIP_PREFIX/")) {
                                             emit(context.getString(R.string.restore_step_restoring_file, name), indeterminate = true)
@@ -967,9 +979,11 @@ class BackupRestoreViewModel
                                             if (canvasDir != null) {
                                                 if (!canvasDir.exists()) canvasDir.mkdirs()
                                                 val canvasFileName = name.removePrefix("$CANVAS_ZIP_PREFIX/")
-                                                val canvasFile = canvasDir / canvasFileName
-                                                canvasFile.outputStream().use { out ->
-                                                    zip.copyTo(out)
+                                                val canvasFile = resolveInsideDirectory(canvasDir, canvasFileName)
+                                                if (canvasFile != null) {
+                                                    canvasFile.outputStream().use { out ->
+                                                        zip.copyTo(out)
+                                                    }
                                                 }
                                             }
                                         }
@@ -1340,5 +1354,19 @@ class BackupRestoreViewModel
             const val CANVAS_ZIP_PREFIX = BackupArchiveRepository.CANVAS_ZIP_PREFIX
 
             val ACCOUNT_PREF_KEYS: Set<String> = BackupArchiveRepository.ACCOUNT_PREFERENCE_KEYS
+
+            /**
+             * Resolves [relativePath] (a zip entry name) under [directory] and returns null when it
+             * would land outside it ("../" entries), so a crafted backup can't overwrite app files.
+             */
+            internal fun resolveInsideDirectory(
+                directory: java.io.File,
+                relativePath: String,
+            ): java.io.File? {
+                if (relativePath.isBlank()) return null
+                val root = directory.canonicalFile
+                val target = java.io.File(root, relativePath).canonicalFile
+                return target.takeIf { it.path.startsWith(root.path + java.io.File.separator) }
+            }
         }
     }

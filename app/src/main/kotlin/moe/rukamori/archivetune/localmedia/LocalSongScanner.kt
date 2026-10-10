@@ -126,6 +126,7 @@ class LocalSongScanner
                                 channelId = null,
                                 lastUpdateTime = existingArtist?.lastUpdateTime ?: LocalDateTime.now(),
                                 bookmarkedAt = existingArtist?.bookmarkedAt,
+                                blockedAt = existingArtist?.blockedAt,
                                 isLocal = true,
                             ),
                         )

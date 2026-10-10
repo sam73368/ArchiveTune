@@ -22,6 +22,9 @@ class LocalAlbumRadio(
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
 
+    override val keepsMusicVideos: Boolean
+        get() = true
+
     private lateinit var playlistId: String
     private val endpoint: WatchEndpoint
         get() =
@@ -35,10 +38,12 @@ class LocalAlbumRadio(
 
     override suspend fun getInitialStatus(): Queue.Status =
         withContext(IO) {
+            val items = albumWithSongs.songs.map { it.toMediaItem() }
             Queue.Status(
                 title = albumWithSongs.album.title,
-                items = albumWithSongs.songs.map { it.toMediaItem() },
-                mediaItemIndex = startIndex,
+                items = items,
+                // Out-of-range index would make setMediaItems() throw IllegalSeekPositionException.
+                mediaItemIndex = if (items.isEmpty()) 0 else startIndex.coerceIn(items.indices),
             )
         }
 
@@ -55,11 +60,11 @@ class LocalAlbumRadio(
                 val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
                 continuation = nextResult.continuation
                 firstTimeLoaded = true
+                // drop() instead of subList(): YouTube can return fewer items than the
+                // local album holds, and subList() would throw and silently stop the queue.
                 return@withContext nextResult.items
-                    .subList(
-                        albumWithSongs.songs.size,
-                        nextResult.items.size,
-                    ).map { it.toMediaItem() }
+                    .drop(albumWithSongs.songs.size)
+                    .map { it.toMediaItem() }
             }
             val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
             continuation = nextResult.continuation

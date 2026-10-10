@@ -1,0 +1,132 @@
+name: Fork update build
+
+# Builds the installable (debug-signed, persistent keystore) APK of this fork on every push and
+# publishes it as a GitHub pre-release the in-app updater understands:
+#   * tag    N<yyyyMMddHHmm>                        (matches the updater's canary tag regex)
+#   * asset  app-gms-mobile-universal-nightly.apk   (the name Updater.canaryReleaseArtifactName() asks for)
+#   * body   <!-- at-build:<versionCode> -->        (build number compared with BuildConfig.VERSION_CODE)
+# Installed apps poll Updater.OWNER's releases, see the higher build number, then download and
+# install it. The versionCode (100000 + run number) always grows, so every run is "newer".
+on:
+  push:
+    branches:
+      - main
+      - fix/album-play-queue
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # Serialised and never cancelled: the release tag is minute-granular (see nightly.yml).
+  group: fork-update
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    env:
+      IS_NIGHTLY_BUILD: "true"
+      NIGHTLY_BUILD_HASH: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Compute version code
+        run: echo "VERSION_CODE_OVERRIDE=$((100000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+
+      - name: Set up build environment
+        uses: ./.github/actions/setup-build
+        with:
+          variant-key: fork-update-gms-mobile-universal-debug
+
+      - name: Generate debug.keystore if not exists
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v \
+              -keystore ~/.android/debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Build Mobile Universal Debug APK
+        shell: bash
+        run: ./gradlew --console=plain assembleGmsMobileUniversalDebug --warning-mode summary
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          PULL_REQUEST: "true"
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          API_BEARER_TOKEN: ${{ secrets.API_BEARER_TOKEN }}
+          CANVAS_BEARER_TOKEN: ${{ secrets.CANVAS_BEARER_TOKEN }}
+          EXTRACTOR_BEARER: ${{ secrets.EXTRACTOR_BEARER }}
+          SOURCE_PROVIDER_URL: ${{ vars.SOURCE_PROVIDER_URL || secrets.SOURCE_PROVIDER_URL }}
+          SOURCE_PROVIDER_KEY: ${{ secrets.SOURCE_PROVIDER_KEY }}
+
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          APK="$(find app/build/outputs/apk -name '*.apk' -path '*ebug*' | head -n 1)"
+          if [ -z "$APK" ]; then
+            echo "::error::No debug APK produced"
+            exit 1
+          fi
+          mkdir -p dist
+          cp "$APK" dist/app-gms-mobile-universal-nightly.apk
+
+          TS="$(date -u +'%Y%m%d%H%M')"
+          TAG="N${TS}"
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+
+          # Changelog shown in the app: the commits since the previous published build.
+          PREV_TAG="$(gh release list --limit 100 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | test("^N[0-9]{8}([0-9]{4})?$"))] | sort_by(.createdAt) | last | .tagName // empty' || true)"
+          PREV_SHA=""
+          if [ -n "$PREV_TAG" ]; then
+            PREV_SHA="$(gh release view "$PREV_TAG" --json targetCommitish --jq '.targetCommitish' || true)"
+          fi
+          if [ -n "$PREV_SHA" ] && git cat-file -e "${PREV_SHA}^{commit}" 2>/dev/null; then
+            RANGE="${PREV_SHA}..HEAD"
+          else
+            RANGE="-n 10"
+          fi
+          CHANGES="$(git log --no-merges --pretty='- %s' $RANGE | head -n 25 || true)"
+          [ -n "$CHANGES" ] || CHANGES="- $(git log -1 --pretty=%s)"
+
+          {
+            echo "## Build ${VERSION_CODE_OVERRIDE} (${SHORT_SHA})"
+            echo
+            echo "$CHANGES"
+            echo
+            echo "<!-- sha:${GITHUB_SHA} -->"
+            echo "<!-- at-build:${VERSION_CODE_OVERRIDE} -->"
+          } > release-notes.md
+
+          gh release create "$TAG" dist/app-gms-mobile-universal-nightly.apk \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Build ${VERSION_CODE_OVERRIDE} (${SHORT_SHA})" \
+            --notes-file release-notes.md
+
+      - name: Prune old builds
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release list --limit 100 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | test("^N[0-9]{8}([0-9]{4})?$"))] | sort_by(.createdAt) | reverse | .[10:] | .[].tagName' \
+            | while read -r tag; do
+                [ -n "$tag" ] && gh release delete "$tag" --yes --cleanup-tag || true
+              done

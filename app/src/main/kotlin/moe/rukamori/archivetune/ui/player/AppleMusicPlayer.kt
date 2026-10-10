@@ -1811,6 +1811,10 @@ private fun AppleMusicControlsColumn(
                             modifier = Modifier.fillMaxWidth().basicMarquee(iterations = Int.MAX_VALUE),
                         )
                     }
+                    AppleMusicAlbumLine(
+                        mediaMetadata = mediaMetadata,
+                        onAlbumClick = titleActions.onAlbumClick,
+                    )
                 }
             }
             Spacer(Modifier.width(12.dp))
@@ -2033,6 +2037,10 @@ private fun AppleMusicLandscapeTitleBlock(
                                 mediaMetadata.artists.firstOrNull()?.id?.let(titleActions.onArtistClick)
                             },
                 )
+                AppleMusicAlbumLine(
+                    mediaMetadata = mediaMetadata,
+                    onAlbumClick = titleActions.onAlbumClick,
+                )
             }
         }
 
@@ -2049,6 +2057,43 @@ private fun AppleMusicLandscapeTitleBlock(
             contentDescription = null,
             onClick = onMoreClick,
             onPositioned = onMorePositioned,
+        )
+    }
+}
+
+/**
+ * Small, tappable "album" line under the artist name: opens the album page with every track.
+ * Hidden when the current item has no known album (singles from search, videos, local files).
+ */
+@Composable
+private fun AppleMusicAlbumLine(
+    mediaMetadata: MediaMetadata,
+    onAlbumClick: () -> Unit,
+) {
+    val album = mediaMetadata.album ?: return
+    if (album.id.isBlank() || album.title.isBlank()) return
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier =
+            Modifier
+                .padding(top = 2.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onAlbumClick)
+                .padding(vertical = 2.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.album),
+            contentDescription = stringResource(R.string.album_name),
+            tint = Color.White.copy(alpha = 0.5f),
+            modifier = Modifier.size(14.dp),
+        )
+        Text(
+            text = album.title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White.copy(alpha = 0.5f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -2324,7 +2369,10 @@ private fun AppleMusicSeekBar(
                             dragging = false
                             onScrubFinished()
                         },
-                        onDragCancel = { dragging = false },
+                        onDragCancel = {
+                            dragging = false
+                            onScrubFinished()
+                        },
                         onHorizontalDrag = { change, _ ->
                             change.consume()
                             dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)

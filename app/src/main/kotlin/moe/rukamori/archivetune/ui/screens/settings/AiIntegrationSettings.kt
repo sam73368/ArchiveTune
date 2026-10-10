@@ -1074,7 +1074,7 @@ private fun ApiKeyDialog(
         title = { Text(stringResource(R.string.ai_api_key)) },
         buttons = {
             ApiKeyDialogButtons(
-                canSave = field.text.isNotBlank(),
+                canSave = true,
                 onDismiss = onDismiss,
                 onSave = {
                     onSave(field.text)

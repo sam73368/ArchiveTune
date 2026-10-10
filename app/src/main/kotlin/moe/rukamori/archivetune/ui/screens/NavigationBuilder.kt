@@ -475,10 +475,14 @@ fun NavGraphBuilder.navigationBuilder(
         HiddenPlaylistsScreen(navController)
     }
     composable(
-        route = "settings/appearance?scrollTo={scrollTo}",
-        arguments = listOf(navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null }),
+        route = "settings/appearance?scrollTo={scrollTo}&section={section}",
+        arguments =
+            listOf(
+                navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("section") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
     ) {
-        AppearanceSettings(navController, it.savedStateHandle["scrollTo"])
+        AppearanceSettings(navController, it.savedStateHandle["scrollTo"], it.savedStateHandle["section"])
     }
     composable(
         route = "settings/appearance/extras?scrollTo={scrollTo}",
@@ -541,10 +545,14 @@ fun NavGraphBuilder.navigationBuilder(
         InternetSettings(navController, it.savedStateHandle["scrollTo"])
     }
     composable(
-        route = "settings/player?scrollTo={scrollTo}",
-        arguments = listOf(navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null }),
+        route = "settings/player?scrollTo={scrollTo}&section={section}",
+        arguments =
+            listOf(
+                navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("section") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
     ) {
-        PlayerSettings(navController, it.savedStateHandle["scrollTo"])
+        PlayerSettings(navController, it.savedStateHandle["scrollTo"], it.savedStateHandle["section"])
     }
     composable(
         route = "settings/appearance/liquid_glass?scrollTo={scrollTo}",

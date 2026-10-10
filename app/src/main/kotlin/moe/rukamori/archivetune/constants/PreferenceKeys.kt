@@ -273,6 +273,7 @@ val EnableDeezerLyricsKey = booleanPreferencesKey("enableDeezerLyrics")
 val PrioritizeWordSyncedLyricsKey = booleanPreferencesKey("prioritizeWordSyncedLyrics")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoKey = booleanPreferencesKey("hideVideo")
+val ShowViewCountsKey = booleanPreferencesKey("showViewCounts")
 
 val HomeCatalogueSwitchKey = booleanPreferencesKey("homeCatalogueSwitch")
 
@@ -315,10 +316,16 @@ object DownloadSourceConfig {
 
     val YOUTUBE_MUSIC_CACHE_KEY_PREFIX = "ytm:"
 
+    // Must use cacheKeyPrefix() so YouTube Music maps to "ytm:" (its real key prefix), not
+    // "youtube_music:" which no download key ever carries.
     val CACHE_KEY_PREFIXES: List<String> =
-        DownloadSource.entries
-            .filterNot { it == DownloadSource.AUTO }
-            .map { "${it.name.lowercase(Locale.US)}:" }
+        DownloadSource.entries.mapNotNull { source ->
+            when (source) {
+                DownloadSource.AUTO -> null
+                DownloadSource.YOUTUBE_MUSIC -> YOUTUBE_MUSIC_CACHE_KEY_PREFIX
+                else -> "${source.name.lowercase(Locale.US)}:"
+            }
+        }
 
     fun cacheKeyPrefix(source: DownloadSource): String? =
         when (source) {
@@ -524,6 +531,7 @@ enum class PlayerStreamClient {
 
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
 val PermanentShuffleKey = booleanPreferencesKey("permanentShuffle")
+val SmartShuffleKey = booleanPreferencesKey("smartShuffle")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val AudioPlaybackSpeedKey = floatPreferencesKey("audioPlaybackSpeed")
 val AudioPlaybackSpeedPitchMatchKey = booleanPreferencesKey("audioPlaybackSpeedPitchMatch")
@@ -560,6 +568,8 @@ val LastwaveAudioProcessingKey = booleanPreferencesKey("lastwaveAudioProcessing"
 
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")
+val DownloadWifiOnlyKey = booleanPreferencesKey("downloadWifiOnly")
+val AppLockKey = booleanPreferencesKey("appLock")
 val AutoSkipNextOnErrorKey = booleanPreferencesKey("autoSkipNextOnError")
 val PauseOnDeviceMuteKey = booleanPreferencesKey("pauseOnDeviceMute")
 val DeviceMutePlaybackRecoveryVolumeKey = intPreferencesKey("deviceMutePlaybackRecoveryVolume")
@@ -1445,6 +1455,7 @@ val UpdateChannelKey = stringPreferencesKey("updateChannel")
 val LastUpdateCheckKey = longPreferencesKey("lastUpdateCheck")
 val YtDlpManualUpdateHistoryKey = stringSetPreferencesKey("ytDlpManualUpdateHistory")
 val LastNotifiedVersionKey = stringPreferencesKey("lastNotifiedVersion")
+val LastAutoInstallVersionKey = stringPreferencesKey("lastAutoInstallVersion")
 
 val SeenNewReleaseIdsKey = stringPreferencesKey("seenNewReleaseIds")
 

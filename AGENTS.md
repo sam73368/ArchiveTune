@@ -17,7 +17,7 @@ here must preserve the invariants below.
 ## Modules & submodules
 
 - Gradle modules: `:app :core :spotifycore :canvas :jiosaavn :lastfm :musixmatch :shazamkit :morideobfuscator :lyrics:*`.
-- Submodules: `core` → **4nx3b/core** (NewPipeExtractor-based InnerTube client), `lyrics` → **4nx3b/lyrics**, `IconPack` → rukamori, `morideobfuscator` → rukamori. Commit + push inside a submodule first, then pin the gitlink; never leave a dirty or unpushed pointer.
+- Submodules: `core` → **sam73368/core** (fork of 4nx3b/core carrying local album-parsing fixes; NewPipeExtractor-based InnerTube client — sync it from 4nx3b/core rather than repointing back), `lyrics` → **4nx3b/lyrics**, `IconPack` → rukamori, `morideobfuscator` → rukamori. Commit + push inside a submodule first, then pin the gitlink; never leave a dirty or unpushed pointer.
 
 ## Build & test
 

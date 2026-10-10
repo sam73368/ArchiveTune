@@ -230,3 +230,18 @@ private fun Int?.shouldRequestDownload(): Boolean =
 
 private const val DOWNLOAD_STOP_REASON_NONE = 0
 private const val COLLECTION_PAUSE_STOP_REASON = 1
+
+/**
+ * Collapses the per-song download entries (keyed by request id, which can carry a source prefix)
+ * into the single Media3 state menus use: COMPLETED when every song is downloaded, DOWNLOADING
+ * when at least one is still queued/running/paused, STOPPED otherwise.
+ */
+fun aggregateDownloadState(
+    songIds: List<String>,
+    downloads: Map<String, Download>,
+): Int =
+    when (headerDownloadState(songIds, downloads)) {
+        HeaderDownloadState.Completed -> Download.STATE_COMPLETED
+        is HeaderDownloadState.Partial -> Download.STATE_DOWNLOADING
+        HeaderDownloadState.None -> Download.STATE_STOPPED
+    }

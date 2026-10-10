@@ -70,6 +70,7 @@ import moe.rukamori.archivetune.ui.component.SongListItem
 import moe.rukamori.archivetune.ui.component.SortHeader
 import moe.rukamori.archivetune.ui.menu.SongMenu
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.viewmodels.ArtistSongsViewModel
@@ -227,6 +228,7 @@ fun ArtistSongsScreen(
                 title = stringResource(R.string.songs),
                 onBack = navController::navigateUp,
                 onBackLongClick = navController::backToMain,
+                onHome = { navController.navigateHome() },
             )
         } else {
             TopAppBar(
@@ -248,6 +250,17 @@ fun ArtistSongsScreen(
                         Icon(
                             painterResource(R.drawable.arrow_back),
                             contentDescription = null,
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { navController.navigateHome() },
+                        onLongClick = {},
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
                         )
                     }
                 },

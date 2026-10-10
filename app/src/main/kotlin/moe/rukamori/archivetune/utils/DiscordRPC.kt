@@ -10,6 +10,7 @@ package moe.rukamori.archivetune.utils
 import android.content.Context
 import me.bush.translator.Language
 import me.bush.translator.Translator
+import moe.rukamori.archivetune.ForkRepositoryUrl
 import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.DiscordActivityButton1CustomUrlKey
@@ -360,7 +361,7 @@ class DiscordRPC(
         val button2UrlSource = context.dataStore[DiscordActivityButton2UrlSourceKey] ?: "custom"
         val button2CustomUrl =
             context.dataStore[DiscordActivityButton2CustomUrlKey]
-                ?: "https://github.com/rukamori/ArchiveTune"
+                ?: ForkRepositoryUrl
 
         return buildList {
             if (button1Enabled) {
