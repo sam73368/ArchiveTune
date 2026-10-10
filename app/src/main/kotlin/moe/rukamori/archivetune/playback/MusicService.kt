@@ -5719,6 +5719,11 @@ class MusicService :
                 withContext(Dispatchers.IO) {
                     mediaLibrarySessionCallback.resolveVoiceMediaItems(trimmed)
                 }
+            moe.rukamori.archivetune.utils.GlobalLog.append(
+                android.util.Log.INFO,
+                "VoiceSearch",
+                "Voice search '$trimmed' resolved ${mediaItems.size} item(s)",
+            )
             if (mediaItems.isEmpty()) return@launch
             playQueue(ListQueue(items = mediaItems))
         }

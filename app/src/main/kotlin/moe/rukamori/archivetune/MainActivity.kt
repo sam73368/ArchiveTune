@@ -3706,12 +3706,28 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (intent.action == "android.media.action.MEDIA_PLAY_FROM_SEARCH") {
+            // Assistants often send an empty "query" together with structured extras (title, artist,
+            // album, playlist), so an empty string must not hide them.
+            val structuredQuery =
+                listOf(
+                    android.provider.MediaStore.EXTRA_MEDIA_TITLE,
+                    android.provider.MediaStore.EXTRA_MEDIA_ARTIST,
+                    android.provider.MediaStore.EXTRA_MEDIA_ALBUM,
+                    android.provider.MediaStore.EXTRA_MEDIA_PLAYLIST,
+                ).mapNotNull { key -> intent.getStringExtra(key)?.trim()?.takeIf { it.isNotEmpty() } }
+                    .joinToString(" ")
             val query =
-                (
-                    intent.getStringExtra("query")
-                        ?: intent.getStringExtra("android.intent.extra.TITLE")
-                        ?: ""
-                ).trim()
+                intent
+                    .getStringExtra("query")
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: structuredQuery.takeIf { it.isNotEmpty() }
+                    ?: intent.getStringExtra("android.intent.extra.TITLE")?.trim().orEmpty()
+            moe.rukamori.archivetune.utils.GlobalLog.append(
+                android.util.Log.INFO,
+                "VoiceSearch",
+                "MEDIA_PLAY_FROM_SEARCH received: query='$query' extras=${intent.extras?.keySet()?.joinToString().orEmpty()}",
+            )
             if (query.isNotBlank()) {
                 pendingVoiceSearchQuery = query
                 startMusicServiceSafely()
