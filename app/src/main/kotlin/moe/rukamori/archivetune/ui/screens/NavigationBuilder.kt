@@ -427,6 +427,9 @@ fun NavGraphBuilder.navigationBuilder(
     ) {
         AutoPlaylistScreen(navController, scrollBehavior)
     }
+    composable(CAR_MODE_ROUTE) {
+        CarModeScreen(navController)
+    }
     composable(SMART_PLAYLISTS_ROUTE) {
         SmartPlaylistsScreen(navController)
     }

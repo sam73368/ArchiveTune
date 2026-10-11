@@ -94,4 +94,7 @@
     <string name="smart_sort_longest_unheard">Les plus oubliés</string>
     <string name="smart_sort_random">Aléatoire</string>
     <string name="smart_sort_title">Titre A–Z</string>
+    <string name="car_mode_title">Mode voiture</string>
+    <string name="car_mode_desc">Gros boutons, l\'écran reste allumé</string>
+    <string name="car_mode_exit">Quitter le mode voiture</string>
 </resources>

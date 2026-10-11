@@ -270,4 +270,7 @@
     <string name="smart_sort_longest_unheard">Longest unheard</string>
     <string name="smart_sort_random">Random</string>
     <string name="smart_sort_title">Title A–Z</string>
+    <string name="car_mode_title">Car mode</string>
+    <string name="car_mode_desc">Huge buttons, screen stays on</string>
+    <string name="car_mode_exit">Exit car mode</string>
 </resources>

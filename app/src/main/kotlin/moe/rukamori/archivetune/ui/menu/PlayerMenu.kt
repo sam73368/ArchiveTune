@@ -1442,6 +1442,30 @@ fun PlayerMenu(
                             thickness = 0.5.dp,
                         )
 
+                        ListItem(
+                            headlineContent = { Text(text = stringResource(R.string.car_mode_title)) },
+                            supportingContent = { Text(text = stringResource(R.string.car_mode_desc)) },
+                            leadingContent = {
+                                Icon(
+                                    painter = painterResource(R.drawable.directions_car),
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier =
+                                Modifier.clickable {
+                                    onDismiss()
+                                    playerBottomSheetState.snapTo(playerBottomSheetState.collapsedBound)
+                                    navController.navigate("car_mode")
+                                },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            thickness = 0.5.dp,
+                        )
+
                         if (playerDesignStyle !in OnScreenSleepTimerStyles) {
                             ListItem(
                                 headlineContent = { Text(text = stringResource(R.string.sleep_timer)) },
