@@ -222,4 +222,11 @@
     <string name="smart_shuffle_every_value">Every %1$d tracks</string>
     <string name="smart_shuffle_suggestion">✦ Smart Shuffle</string>
     <string name="ai_playlist_count_label">Number of songs</string>
+    <string name="app_lock_delay">Lock delay</string>
+    <string name="app_lock_delay_desc">How long the app can stay in the background before it asks again.</string>
+    <string name="app_lock_delay_immediately">Immediately</string>
+    <string name="app_lock_delay_seconds">After %1$d seconds</string>
+    <string name="app_lock_delay_minutes">After %1$d min</string>
+    <string name="app_lock_hide_recents">Hide preview in recent apps</string>
+    <string name="app_lock_hide_recents_desc">Blank screen in the app switcher while the lock is on. Also blocks screenshots.</string>
 </resources>

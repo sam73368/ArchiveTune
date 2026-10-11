@@ -218,6 +218,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.aod.ACTION_AOD_MODE
+import moe.rukamori.archivetune.constants.AppLockHideRecentsKey
+import moe.rukamori.archivetune.constants.AppLockKey
 import moe.rukamori.archivetune.constants.AppBarHeight
 import moe.rukamori.archivetune.constants.PlayerHeaderGlassFadeRamp
 import moe.rukamori.archivetune.constants.SheetOverlayEpsilon
@@ -769,7 +771,10 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             dataStore.data
-                .map { it[DisableScreenshotKey] ?: false }
+                .map {
+                    (it[DisableScreenshotKey] ?: false) ||
+                        ((it[AppLockKey] ?: false) && (it[AppLockHideRecentsKey] ?: true))
+                }
                 .distinctUntilChanged()
                 .collectLatest {
                     withContext(Dispatchers.Main) {

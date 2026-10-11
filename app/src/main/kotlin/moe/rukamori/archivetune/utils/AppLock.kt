@@ -46,11 +46,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.constants.AppLockDelayKey
 import moe.rukamori.archivetune.constants.AppLockKey
 
 /**
  * Asks for the device fingerprint / PIN / pattern when the app is opened, and again after it has
- * been in the background for [GRACE_MS]. Uses the platform prompt (API 30+) or the system
+ * been in the background for the configured delay. Uses the platform prompt (API 30+) or the system
  * "confirm credential" screen (API 26-29), so no extra dependency is needed.
  */
 class AppLockController(
@@ -93,7 +94,7 @@ class AppLockController(
         }
         val away = if (stoppedAt == 0L) 0L else SystemClock.elapsedRealtime() - stoppedAt
         stoppedAt = 0L
-        if (away > GRACE_MS) locked = true
+        if (away > (activity.dataStore[AppLockDelayKey] ?: DEFAULT_DELAY_SECONDS) * 1000L) locked = true
         if (locked && !promptSuppressed) authenticate()
     }
 
@@ -198,7 +199,7 @@ class AppLockController(
     }
 
     companion object {
-        private const val GRACE_MS = 15_000L
+        const val DEFAULT_DELAY_SECONDS = 15
 
         fun isDeviceSecure(context: Context): Boolean =
             context.getSystemService(KeyguardManager::class.java)?.isDeviceSecure == true

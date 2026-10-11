@@ -46,4 +46,11 @@
     <string name="smart_shuffle_every_value">Tous les %1$d titres</string>
     <string name="smart_shuffle_suggestion">✦ Smart Shuffle</string>
     <string name="ai_playlist_count_label">Nombre de chansons</string>
+    <string name="app_lock_delay">Délai de verrouillage</string>
+    <string name="app_lock_delay_desc">Durée pendant laquelle l\'application peut rester en arrière-plan avant de redemander le déverrouillage.</string>
+    <string name="app_lock_delay_immediately">Immédiatement</string>
+    <string name="app_lock_delay_seconds">Après %1$d secondes</string>
+    <string name="app_lock_delay_minutes">Après %1$d min</string>
+    <string name="app_lock_hide_recents">Masquer l\'aperçu dans les applications récentes</string>
+    <string name="app_lock_hide_recents_desc">Écran vide dans le sélecteur d\'applications tant que le verrou est actif. Bloque aussi les captures d\'écran.</string>
 </resources>

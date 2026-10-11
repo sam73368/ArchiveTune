@@ -573,6 +573,12 @@ val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")
 val DownloadWifiOnlyKey = booleanPreferencesKey("downloadWifiOnly")
 val AppLockKey = booleanPreferencesKey("appLock")
+
+/** Seconds in the background before the app locks again. */
+val AppLockDelayKey = intPreferencesKey("appLockDelaySeconds")
+
+/** Hide the app's preview in the recent-apps switcher while the app lock is on. */
+val AppLockHideRecentsKey = booleanPreferencesKey("appLockHideRecents")
 val AutoSkipNextOnErrorKey = booleanPreferencesKey("autoSkipNextOnError")
 val PauseOnDeviceMuteKey = booleanPreferencesKey("pauseOnDeviceMute")
 val DeviceMutePlaybackRecoveryVolumeKey = intPreferencesKey("deviceMutePlaybackRecoveryVolume")
