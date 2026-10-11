@@ -51,7 +51,7 @@ object AiPlaylistGenerator {
                         """.trimIndent(),
                     userPrompt = description.trim().take(MAX_DESCRIPTION_LENGTH),
                     temperature = 0.7,
-                    maxTokens = 3072,
+                    maxTokens = (trackCount * 70 + 800).coerceIn(2048, 6144),
                 )
             }
         return parse(response, trackCount)

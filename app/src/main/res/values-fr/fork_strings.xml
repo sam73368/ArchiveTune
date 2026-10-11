@@ -45,4 +45,5 @@
     <string name="smart_shuffle_every_desc">Choisis tous les combien de titres Smart Shuffle ajoute une chanson similaire en mode aléatoire.</string>
     <string name="smart_shuffle_every_value">Tous les %1$d titres</string>
     <string name="smart_shuffle_suggestion">✦ Smart Shuffle</string>
+    <string name="ai_playlist_count_label">Nombre de chansons</string>
 </resources>

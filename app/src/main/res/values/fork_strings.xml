@@ -221,4 +221,5 @@
     <string name="smart_shuffle_every_desc">Choose how often Smart Shuffle adds a similar song while shuffling.</string>
     <string name="smart_shuffle_every_value">Every %1$d tracks</string>
     <string name="smart_shuffle_suggestion">✦ Smart Shuffle</string>
+    <string name="ai_playlist_count_label">Number of songs</string>
 </resources>

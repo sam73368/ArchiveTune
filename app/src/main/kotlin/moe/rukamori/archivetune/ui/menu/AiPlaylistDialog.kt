@@ -10,6 +10,7 @@ package moe.rukamori.archivetune.ui.menu
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -68,6 +70,7 @@ fun AiPlaylistDialog(
 
     var description by remember { mutableStateOf(TextFieldValue("")) }
     var isLoading by remember { mutableStateOf(false) }
+    var trackCount by remember { mutableStateOf(25) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
 
     fun toast(message: String) = Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -93,6 +96,24 @@ fun AiPlaylistDialog(
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text(
+                    text = stringResource(R.string.ai_playlist_count_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf(10, 15, 25, 40, 60).forEach { count ->
+                        FilterChip(
+                            selected = trackCount == count,
+                            onClick = { trackCount = count },
+                            enabled = !isLoading,
+                            label = { Text(text = count.toString()) },
+                        )
+                    }
+                }
                 if (statusMessage != null) {
                     Text(
                         text = statusMessage!!,
@@ -131,7 +152,7 @@ fun AiPlaylistDialog(
                                 return@launch
                             }
 
-                            val draft = AiPlaylistGenerator.generate(context, prompt)
+                            val draft = AiPlaylistGenerator.generate(context, prompt, trackCount)
 
                             val songs =
                                 CrossServicePlaylistImporter.resolveToYouTubeMusicMetadata(
