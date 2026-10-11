@@ -1443,6 +1443,9 @@ interface DatabaseDao {
     )
     fun recentSongs(limit: Int = 100): Flow<List<Song>>
 
+    @Query("SELECT songId, COUNT(1) AS plays, MAX(timestamp) AS lastPlayed FROM event GROUP BY songId")
+    fun songPlayStats(): Flow<List<moe.rukamori.archivetune.db.entities.SongPlayStat>>
+
     @Query("SELECT * FROM library_top_mix ORDER BY position LIMIT :limit")
     fun libraryTopMixes(limit: Int): Flow<List<LibraryTopMixEntity>>
 

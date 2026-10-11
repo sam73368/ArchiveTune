@@ -427,6 +427,23 @@ fun NavGraphBuilder.navigationBuilder(
     ) {
         AutoPlaylistScreen(navController, scrollBehavior)
     }
+    composable(SMART_PLAYLISTS_ROUTE) {
+        SmartPlaylistsScreen(navController)
+    }
+    composable(
+        route = "$SMART_PLAYLIST_ROUTE_BASE/{ruleId}",
+        arguments =
+            listOf(
+                navArgument("ruleId") {
+                    type = NavType.StringType
+                },
+            ),
+    ) { backStackEntry ->
+        SmartPlaylistDetailScreen(
+            navController = navController,
+            ruleId = backStackEntry.arguments?.getString("ruleId").orEmpty(),
+        )
+    }
     composable(
         route = "cache_playlist/{playlist}",
         arguments =
