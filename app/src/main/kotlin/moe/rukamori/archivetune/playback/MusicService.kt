@@ -8753,7 +8753,11 @@ class MusicService :
                             query,
                             trusted = overrideIsSourceOverride && override == AudioSourceType.APPLE,
                         )
-                    AudioSourceType.JIOSAAVN -> resolveJioSaavnStream(query)
+                    AudioSourceType.JIOSAAVN ->
+                        resolveJioSaavnStream(
+                            query,
+                            allowCleanEdit = mode == SourceResolveMode.RESCUE || overrideIsSourceOverride,
+                        )
                     AudioSourceType.YOUTUBE -> null
                 }
             if (stream == null) {
@@ -9426,7 +9430,15 @@ class MusicService :
         return runCatching { DeezerAudioQuality.valueOf(stored) }.getOrDefault(DeezerAudioQuality.FLAC)
     }
 
-    private fun resolveJioSaavnStream(query: SourceQuery): DirectStream? {
+    /**
+     * JioSaavn mostly serves the clean (censored) edit. For a song flagged explicit it is only used when
+     * the matched JioSaavn track is itself flagged explicit, unless [allowCleanEdit] (last-resort rescue,
+     * or the user pinned this source): otherwise YouTube's own explicit upload is the better stream.
+     */
+    private fun resolveJioSaavnStream(
+        query: SourceQuery,
+        allowCleanEdit: Boolean = false,
+    ): DirectStream? {
         val quality = SaavnAudioQuality.fromStoredName(dataStore.get(SaavnAudioQualityKey, SaavnAudioQuality.QUALITY_320.name))
         val qualityApiValue = quality.toApiValue()
         Timber.tag("MusicService").d("JioSaavn resolve start | quality=%s", qualityApiValue)
@@ -9472,8 +9484,17 @@ class MusicService :
                                     else -> 6
                                 }
                             }
+                            if (query.explicit && !song.explicitContent) penalty += 4
                             penalty
                         } ?: return@runBlocking null
+
+                if (query.explicit && !candidate.explicitContent && !allowCleanEdit) {
+                    Timber.tag("MusicService").i(
+                        "JioSaavn skipped for \"%s\": song is explicit but JioSaavn only has the clean edit",
+                        query.title,
+                    )
+                    return@runBlocking null
+                }
 
                 val streamUrl = SaavnService.selectBestUrl(candidate.downloadUrl, qualityApiValue) ?: return@runBlocking null
                 val durationMs = candidate.duration?.toLong()?.times(1000L)
