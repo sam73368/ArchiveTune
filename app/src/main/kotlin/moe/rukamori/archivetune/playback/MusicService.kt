@@ -5777,14 +5777,22 @@ class MusicService :
         if (allowedItems.isEmpty()) return
         suppressAutoPlayback = false
 
-        val insertionIndex = if (player.mediaItemCount == 0) 0 else player.currentMediaItemIndex + 1
+        // "Add to queue" appends at the END of the queue (unlike "play next", which inserts right after
+        // the current song). With shuffle on, ExoPlayer would scatter new items at random positions of
+        // the shuffled order, so the order is rebuilt explicitly with the new songs last.
+        val existingCount = player.mediaItemCount
+        val insertionIndex = existingCount
         val addQueueShuffleOrder =
-            if (player.shuffleModeEnabled && player.mediaItemCount > 0) {
-                buildPlayNextShuffleOrder(
-                    currentIndex = player.currentMediaItemIndex,
-                    insertionIndex = insertionIndex,
-                    insertionCount = allowedItems.size,
-                )
+            if (player.shuffleModeEnabled && existingCount > 0) {
+                val currentOrder = player.getQueueWindows().map { it.firstPeriodIndex }
+                if (currentOrder.size == existingCount) {
+                    DefaultShuffleOrder(
+                        (currentOrder + (existingCount until existingCount + allowedItems.size)).toIntArray(),
+                        System.currentTimeMillis(),
+                    )
+                } else {
+                    null
+                }
             } else {
                 null
             }
