@@ -129,12 +129,7 @@ import com.valentinilk.shimmer.shimmer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
-import moe.rukamori.archivetune.constants.LowDataModeKey
-import moe.rukamori.archivetune.utils.ViewCountCache
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.LocalDatabase
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
@@ -397,32 +392,6 @@ fun ArtistScreen(
                 listOf(topSongsSection) + sections.filterNot { it === topSongsSection }
             }
         }
-
-    // "Top songs" are listed from the most viewed to the least viewed. YouTube's own order is kept
-    // until every count is known (or 8 s have passed), so the list reorders once instead of jumping
-    // around while counts trickle in. Songs whose count could not be fetched go last, in the
-    // original order. Skipped in low-data mode.
-    val lowDataModeForTopSongs by rememberPreference(LowDataModeKey, defaultValue = false)
-    val topSongsSection =
-        orderedRemoteSections.firstOrNull()?.takeIf { section ->
-            section.layout == ArtistSectionLayout.LIST &&
-                section.items.isNotEmpty() &&
-                section.items.all { it is SongItem }
-        }
-    var topSongsByViews by remember(topSongsSection) { mutableStateOf<List<SongItem>?>(null) }
-    LaunchedEffect(topSongsSection, lowDataModeForTopSongs) {
-        if (topSongsSection == null || lowDataModeForTopSongs) {
-            topSongsByViews = null
-            return@LaunchedEffect
-        }
-        val songs = topSongsSection.items.filterIsInstance<SongItem>().distinctBy { it.id }
-        withTimeoutOrNull(8_000L) {
-            coroutineScope {
-                songs.map { song -> launch { ViewCountCache.load(context, song.id) } }.joinAll()
-            }
-        }
-        topSongsByViews = songs.sortedByDescending { ViewCountCache.counts[it.id] ?: -1 }
-    }
 
     val artistName = artistPage?.artist?.title ?: libraryArtist?.artist?.name
     val unknownArtist = stringResource(R.string.unknown_artist)
@@ -1324,9 +1293,7 @@ fun ArtistScreen(
 
                         if (section.layout == ArtistSectionLayout.LIST && section.items.all { it is SongItem }) {
                             items(
-                                items =
-                                    (if (section === topSongsSection) topSongsByViews else null)
-                                        ?: section.items.distinctBy { it.id },
+                                items = section.items.distinctBy { it.id },
                                 key = { "youtube_song_${sectionIndex}_${it.id}" },
                                 contentType = { CONTENT_TYPE_SONG },
                             ) { song ->

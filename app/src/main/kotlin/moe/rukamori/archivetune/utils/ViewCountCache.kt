@@ -40,7 +40,7 @@ object ViewCountCache {
 
     private val failedAt = ConcurrentHashMap<String, Long>()
     private val inFlight = ConcurrentHashMap.newKeySet<String>()
-    private val semaphore = Semaphore(permits = 3)
+    private val semaphore = Semaphore(permits = 6)
 
     @Volatile
     private var prefs: SharedPreferences? = null
@@ -52,6 +52,18 @@ object ViewCountCache {
         loaded.all.forEach { (id, value) -> if (value is Int) counts[id] = value }
         prefs = loaded
         return loaded
+    }
+
+    /** True while another caller (typically a visible row) is already fetching [videoId]. */
+    fun isInFlight(videoId: String): Boolean = inFlight.contains(videoId)
+
+    /** Like [load] but ignores an earlier failure (used when a ranking needs the missing counts). */
+    suspend fun retry(
+        context: Context,
+        videoId: String,
+    ) {
+        failedAt.remove(videoId)
+        load(context, videoId)
     }
 
     /** Fetches the count for [videoId] unless it is already known, in flight, or failed recently. */

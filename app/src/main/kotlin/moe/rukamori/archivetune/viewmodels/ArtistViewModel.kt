@@ -52,8 +52,11 @@ import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.filterExplicit
 import moe.rukamori.archivetune.innertube.models.filterVideo
 import moe.rukamori.archivetune.innertube.pages.ArtistPage
+import moe.rukamori.archivetune.innertube.pages.ArtistSection
+import moe.rukamori.archivetune.innertube.pages.ArtistSectionLayout
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
+import moe.rukamori.archivetune.utils.SongViewRanking
 import moe.rukamori.archivetune.utils.isLowDataModeActive
 import moe.rukamori.archivetune.utils.reportException
 import java.util.Locale
@@ -214,6 +217,10 @@ class ArtistViewModel
                         artistPage = page.copy(sections = filteredSections)
 
                         viewModelScope.launch(Dispatchers.IO) {
+                            rankTopSongs(filteredSections, hideExplicit, hideVideo, blockedArtistIds)
+                        }
+
+                        viewModelScope.launch(Dispatchers.IO) {
                             fetchArtistCanvas(page)
                         }
 
@@ -225,6 +232,55 @@ class ArtistViewModel
                     }.onFailure {
                         reportException(it)
                     }
+            }
+        }
+
+        /**
+         * "Top songs" must be the artist's most viewed songs, not the five YouTube happens to list.
+         * The full list behind the section's arrow is loaded, ranked by view count, and the
+         * section is replaced by the best of it (as many songs as the page showed). Until then the
+         * page shows YouTube's own order. Skipped in low-data mode.
+         */
+        private suspend fun rankTopSongs(
+            sections: List<ArtistSection>,
+            hideExplicit: Boolean,
+            hideVideo: Boolean,
+            blockedArtistIds: Set<String>,
+        ) {
+            if (context.isLowDataModeActive()) return
+            val section =
+                sections.firstOrNull { candidate ->
+                    candidate.layout == ArtistSectionLayout.LIST &&
+                        candidate.items.isNotEmpty() &&
+                        candidate.items.all { it is SongItem }
+                } ?: return
+            val previewSize = section.items.size
+            val endpoint = section.moreEndpoint
+
+            val everySong =
+                (endpoint?.let { SongViewRanking.fetchAllSongs(it)?.songs } ?: emptyList())
+                    .filterExplicit(hideExplicit)
+                    .filterVideo(hideVideo)
+                    .filterBlockedArtists(blockedArtistIds)
+            // Fall back to the songs of the page itself if the full list is unavailable.
+            val candidates =
+                if (everySong.size >= previewSize) {
+                    everySong
+                } else {
+                    (section.items.filterIsInstance<SongItem>() + everySong).distinctBy { it.id }
+                }
+
+            val ranked = SongViewRanking.rank(context, candidates).take(previewSize)
+            if (ranked.isEmpty()) return
+
+            withContext(Dispatchers.Main) {
+                val current = artistPage ?: return@withContext
+                // Ignore the result if the page was refreshed in the meantime.
+                if (current.sections.none { it === section }) return@withContext
+                artistPage =
+                    current.copy(
+                        sections = current.sections.map { if (it === section) it.copy(items = ranked) else it },
+                    )
             }
         }
 
