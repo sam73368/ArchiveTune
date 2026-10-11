@@ -273,4 +273,8 @@
     <string name="car_mode_title">Car mode</string>
     <string name="car_mode_desc">Huge buttons, screen stays on</string>
     <string name="car_mode_exit">Exit car mode</string>
+    <string name="karaoke_mode">Karaoke mode</string>
+    <string name="karaoke_mode_desc">Reduces the lead vocal (the centre of the stereo mix) so you can sing along. Works best on studio recordings; it has no effect with Audio offload or bit-perfect output.</string>
+    <string name="karaoke_mode_desc_short">Reduce the lead vocal</string>
+    <string name="karaoke_mode_on">On - tap to turn off</string>
 </resources>

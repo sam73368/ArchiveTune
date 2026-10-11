@@ -300,6 +300,7 @@ import moe.rukamori.archivetune.constants.ScrobbleDelayPercentKey
 import moe.rukamori.archivetune.constants.ScrobbleDelaySecondsKey
 import moe.rukamori.archivetune.constants.ScrobbleMinSongDurationKey
 import moe.rukamori.archivetune.constants.ShowLyricsKey
+import moe.rukamori.archivetune.constants.KaraokeModeKey
 import moe.rukamori.archivetune.constants.SkipSilenceKey
 import moe.rukamori.archivetune.constants.SmartTrimmerKey
 import moe.rukamori.archivetune.constants.StopMusicOnTaskClearKey
@@ -1690,6 +1691,11 @@ class MusicService :
                 localPlayer.skipSilenceEnabled = it
                 secondaryCrossfadePlayer?.skipSilenceEnabled = it
             }
+
+        dataStore.data
+            .map { it[KaraokeModeKey] ?: false }
+            .distinctUntilChanged()
+            .collectLatest(scope) { KaraokeMode.enabled = it }
 
         combine(
             dataStore.data.map { it[AudioPlaybackSpeedKey] ?: 1.0f },

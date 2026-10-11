@@ -59,6 +59,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.datastore.preferences.core.edit
+import moe.rukamori.archivetune.constants.KaraokeModeKey
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1436,6 +1438,36 @@ fun PlayerMenu(
                     }
 
                     if (isQueueTrigger != true) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            thickness = 0.5.dp,
+                        )
+
+                        val karaokeOn by rememberPreference(KaraokeModeKey, defaultValue = false)
+                        ListItem(
+                            headlineContent = { Text(text = stringResource(R.string.karaoke_mode)) },
+                            supportingContent = {
+                                Text(
+                                    text =
+                                        stringResource(
+                                            if (karaokeOn) R.string.karaoke_mode_on else R.string.karaoke_mode_desc_short,
+                                        ),
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    painter = painterResource(R.drawable.mic),
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier =
+                                Modifier.clickable {
+                                    coroutineScope.launch { context.dataStore.edit { it[KaraokeModeKey] = !karaokeOn } }
+                                },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = MaterialTheme.colorScheme.outlineVariant,

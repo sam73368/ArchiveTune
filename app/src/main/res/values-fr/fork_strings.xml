@@ -97,4 +97,8 @@
     <string name="car_mode_title">Mode voiture</string>
     <string name="car_mode_desc">Gros boutons, l\'écran reste allumé</string>
     <string name="car_mode_exit">Quitter le mode voiture</string>
+    <string name="karaoke_mode">Mode karaoké</string>
+    <string name="karaoke_mode_desc">Atténue la voix principale (le centre du mix stéréo) pour chanter par-dessus. Fonctionne mieux sur les enregistrements studio ; sans effet avec le déchargement audio ou la sortie bit-perfect.</string>
+    <string name="karaoke_mode_desc_short">Atténuer la voix principale</string>
+    <string name="karaoke_mode_on">Activé - touche pour désactiver</string>
 </resources>

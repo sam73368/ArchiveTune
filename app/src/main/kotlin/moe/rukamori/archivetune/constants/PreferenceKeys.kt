@@ -537,6 +537,8 @@ val SmartShuffleKey = booleanPreferencesKey("smartShuffle")
 val SmartShuffleEveryKey = intPreferencesKey("smartShuffleEvery")
 /** User-defined smart playlist rules, JSON (see SmartPlaylists.encode). */
 val SmartPlaylistsKey = stringPreferencesKey("smartPlaylists")
+/** Attenuate the centre of the stereo image (lead vocal) for singing along. */
+val KaraokeModeKey = booleanPreferencesKey("karaokeMode")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val AudioPlaybackSpeedKey = floatPreferencesKey("audioPlaybackSpeed")
 val AudioPlaybackSpeedPitchMatchKey = booleanPreferencesKey("audioPlaybackSpeedPitchMatch")
