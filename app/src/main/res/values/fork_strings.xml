@@ -277,4 +277,7 @@
     <string name="karaoke_mode_desc">Reduces the lead vocal (the centre of the stereo mix) so you can sing along. Works best on studio recordings; it has no effect with Audio offload or bit-perfect output.</string>
     <string name="karaoke_mode_desc_short">Reduce the lead vocal</string>
     <string name="karaoke_mode_on">On - tap to turn off</string>
+    <string name="ai_playlist_create_on_youtube">Also create it on my YouTube Music account</string>
+    <string name="smart_playlist_save">Save</string>
+    <string name="smart_playlist_saved">Saved as a regular playlist: %1$s</string>
 </resources>

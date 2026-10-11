@@ -24,10 +24,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -46,6 +48,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.LocalDatabase
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.constants.InnerTubeCookieKey
+import moe.rukamori.archivetune.constants.YtmSyncKey
+import moe.rukamori.archivetune.innertube.YouTube
+import moe.rukamori.archivetune.innertube.utils.hasYouTubeLoginCookie
+import moe.rukamori.archivetune.utils.dataStore
+import timber.log.Timber
 import moe.rukamori.archivetune.ai.AiPlaylistGenerator
 import moe.rukamori.archivetune.db.entities.PlaylistEntity
 import moe.rukamori.archivetune.playlist.CrossServicePlaylistImporter
@@ -71,6 +79,13 @@ fun AiPlaylistDialog(
     var description by remember { mutableStateOf(TextFieldValue("")) }
     var isLoading by remember { mutableStateOf(false) }
     var trackCount by remember { mutableStateOf(25) }
+    var createOnYouTube by remember { mutableStateOf(true) }
+    val canSyncToYouTube by produceState(initialValue = false) {
+        val prefs = context.dataStore.data.firstOrNull()
+        value = prefs != null &&
+            hasYouTubeLoginCookie(prefs[InnerTubeCookieKey].orEmpty()) &&
+            (prefs[YtmSyncKey] ?: true)
+    }
     var statusMessage by remember { mutableStateOf<String?>(null) }
 
     fun toast(message: String) = Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -111,6 +126,24 @@ fun AiPlaylistDialog(
                             onClick = { trackCount = count },
                             enabled = !isLoading,
                             label = { Text(text = count.toString()) },
+                        )
+                    }
+                }
+                if (canSyncToYouTube) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ai_playlist_create_on_youtube),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Switch(
+                            checked = createOnYouTube,
+                            onCheckedChange = { createOnYouTube = it },
+                            enabled = !isLoading,
                         )
                     }
                 }
@@ -182,6 +215,27 @@ fun AiPlaylistDialog(
                             }
                             database.playlist(playlist.id).firstOrNull()?.let { created ->
                                 database.addSongToPlaylist(created, songs.map { it.id })
+                            }
+
+                            if (canSyncToYouTube && createOnYouTube) {
+                                YouTube
+                                    .createPlaylist(name, songs.map { it.id })
+                                    .onSuccess { remoteBrowseId ->
+                                        if (remoteBrowseId.isNotBlank()) {
+                                            database.playlist(playlist.id).firstOrNull()?.let { created ->
+                                                database.query {
+                                                    update(
+                                                        created.playlist.copy(
+                                                            browseId = remoteBrowseId,
+                                                            lastUpdateTime = LocalDateTime.now(),
+                                                        ),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }.onFailure { error ->
+                                        Timber.w(error, "AI playlist: YouTube Music playlist creation failed; kept local-only.")
+                                    }
                             }
 
                             withContext(Dispatchers.Main) {

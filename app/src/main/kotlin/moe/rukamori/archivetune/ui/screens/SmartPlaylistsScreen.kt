@@ -45,10 +45,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -58,9 +61,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
+import moe.rukamori.archivetune.LocalDatabase
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.db.entities.PlaylistEntity
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.extensions.togglePlayPause
 import moe.rukamori.archivetune.playback.queues.ListQueue
@@ -74,6 +82,7 @@ import moe.rukamori.archivetune.ui.component.SongListItem
 import moe.rukamori.archivetune.ui.menu.SongMenu
 import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.viewmodels.SmartPlaylistsViewModel
+import java.time.LocalDateTime
 
 const val SMART_PLAYLISTS_ROUTE = "smart_playlists"
 const val SMART_PLAYLIST_ROUTE_BASE = "smart_playlist"
@@ -236,6 +245,10 @@ fun SmartPlaylistDetailScreen(
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val title = rule?.displayName().orEmpty()
+    val database = LocalDatabase.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val savedMessage = stringResource(R.string.smart_playlist_saved, title)
 
     Scaffold(
         topBar = {
@@ -300,6 +313,27 @@ fun SmartPlaylistDetailScreen(
                                     )
                                 },
                             ) { Text(stringResource(R.string.shuffle)) }
+                            OutlinedButton(
+                                enabled = list.isNotEmpty(),
+                                onClick = {
+                                    val ids = list.map { it.id }
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        val playlist =
+                                            PlaylistEntity(
+                                                name = title,
+                                                isEditable = true,
+                                                bookmarkedAt = LocalDateTime.now(),
+                                            )
+                                        database.withTransaction { insert(playlist) }
+                                        database.playlist(playlist.id).firstOrNull()?.let { created ->
+                                            database.addSongToPlaylist(created, ids)
+                                        }
+                                        launch(Dispatchers.Main) {
+                                            Toast.makeText(context, savedMessage, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                            ) { Text(stringResource(R.string.smart_playlist_save)) }
                         }
                     }
                 }
