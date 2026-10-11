@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.playback
 
+import moe.rukamori.archivetune.constants.SmartShuffleEveryKey
 import moe.rukamori.archivetune.constants.SmartShuffleKey
 import android.app.ActivityManager
 import android.app.Notification
@@ -5239,6 +5240,7 @@ class MusicService :
         autoAddedMediaIds.clear()
         smartShuffleTransitions = 0
         smartShuffleSuggested.clear()
+        moe.rukamori.archivetune.utils.SmartShuffleMarks.clear()
         scope.launch(SilentHandler) {
             var autoLoadMoreEnabled = true
             try {
@@ -6862,7 +6864,8 @@ class MusicService :
         val seed = seedMediaId?.trim()?.takeIf { it.isNotBlank() } ?: return
         if (seed.isLocalMediaId() || seed.isTelegramMediaId()) return
         smartShuffleTransitions++
-        if (smartShuffleTransitions % SMART_SHUFFLE_EVERY != 0) return
+        val every = dataStore.get(SmartShuffleEveryKey, SMART_SHUFFLE_EVERY).coerceIn(2, 8)
+        if (smartShuffleTransitions % every != 0) return
         if (smartShuffleJob?.isActive == true) return
         smartShuffleJob =
             scope.launch(SilentHandler) {
@@ -6884,6 +6887,7 @@ class MusicService :
                         .take(SMART_SHUFFLE_CANDIDATES)
                 val suggestion = candidates.randomOrNull() ?: return@launch
                 smartShuffleSuggested += suggestion.mediaId
+                moe.rukamori.archivetune.utils.SmartShuffleMarks.mark(suggestion.mediaId)
                 playNext(listOf(suggestion))
             }
     }

@@ -41,4 +41,8 @@
     <string name="reorder_use_current_order">Utiliser cet ordre</string>
     <string name="reorder_switch_order">Basculer</string>
     <string name="reorder_unlocked_hint">Modification déverrouillée. Glisse les titres par leur poignée.</string>
+    <string name="smart_shuffle_every">Fréquence des suggestions</string>
+    <string name="smart_shuffle_every_desc">Choisis tous les combien de titres Smart Shuffle ajoute une chanson similaire en mode aléatoire.</string>
+    <string name="smart_shuffle_every_value">Tous les %1$d titres</string>
+    <string name="smart_shuffle_suggestion">✦ Smart Shuffle</string>
 </resources>

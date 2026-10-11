@@ -738,11 +738,15 @@ fun MediaMetadataListItem(
         title = mediaMetadata.title,
         subtitle = {
             val viewCountLabel = rememberViewCountText(mediaMetadata.id)
+            val smartShuffleLabel =
+                stringResource(R.string.smart_shuffle_suggestion)
+                    .takeIf { moe.rukamori.archivetune.utils.SmartShuffleMarks.ids.containsKey(mediaMetadata.id) }
             Text(
                 text =
                     joinByBullet(
                         mediaMetadata.artists.joinToString { it.name }.takeIf { it.isNotBlank() },
                         viewCountLabel,
+                        smartShuffleLabel,
                     ),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,

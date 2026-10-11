@@ -217,4 +217,8 @@
     <string name="reorder_use_current_order">Use this order</string>
     <string name="reorder_switch_order">Switch</string>
     <string name="reorder_unlocked_hint">Editing unlocked. Drag songs by their handle.</string>
+    <string name="smart_shuffle_every">Slip a song every</string>
+    <string name="smart_shuffle_every_desc">Choose how often Smart Shuffle adds a similar song while shuffling.</string>
+    <string name="smart_shuffle_every_value">Every %1$d tracks</string>
+    <string name="smart_shuffle_suggestion">✦ Smart Shuffle</string>
 </resources>

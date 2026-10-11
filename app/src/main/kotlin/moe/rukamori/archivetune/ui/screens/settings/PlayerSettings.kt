@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.constants.SmartShuffleEveryKey
 import moe.rukamori.archivetune.constants.SmartShuffleKey
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -100,6 +101,7 @@ import moe.rukamori.archivetune.constants.TidalEnabledKey
 import moe.rukamori.archivetune.constants.WakelockKey
 import moe.rukamori.archivetune.ui.component.ArtistSeparatorsDialog
 import moe.rukamori.archivetune.ui.component.CrossfadeSliderPreference
+import moe.rukamori.archivetune.ui.component.ListPreference
 import moe.rukamori.archivetune.ui.component.DefaultDialog
 import moe.rukamori.archivetune.ui.component.EnumListPreference
 import moe.rukamori.archivetune.ui.component.FrostedHeaderPill
@@ -154,6 +156,11 @@ fun PlayerSettings(
         rememberPreference(
             SmartShuffleKey,
             defaultValue = false,
+        )
+    val (smartShuffleEvery, onSmartShuffleEveryChange) =
+        rememberPreference(
+            SmartShuffleEveryKey,
+            defaultValue = 3,
         )
     val (skipSilence, onSkipSilenceChange) =
         rememberPreference(
@@ -879,6 +886,21 @@ fun PlayerSettings(
                 }
 
                 item {
+                    Column(modifier = positions.modifierFor("smart_shuffle_every")) {
+                        ListPreference(
+                            title = { Text(stringResource(R.string.smart_shuffle_every)) },
+                            description = stringResource(R.string.smart_shuffle_every_desc),
+                            icon = { Icon(painterResource(R.drawable.shuffle), null) },
+                            selectedValue = smartShuffleEvery.coerceIn(2, 8),
+                            values = listOf(2, 3, 4, 5, 6, 8),
+                            valueText = { stringResource(R.string.smart_shuffle_every_value, it) },
+                            onValueSelected = onSmartShuffleEveryChange,
+                            isEnabled = smartShuffle,
+                        )
+                    }
+                }
+
+                item {
                     Column(modifier = positions.modifierFor("swipe_to_song")) {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.swipe_song_to_add)) },
@@ -1063,7 +1085,7 @@ private val PlayerSectionKeys: Map<String, String> =
         listOf("enable_pip_mode", "enable_video_playback").forEach { put(it, "video") }
         listOf("automix", "automix_performance", "bluetooth_auto_start", "crossfade", "crossfade_gapless", "crossfade_gapless_title", "device_mute_recovery_volume", "history_duration", "low_data_mode", "pause_mute", "preload_songs", "seek_seconds", "seek_seconds_addup", "skip_silence").forEach { put(it, "playback") }
         listOf("album_canvas_enabled", "archive_tune_canvas", "artwork_priority", "canvas_check", "canvas_resolvers", "spotify_canvas", "tidal_artwork_fallback").forEach { put(it, "artwork") }
-        listOf("auto_skip_error", "enable_swipe_thumbnail", "permanent_shuffle", "persistent_queue", "smart_shuffle", "swipe_sensitivity", "swipe_to_song").forEach { put(it, "queue") }
+        listOf("auto_skip_error", "enable_swipe_thumbnail", "permanent_shuffle", "persistent_queue", "smart_shuffle", "smart_shuffle_every", "swipe_sensitivity", "swipe_to_song").forEach { put(it, "queue") }
         listOf("artist_separators", "audio_offload", "manage_playlist_tags", "stop_task_clear", "wakelock").forEach { put(it, "misc") }
     }
 
