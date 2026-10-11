@@ -189,4 +189,23 @@ class CrossfadePolicyTest {
 
         assertFalse(CrossfadePolicy.mayPromote(snapshot(true, -1)))
     }
+
+    @Test
+    fun queuesMatchOnlyWhenSongsOrderAndPositionAreIdentical() {
+        val ids = listOf("a", "b", "c")
+        assertTrue(CrossfadePolicy.queuesMatch(ids, listOf("a", "b", "c"), 1, 1))
+        assertFalse(CrossfadePolicy.queuesMatch(ids, listOf("a", "b", "c"), 1, 2))
+        assertFalse(CrossfadePolicy.queuesMatch(ids, listOf("a", "c", "b"), 1, 1))
+        assertFalse(CrossfadePolicy.queuesMatch(ids, listOf("a", "b"), 1, 1))
+        assertFalse(CrossfadePolicy.queuesMatch(ids, listOf("a", "b", "c", "d"), 1, 1))
+    }
+
+    @Test
+    fun shuffleOrderMustBeAPermutationOfTheQueue() {
+        assertTrue(CrossfadePolicy.isShuffleOrder(intArrayOf(2, 0, 1), 3))
+        assertTrue(CrossfadePolicy.isShuffleOrder(intArrayOf(), 0))
+        assertFalse(CrossfadePolicy.isShuffleOrder(intArrayOf(0, 0, 1), 3))
+        assertFalse(CrossfadePolicy.isShuffleOrder(intArrayOf(0, 1), 3))
+        assertFalse(CrossfadePolicy.isShuffleOrder(intArrayOf(0, 1, 3), 3))
+    }
 }

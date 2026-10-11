@@ -1021,12 +1021,7 @@ class MusicService :
                 Timber.tag(TAG).w(error, "Secondary crossfade player failed")
                 scope.launch {
                     val failingMediaId = player.currentMediaItem?.mediaId
-                    if (failingMediaId != null && failingMediaId == crossfadeFailureMediaId) {
-                        crossfadeConsecutiveFailures++
-                    } else {
-                        crossfadeConsecutiveFailures = 1
-                        crossfadeFailureMediaId = failingMediaId
-                    }
+                    noteCrossfadeFailure(failingMediaId)
                     cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
                     if (crossfadeConsecutiveFailures >= MAX_CONSECUTIVE_CROSSFADE_FAILURES) {
                         Timber.tag(TAG).w(
@@ -3256,6 +3251,25 @@ class MusicService :
         localPlayer.playWhenReady = false
     }
 
+    /** Counts a failed crossfade attempt for the song that is currently playing. */
+    private fun noteCrossfadeFailure(outgoingMediaId: String?) {
+        if (outgoingMediaId != null && outgoingMediaId == crossfadeFailureMediaId) {
+            crossfadeConsecutiveFailures++
+        } else {
+            crossfadeConsecutiveFailures = 1
+            crossfadeFailureMediaId = outgoingMediaId
+        }
+    }
+
+    /**
+     * After [MAX_CONSECUTIVE_CROSSFADE_FAILURES] failed attempts on the same song the crossfade is
+     * given up for that song (the normal transition happens at its end). Reset on the next transition.
+     */
+    private fun isCrossfadeSuspended(): Boolean =
+        crossfadeConsecutiveFailures >= MAX_CONSECUTIVE_CROSSFADE_FAILURES &&
+            crossfadeFailureMediaId != null &&
+            crossfadeFailureMediaId == player.currentMediaItem?.mediaId
+
     private fun scheduleCrossfade() {
         if (!::player.isInitialized) return
         crossfadeTriggerJob?.cancel()
@@ -3263,6 +3277,11 @@ class MusicService :
 
         if (isCrossfading) return
         if (sourceSwitchPending) return
+        if (isCrossfadeSuspended()) {
+            localPlayer.pauseAtEndOfMediaItems = false
+            releaseSecondaryCrossfadePlayer()
+            return
+        }
         if (isCastSessionConnected()) {
             localPlayer.pauseAtEndOfMediaItems = false
             releaseSecondaryCrossfadePlayer()
@@ -3847,8 +3866,6 @@ class MusicService :
         val cueTimeMs = if (smart) plan!!.incomingCueMs.coerceAtLeast(0L) else 0L
         val incomingPlayer = prepareSecondaryCrossfadePlayer(target, cueTimeMs) ?: return
 
-        crossfadeConsecutiveFailures = 0
-        crossfadeFailureMediaId = null
         val outgoingMediaId = player.currentMediaItem?.mediaId ?: return
         val generation = crossfadeGeneration.incrementAndGet()
 
@@ -3890,27 +3907,32 @@ class MusicService :
                             .coerceAtMost(outgoingLeftMs.coerceAtLeast(0L))
                     if (!awaitCrossfadePlayerReady(incomingPlayer, CROSSFADE_READY_TIMEOUT_MS, requiredBufferedMs)) {
                         Timber.tag(TAG).d("crossfade[%d] incoming player not ready in time; aborting", generation)
+                        noteCrossfadeFailure(outgoingMediaId)
                         cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
                         scheduleCrossfade()
                         return@launch
                     }
 
-                    player.duration
-                        .takeIf { it != C.TIME_UNSET && it > 0L }
-                        ?.let { fullDuration ->
-
-                            val leftAfterWaitMs =
-                                fullDuration - player.currentPosition -
-                                    if (smart) 0L else CROSSFADE_END_GUARD_MS
-                            if (leftAfterWaitMs < fadeMs) {
-                                fadeMs = leftAfterWaitMs.coerceAtLeast(MIN_CROSSFADE_DURATION_MS)
-                                Timber.tag(TAG).d(
-                                    "crossfade[%d] re-clamped fade to %dms (outgoing almost done)",
-                                    generation,
-                                    fadeMs,
-                                )
+                    // The outgoing song kept playing while the incoming one was buffering (and will keep
+                    // playing while it starts), so the fade must never be longer than what is left of it.
+                    fun clampFadeToOutgoing() {
+                        player.duration
+                            .takeIf { it != C.TIME_UNSET && it > 0L }
+                            ?.let { fullDuration ->
+                                val leftMs =
+                                    fullDuration - player.currentPosition -
+                                        if (smart) 0L else CROSSFADE_END_GUARD_MS
+                                if (leftMs < fadeMs) {
+                                    fadeMs = leftMs.coerceAtLeast(MIN_CROSSFADE_DURATION_MS)
+                                    Timber.tag(TAG).d(
+                                        "crossfade[%d] re-clamped fade to %dms (outgoing almost done)",
+                                        generation,
+                                        fadeMs,
+                                    )
+                                }
                             }
-                        }
+                    }
+                    clampFadeToOutgoing()
 
                     if (smart) {
                         val userSpeed = player.playbackParameters.speed
@@ -3929,11 +3951,15 @@ class MusicService :
 
                         if (!awaitAudioPositionAdvancement(incomingPlayer, CROSSFADE_AUDIO_ADVANCE_TIMEOUT_MS)) {
                             Timber.tag(TAG).w("crossfade[%d] no audio advancement on incoming player; aborting", generation)
+                            noteCrossfadeFailure(outgoingMediaId)
                             cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
                             scheduleCrossfade()
                             return@launch
                         }
                     }
+
+                    // Starting the incoming player took time (up to CROSSFADE_AUDIO_ADVANCE_TIMEOUT_MS).
+                    clampFadeToOutgoing()
 
                     var elapsedMs = 0L
                     var lastTickMs = android.os.SystemClock.elapsedRealtime()
@@ -3985,7 +4011,10 @@ class MusicService :
                                     (player.currentPosition - blendStartOutgoingPositionMs)
                                         .coerceIn(0L, fadeMs)
                             } else {
-                                elapsedMs = (elapsedMs + (nowMs - lastTickMs)).coerceAtMost(fadeMs)
+                                // The fade is measured in song time: at 2x speed the outgoing song ends in half
+                                // the wall-clock time, so the fade has to run twice as fast to end with it.
+                                val speed = player.playbackParameters.speed.coerceIn(0.25f, 4f)
+                                elapsedMs = (elapsedMs + ((nowMs - lastTickMs) * speed).toLong()).coerceAtMost(fadeMs)
                             }
                             crossfadeProgress = (elapsedMs.toFloat() / fadeMs.toFloat()).coerceIn(0f, 1f)
                             applyCrossfadeVolumes(
@@ -4198,15 +4227,24 @@ class MusicService :
 
             promotedTailDspProcessor = secondaryFloatDspProcessor
 
-            val incomingItemIds =
-                (0 until incomingPlayer.mediaItemCount)
-                    .mapTo(HashSet()) { incomingPlayer.getMediaItemAt(it).mediaId }
-            val missingItems =
-                (0 until oldSessionPlayer.mediaItemCount)
-                    .map { oldSessionPlayer.getMediaItemAt(it) }
-                    .filter { it.mediaId !in incomingItemIds }
-            if (missingItems.isNotEmpty()) {
-                incomingPlayer.addMediaItems(missingItems)
+            // The incoming player was built from a snapshot of the queue (up to 30 s earlier) with its
+            // own random shuffle order. Make it identical to what the session is playing: same songs in
+            // the same order, same repeat/shuffle mode, same shuffle order.
+            var activeIndex = targetIndex
+            val mirroredIndex = mirrorQueueOnto(incomingPlayer, oldSessionPlayer, target)
+            if (mirroredIndex != C.INDEX_UNSET) {
+                activeIndex = mirroredIndex
+            } else {
+                val incomingItemIds =
+                    (0 until incomingPlayer.mediaItemCount)
+                        .mapTo(HashSet()) { incomingPlayer.getMediaItemAt(it).mediaId }
+                val missingItems =
+                    (0 until oldSessionPlayer.mediaItemCount)
+                        .map { oldSessionPlayer.getMediaItemAt(it) }
+                        .filter { it.mediaId !in incomingItemIds }
+                if (missingItems.isNotEmpty()) {
+                    incomingPlayer.addMediaItems(missingItems)
+                }
             }
 
             oldSessionPlayer.removeListener(this@MusicService)
@@ -4239,7 +4277,7 @@ class MusicService :
 
             sponsorBlockPlaybackController.attach(player, scope)
 
-            val promotedItem = incomingPlayer.getMediaItemAt(targetIndex)
+            val promotedItem = incomingPlayer.getMediaItemAt(activeIndex)
             currentMediaMetadata.value = promotedItem.metadata
             onMediaItemTransition(promotedItem, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
 
@@ -4259,6 +4297,61 @@ class MusicService :
             crossfadeHandoffInProgress = false
         }
     }
+
+    /**
+     * Rebuilds the queue of [incomingPlayer] (which is playing [target]) so that it equals the queue
+     * of [source]: the incoming player is created before the fade from a snapshot, so songs added,
+     * removed or moved in the meantime, and the shuffle order, would otherwise be lost at promotion.
+     *
+     * @return the index of the playing song in [incomingPlayer], or [C.INDEX_UNSET] if it could not
+     * be mirrored (the caller then falls back to appending the missing songs).
+     */
+    private fun mirrorQueueOnto(
+        incomingPlayer: ExoPlayer,
+        source: Player,
+        target: CrossfadeTarget,
+    ): Int =
+        runCatching {
+            val sourceItems = (0 until source.mediaItemCount).map { source.getMediaItemAt(it) }
+            val sourceTargetIndex = resolveCrossfadeTargetIndex(target, source)
+            val playing = incomingPlayer.currentMediaItemIndex
+            if (sourceTargetIndex == C.INDEX_UNSET ||
+                playing == C.INDEX_UNSET ||
+                incomingPlayer.currentMediaItem?.mediaId != target.mediaId
+            ) {
+                return@runCatching C.INDEX_UNSET
+            }
+
+            val incomingIds =
+                (0 until incomingPlayer.mediaItemCount).map { incomingPlayer.getMediaItemAt(it).mediaId }
+            if (!CrossfadePolicy.queuesMatch(sourceItems.map { it.mediaId }, incomingIds, sourceTargetIndex, playing)) {
+                if (playing + 1 < incomingPlayer.mediaItemCount) {
+                    incomingPlayer.removeMediaItems(playing + 1, incomingPlayer.mediaItemCount)
+                }
+                if (playing > 0) {
+                    incomingPlayer.removeMediaItems(0, playing)
+                }
+                if (sourceTargetIndex > 0) {
+                    incomingPlayer.addMediaItems(0, sourceItems.subList(0, sourceTargetIndex))
+                }
+                if (sourceTargetIndex + 1 < sourceItems.size) {
+                    incomingPlayer.addMediaItems(sourceItems.subList(sourceTargetIndex + 1, sourceItems.size))
+                }
+            }
+
+            incomingPlayer.repeatMode = source.repeatMode
+            incomingPlayer.shuffleModeEnabled = source.shuffleModeEnabled
+            if (source.shuffleModeEnabled) {
+                val order = source.getQueueWindows().map { it.firstPeriodIndex }.toIntArray()
+                if (CrossfadePolicy.isShuffleOrder(order, incomingPlayer.mediaItemCount)) {
+                    incomingPlayer.setShuffleOrder(DefaultShuffleOrder(order, System.currentTimeMillis()))
+                }
+            }
+            incomingPlayer.currentMediaItemIndex
+        }.getOrElse { error ->
+            Timber.tag(TAG).w(error, "Could not mirror the queue onto the incoming crossfade player")
+            C.INDEX_UNSET
+        }
 
     private fun releaseOutgoingCrossfadePlayer(outgoingPlayer: ExoPlayer) {
         runCatching { outgoingPlayer.volume = 0f }

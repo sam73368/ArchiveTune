@@ -103,4 +103,18 @@ object CrossfadePolicy {
             !snapshot.hasError &&
             !snapshot.isIdle &&
             !snapshot.isEnded
+
+    /** True when the incoming player already holds exactly the session's queue, playing the same slot. */
+    fun queuesMatch(
+        sourceIds: List<String>,
+        incomingIds: List<String>,
+        sourcePlayingIndex: Int,
+        incomingPlayingIndex: Int,
+    ): Boolean = sourcePlayingIndex == incomingPlayingIndex && sourceIds == incomingIds
+
+    /** A shuffle order is valid for [itemCount] items when it lists every index exactly once. */
+    fun isShuffleOrder(
+        order: IntArray,
+        itemCount: Int,
+    ): Boolean = order.size == itemCount && order.sortedArray().withIndex().all { (index, value) -> index == value }
 }
