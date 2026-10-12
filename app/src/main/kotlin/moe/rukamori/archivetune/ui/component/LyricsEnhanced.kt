@@ -29,8 +29,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -116,8 +115,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -164,7 +161,6 @@ import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.utils.reportException
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import androidx.compose.runtime.getValue
@@ -178,19 +174,13 @@ private const val TTML_LEAD_MS = 0L
 private const val LYRIC_VISUAL_TUNING_OFFSET_MS = 0L
 private const val MANUAL_SCROLL_TIMEOUT_MS = 3000L
 private const val MANUAL_SCROLL_DEBOUNCE_MS = 50L
-private const val LYRIC_FOCUS_TOP_ANCHOR_RATIO = 0.08f
+private const val LYRIC_HOLD_SETTLE_MS = 120L
 
-private const val LYRIC_FOCUS_TOP_GUARD_RATIO = 0.04f
-private const val LYRIC_FOCUS_BOTTOM_GUARD_RATIO = 0.30f
-private const val LYRIC_FOCUS_MIN_SCROLL_PX = 6
 
-private const val LYRIC_FOCUS_INSTANT_SCROLL_RATIO = 0.40f
-private const val LYRIC_FOCUS_ANIMATED_DISTANCE = 4
 private const val SMOOTH_PLAYBACK_MAX_FORWARD_DRIFT_MS = 80L
 private const val SMOOTH_PLAYBACK_MAX_BACKWARD_DRIFT_MS = 180L
 private const val SMOOTH_PLAYBACK_DRIFT_CORRECTION = 0.55f
 
-private const val LYRIC_FOCUS_SCROLL_DURATION_MS = 280
 
 private const val LYRIC_FIRST_FOCUS_FADE_MS = 200
 
@@ -563,6 +553,34 @@ fun LyricsEnhanced(
             mutableStateOf(isSynced)
         }
 
+    // While the user browses (or auto-scroll is off, or lines are being selected) the list is held so
+    // the karaoke view's own auto-scroll cannot pull it back: see LyricsScrollGuard.
+    val holdLyricsList =
+        isSynced && !singleActiveLine &&
+            (isManualScrolling || !lyricsAutoScroll || isSelectionModeActive)
+    val holdLyricsListState = rememberUpdatedState(holdLyricsList)
+    val lyricsGuardScope = rememberCoroutineScope()
+    val lyricsFlingBehavior = ScrollableDefaults.flingBehavior()
+    val scrollGuard =
+        remember(listState) { LyricsScrollGuard(listState, lyricsGuardScope, holdLyricsListState) }
+    scrollGuard.flingBehavior = lyricsFlingBehavior
+    val latestScrollGuard = rememberUpdatedState(scrollGuard)
+
+    LaunchedEffect(scrollGuard, holdLyricsList) {
+        if (!holdLyricsList) {
+            scrollGuard.release()
+            return@LaunchedEffect
+        }
+        while (isActive) {
+            // Never grab the list in the middle of a gesture or fling: wait until it has settled.
+            snapshotFlow { listState.isScrollInProgress }.first { !it }
+            delay(LYRIC_HOLD_SETTLE_MS)
+            if (!listState.isScrollInProgress) scrollGuard.holdIfIdle()
+            scrollGuard.awaitHold()
+            if (!scrollGuard.isHolding) delay(LYRIC_HOLD_SETTLE_MS)
+        }
+    }
+
     LaunchedEffect(awaitingFirstFocus) {
         if (!awaitingFirstFocus) return@LaunchedEffect
         delay(LYRIC_FIRST_FOCUS_TIMEOUT_MS)
@@ -720,6 +738,18 @@ fun LyricsEnhanced(
                     return Offset.Zero
                 }
 
+                override suspend fun onPreFling(available: Velocity): Velocity {
+                    // The fling is run by the guard at user priority, so the karaoke view's auto-scroll
+                    // cannot stop it halfway and snap back; the list is then held where it lands.
+                    if (isSynced && !singleActiveLine && isManualScrolling &&
+                        latestScrollGuard.value.flingAndHold(-available.y)
+                    ) {
+                        lastManualScrollTime = System.currentTimeMillis()
+                        return available
+                    }
+                    return Velocity.Zero
+                }
+
                 override suspend fun onPostFling(
                     consumed: Velocity,
                     available: Velocity,
@@ -749,8 +779,12 @@ fun LyricsEnhanced(
     val latestSyncedLyricsForScroll = rememberUpdatedState(syncedLyrics)
     val lyricsAutoScrollState = rememberUpdatedState(lyricsAutoScroll)
 
+    // Following the sung line is left to the karaoke view itself (it anchors the line and animates the
+    // other lines with springs). A second scroller here aimed at another point of the screen and the two
+    // fought on every line. Only the first placement and the return after browsing are done here, at the
+    // view's own anchor (item offset 0).
     LaunchedEffect(lyricsSessionKey, isSynced, positionResetCounter, karaokeGeneration) {
-        if (!isSynced || singleActiveLine) {
+        if (!isSynced || singleActiveLine || !lyricsAutoScrollState.value) {
             awaitingFirstFocus = false
             return@LaunchedEffect
         }
@@ -760,33 +794,44 @@ fun LyricsEnhanced(
             listState.layoutInfo.viewportEndOffset > listState.layoutInfo.viewportStartOffset
         }.first { it }
 
-        var forceNextScroll = true
-        snapshotFlow {
-            if (isManualScrolling || isSelectionModeActive || !lyricsAutoScrollState.value) {
-                null
-            } else {
-                currentLineIndexState.intValue
-                    .takeIf { index -> index in latestSyncedLyricsForScroll.value.lines.indices }
+        val index =
+            withTimeoutOrNull(LYRIC_FIRST_FOCUS_TIMEOUT_MS) {
+                snapshotFlow { currentLineIndexState.intValue }.first { it >= 0 }
+            } ?: -1
+        val lines = latestSyncedLyricsForScroll.value.lines
+        if (index >= 0) {
+            val target = mainLyricLineIndex(lines, index)
+            if (target in 0 until listState.layoutInfo.totalItemsCount) {
+                runCatching { listState.scrollToItem(target, 0) }
             }
-        }.distinctUntilChanged()
-            .collectLatest { index ->
-                if (index == null) {
-                    forceNextScroll = true
+        }
+        awaitingFirstFocus = false
+    }
 
-                    awaitingFirstFocus = false
-                    return@collectLatest
-                }
+    var resyncRequests by remember { mutableIntStateOf(0) }
+    // Line to bring back to the anchor (a tapped line); -1 = the sung line.
+    var resyncTarget by remember { mutableIntStateOf(-1) }
+    val resyncHandled = remember { intArrayOf(0) }
+    val wasBrowsing = remember { booleanArrayOf(false) }
+    LaunchedEffect(isManualScrolling, resyncRequests) {
+        val requested = resyncRequests != resyncHandled[0]
+        resyncHandled[0] = resyncRequests
+        val stoppedBrowsing = wasBrowsing[0] && !isManualScrolling
+        wasBrowsing[0] = isManualScrolling
+        if (isManualScrolling) return@LaunchedEffect
+        if (!requested && !(stoppedBrowsing && lyricsAutoScrollState.value)) return@LaunchedEffect
+        if (!isSynced || singleActiveLine) return@LaunchedEffect
 
-                val isFirstFocus = awaitingFirstFocus
-                listState.scrollLyricIntoFocus(
-                    index = index,
-                    animateToNearbyItem = !forceNextScroll,
-                    force = forceNextScroll,
-                    snap = isFirstFocus,
-                )
-                forceNextScroll = false
-                if (isFirstFocus) awaitingFirstFocus = false
-            }
+        latestScrollGuard.value.release()
+        val lines = latestSyncedLyricsForScroll.value.lines
+        val tapped = resyncTarget
+        resyncTarget = -1
+        val index = if (tapped >= 0) tapped else currentLineIndexState.intValue
+        if (lines.isEmpty()) return@LaunchedEffect
+        val target = if (index < 0) 0 else mainLyricLineIndex(lines, index)
+        if (target in 0 until listState.layoutInfo.totalItemsCount) {
+            listState.animateScrollToItem(target, 0)
+        }
     }
 
     BackHandler(enabled = isSelectionModeActive) {
@@ -1090,6 +1135,10 @@ fun LyricsEnhanced(
                                         toggleSelectedLine(line.selectionKey())
                                     } else if (lyricsClick && isSynced && line.start > 0) {
                                         player.seekTo(line.start.toLong())
+                                        if (isManualScrolling) {
+                                            resyncTarget = syncedLyrics.lines.indexOf(line)
+                                            resyncRequests++
+                                        }
                                         isManualScrolling = false
                                     }
                                 },
@@ -1122,23 +1171,13 @@ fun LyricsEnhanced(
                         }
                     }
 
-                    val resyncScope = rememberCoroutineScope()
                     val resyncDirection by rememberLyricsResyncDirection(listState) { currentLineIndexState.intValue }
                     LyricsResyncButton(
                         visible = isManualScrolling && isSynced && !isSelectionModeActive,
                         direction = resyncDirection,
                         onClick = {
                             isManualScrolling = false
-                            if (!lyricsAutoScroll) {
-                                // Automatic scrolling is off: Resync is the only thing that brings the sung line back.
-                                resyncScope.launch {
-                                    listState.scrollLyricIntoFocus(
-                                        index = currentLineIndexState.intValue,
-                                        animateToNearbyItem = true,
-                                        force = true,
-                                    )
-                                }
-                            }
+                            resyncRequests++
                         },
                         modifier =
                             Modifier
@@ -1528,58 +1567,15 @@ private fun LyricsSelectionLineItem(
     }
 }
 
-private suspend fun LazyListState.scrollLyricIntoFocus(
+/** The karaoke view anchors main lines: a background-vocal line is placed with the main line before it. */
+private fun mainLyricLineIndex(
+    lines: List<ISyncedLine>,
     index: Int,
-    animateToNearbyItem: Boolean,
-    force: Boolean,
-
-    snap: Boolean = false,
-) {
-    val itemCount = layoutInfo.totalItemsCount
-    if (itemCount == 0) return
-
-    val targetIndex = index.coerceIn(0, itemCount - 1)
-    var itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { item -> item.index == targetIndex }
-    if (itemInfo == null) {
-        val distance = abs(targetIndex - firstVisibleItemIndex)
-        if (!snap && animateToNearbyItem && distance <= LYRIC_FOCUS_ANIMATED_DISTANCE) {
-            animateScrollToItem(targetIndex)
-        } else {
-            scrollToItem(targetIndex)
-        }
-        withFrameNanos { }
-        itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { item -> item.index == targetIndex }
-    }
-
-    itemInfo ?: return
-
-    val viewportStart = layoutInfo.viewportStartOffset
-    val viewportEnd = layoutInfo.viewportEndOffset
-    val viewportHeight = viewportEnd - viewportStart
-    if (viewportHeight <= 0) return
-
-    val itemFocusPoint = itemInfo.offset
-    val topGuard = viewportStart + (viewportHeight * LYRIC_FOCUS_TOP_GUARD_RATIO).roundToInt()
-    val bottomGuard = viewportEnd - (viewportHeight * LYRIC_FOCUS_BOTTOM_GUARD_RATIO).roundToInt()
-    if (!force && itemFocusPoint in topGuard..bottomGuard) return
-
-    val targetFocusPoint = viewportStart + (viewportHeight * LYRIC_FOCUS_TOP_ANCHOR_RATIO).roundToInt()
-    val scrollDelta = itemFocusPoint - targetFocusPoint
-    if (abs(scrollDelta) > LYRIC_FOCUS_MIN_SCROLL_PX) {
-        val instantThreshold = (viewportHeight * LYRIC_FOCUS_INSTANT_SCROLL_RATIO).roundToInt()
-        if (snap || (abs(scrollDelta) <= instantThreshold && !force)) {
-            scrollBy(scrollDelta.toFloat())
-        } else {
-            animateScrollBy(
-                value = scrollDelta.toFloat(),
-                animationSpec =
-                    tween(
-                        durationMillis = LYRIC_FOCUS_SCROLL_DURATION_MS,
-                        easing = FastOutSlowInEasing,
-                    ),
-            )
-        }
-    }
+): Int {
+    if (lines.isEmpty()) return -1
+    var target = index.coerceIn(0, lines.lastIndex)
+    while (target > 0 && (lines[target] as? KaraokeLine)?.isAccompaniment == true) target--
+    return target
 }
 
 private fun ISyncedLine.lineText(): String =
