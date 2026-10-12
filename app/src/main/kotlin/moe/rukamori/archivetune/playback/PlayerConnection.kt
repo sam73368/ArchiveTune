@@ -177,7 +177,7 @@ class PlayerConnection(
     private val hideMusicVideos =
         runCatching {
             context.dataStore.data
-                .map { it[HideVideoKey] ?: false }
+                .map { it[HideVideoKey] ?: true }
         }.getOrElse { flowOf(false) }
             // A settings read problem must never take the player UI down: assume "off".
             .catch { emit(false) }
@@ -190,8 +190,14 @@ class PlayerConnection(
                 if (albumId.isNullOrBlank()) flowOf(null) else database.album(albumId).map { it?.album?.thumbnailUrl }
             }
     val mediaMetadata: StateFlow<MediaMetadata?> =
-        combine(service.currentMediaMetadata, hideMusicVideos, currentAlbumCover) { metadata, hideVideos, albumCover ->
-            if (metadata != null && hideVideos && metadata.isMusicVideo) {
+        combine(
+            service.currentMediaMetadata,
+            hideMusicVideos,
+            currentAlbumCover,
+            UserChosenClips.ids,
+        ) { metadata, hideVideos, albumCover, chosenClips ->
+            // A clip the user picked in the search results stays a clip; any other one looks like its song.
+            if (metadata != null && hideVideos && metadata.isMusicVideo && metadata.id !in chosenClips) {
                 metadata.copy(
                     isMusicVideo = false,
                     thumbnailUrl = albumCover?.takeIf { it.isNotBlank() } ?: metadata.thumbnailUrl,

@@ -98,7 +98,7 @@ class OnlinePlaylistViewModel
                         .onSuccess { playlistContinuationPage ->
                             val visibleSongs =
                                 playlistContinuationPage.songs
-                                    .filterVideo(context.dataStore.get(HideVideoKey, false))
+                                    .filterVideo(context.dataStore.get(HideVideoKey, true))
                                     .filterBlockedArtists(database.getBlockedArtistIds().toSet())
                             _playlistSongs.update { currentSongs ->
                                 (currentSongs + visibleSongs).distinctByPlaylistEntry()
@@ -155,7 +155,7 @@ class OnlinePlaylistViewModel
                     .onSuccess { playlistPage ->
                         val visibleSongs =
                             playlistPage.songs
-                                .filterVideo(context.dataStore.get(HideVideoKey, false))
+                                .filterVideo(context.dataStore.get(HideVideoKey, true))
                                 .filterBlockedArtists(database.getBlockedArtistIds().toSet())
                                 .distinctByPlaylistEntry()
                         _playlist.value = playlistPage.playlist

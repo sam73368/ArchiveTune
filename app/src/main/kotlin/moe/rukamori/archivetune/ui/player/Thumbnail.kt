@@ -101,6 +101,7 @@ import moe.rukamori.archivetune.constants.DisableBlurKey
 import moe.rukamori.archivetune.constants.EnableHapticFeedbackKey
 import moe.rukamori.archivetune.constants.HidePlayerThumbnailKey
 import moe.rukamori.archivetune.constants.HideVideoKey
+import moe.rukamori.archivetune.playback.UserChosenClips
 import moe.rukamori.archivetune.constants.MaxCanvasCacheSizeKey
 import moe.rukamori.archivetune.constants.PlayerBackgroundStyle
 import moe.rukamori.archivetune.constants.PlayerBackgroundStyleKey
@@ -427,7 +428,9 @@ fun Thumbnail(
                         var lastTapTime by remember { mutableLongStateOf(0L) }
                         val itemMetadata = remember(item) { item.metadata }
                         val database = LocalDatabase.current
-                        val hideMusicVideos by rememberPreference(HideVideoKey, defaultValue = false)
+                        val hideMusicVideosPref by rememberPreference(HideVideoKey, defaultValue = true)
+                        val chosenClips by UserChosenClips.ids.collectAsStateWithLifecycle()
+                        val hideMusicVideos = hideMusicVideosPref && item.mediaId !in chosenClips
                         // With "Hide music videos" on, a clip is shown like a normal song: album
                         // cover, no video-frame swap, canvas allowed.
                         val itemIsClip = itemMetadata?.isMusicVideo == true && !hideMusicVideos

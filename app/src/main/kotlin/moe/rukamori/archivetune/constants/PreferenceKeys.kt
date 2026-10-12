@@ -273,6 +273,9 @@ val EnableDeezerLyricsKey = booleanPreferencesKey("enableDeezerLyrics")
 val PrioritizeWordSyncedLyricsKey = booleanPreferencesKey("prioritizeWordSyncedLyrics")
 val HideExplicitKey = booleanPreferencesKey("hideExplicit")
 val HideVideoKey = booleanPreferencesKey("hideVideo")
+
+/** Music videos (clips) are only ever offered in search, and only while this is on. */
+val ShowVideosInSearchKey = booleanPreferencesKey("showVideosInSearch")
 val ShowViewCountsKey = booleanPreferencesKey("showViewCounts")
 
 val HomeCatalogueSwitchKey = booleanPreferencesKey("homeCatalogueSwitch")

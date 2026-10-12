@@ -57,7 +57,7 @@ import moe.rukamori.archivetune.constants.HideExplicitKey
 import moe.rukamori.archivetune.constants.HideNavigationBarLabelsKey
 import moe.rukamori.archivetune.constants.HidePlayerThumbnailKey
 import moe.rukamori.archivetune.constants.HideScrollbarKey
-import moe.rukamori.archivetune.constants.HideVideoKey
+import moe.rukamori.archivetune.constants.ShowVideosInSearchKey
 import moe.rukamori.archivetune.constants.EnableHapticFeedbackKey
 import moe.rukamori.archivetune.constants.ListenBrainzEnabledKey
 import moe.rukamori.archivetune.constants.LowDataModeKey
@@ -590,7 +590,7 @@ fun buildSettingsGroups(
                 SettingsChild("Content language", "content_language", listOf("language", "content language", "locale", "country")),
                 SettingsChild("Content country", "content_country", listOf("country", "region", "content country")),
                 SettingsChild("Hide explicit", "hide_explicit", listOf("explicit", "age", "mature", "age restricted", "clean")) { SearchResultSwitch(HideExplicitKey, false) },
-                SettingsChild("Hide video", "hide_video", listOf("video", "hide video", "music video", "mv")) { SearchResultSwitch(HideVideoKey, false) },
+                SettingsChild("Show music videos in search", "hide_video", listOf("video", "hide video", "music video", "mv", "clip", "show videos")) { SearchResultSwitch(ShowVideosInSearchKey, false) },
                 SettingsChild("Enable video", "enable_video", listOf("video", "music video", "mv", "enable video")),
                 SettingsChild("Quick picks", "quick_picks", listOf("quick picks", "quick mix", "smart mix", "recommendations")),
                 SettingsChild("Allow age-restricted content", "allow_age_restricted", listOf("age restricted", "allow age restricted", "mature content", "18+", "restricted")) { SearchResultSwitch(AllowAgeRestrictedKey, false) },

@@ -280,4 +280,6 @@
     <string name="ai_playlist_create_on_youtube">Also create it on my YouTube Music account</string>
     <string name="smart_playlist_save">Save</string>
     <string name="smart_playlist_saved">Saved as a regular playlist: %1$s</string>
+    <string name="search_show_music_videos">Music videos</string>
+    <string name="search_show_music_videos_summary">Clips are only offered in search results. Everywhere else (albums, playlists, home, radio) songs always play as their studio version.</string>
 </resources>

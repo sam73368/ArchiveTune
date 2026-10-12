@@ -188,6 +188,7 @@ import moe.rukamori.archivetune.constants.DisableBlurKey
 import moe.rukamori.archivetune.constants.EnableHapticFeedbackKey
 import moe.rukamori.archivetune.constants.EnableVideoPlaybackKey
 import moe.rukamori.archivetune.constants.HideVideoKey
+import moe.rukamori.archivetune.playback.UserChosenClips
 import moe.rukamori.archivetune.constants.InnerTubeCookieKey
 import moe.rukamori.archivetune.constants.MaxCanvasCacheSizeKey
 import moe.rukamori.archivetune.constants.PlayerBackgroundStyle
@@ -458,7 +459,7 @@ fun BottomSheetPlayer(
     val enableVideoPlayback by rememberPreference(EnableVideoPlaybackKey, defaultValue = true)
     // "Hide music videos": clips play as audio (their studio version when one exists), so the
     // clip picture is not shown either.
-    val hideMusicVideos by rememberPreference(HideVideoKey, defaultValue = false)
+    val hideMusicVideos by rememberPreference(HideVideoKey, defaultValue = true)
     var keyboardSkipMultiplier by remember { mutableStateOf(1) }
     var lastKeyboardTapTime by remember { mutableLongStateOf(0L) }
 
@@ -1111,9 +1112,10 @@ fun BottomSheetPlayer(
     }
 
     val videoFullscreenHolder = LocalVideoFullscreenState.current
+    val chosenClips by UserChosenClips.ids.collectAsStateWithLifecycle()
     val videoMediaId =
         mediaMetadata
-            ?.takeIf { enableVideoPlayback && !hideMusicVideos && it.isMusicVideo == true && !it.id.isLocalMediaId() }
+            ?.takeIf { enableVideoPlayback && (!hideMusicVideos || it.id in chosenClips) && it.isMusicVideo == true && !it.id.isLocalMediaId() }
             ?.id
 
     var videoQualityStored by rememberPreference(VideoQualityPreferredHeightKey, VideoQualityPreference.HIGH_QUALITY)

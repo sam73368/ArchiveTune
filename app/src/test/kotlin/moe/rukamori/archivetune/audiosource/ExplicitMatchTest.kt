@@ -1,6 +1,7 @@
 package moe.rukamori.archivetune.audiosource
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ExplicitMatchTest {
@@ -32,10 +33,27 @@ class ExplicitMatchTest {
     }
 
     @Test
-    fun `non explicit song is not influenced by the flag`() {
-        val clean = target.copy(explicit = false)
-        val best = TrackMatching.best(clean, listOf(candidate("first", false), candidate("second", true)))
-        assertEquals("first", best?.id)
+    fun `clean edition of an explicit song is rejected`() {
+        assertNull(TrackMatching.best(target, listOf(candidate("clean", false))))
+    }
+
+    @Test
+    fun `explicit edition is preferred even when the wanted song is not flagged`() {
+        val unflagged = target.copy(explicit = false)
+        val best = TrackMatching.best(unflagged, listOf(candidate("first", false), candidate("second", true)))
+        assertEquals("second", best?.id)
+    }
+
+    @Test
+    fun `hide explicit turns the preference off but still accepts clean editions`() {
+        TrackMatching.preferExplicitEditions = false
+        try {
+            val unflagged = target.copy(explicit = false)
+            val best = TrackMatching.best(unflagged, listOf(candidate("first", false), candidate("second", true)))
+            assertEquals("first", best?.id)
+        } finally {
+            TrackMatching.preferExplicitEditions = true
+        }
     }
 
     @Test

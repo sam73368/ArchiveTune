@@ -121,7 +121,7 @@ class LibrarySongsViewModel
                             (it[SongSortDescendingKey] ?: true),
                         ),
                         it[HideExplicitKey] ?: false,
-                        it[HideVideoKey] ?: false,
+                        it[HideVideoKey] ?: true,
                     )
                 }.distinctUntilChanged()
                 .flatMapLatest { (filterSort, hideExplicit, hideVideo) ->
@@ -492,7 +492,7 @@ class ArtistSongsViewModel
                                 ?: true
                         ),
                         it[HideExplicitKey] ?: false,
-                        it[HideVideoKey] ?: false,
+                        it[HideVideoKey] ?: true,
                     )
                 }.distinctUntilChanged()
                 .flatMapLatest { (sortDesc, hideExplicit, hideVideo) ->

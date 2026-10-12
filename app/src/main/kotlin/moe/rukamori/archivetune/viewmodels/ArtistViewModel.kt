@@ -144,7 +144,7 @@ class ArtistViewModel
         val librarySongs =
             context.dataStore.data
                 .map { preferences ->
-                    (preferences[HideExplicitKey] ?: false) to (preferences[HideVideoKey] ?: false)
+                    (preferences[HideExplicitKey] ?: false) to (preferences[HideVideoKey] ?: true)
                 }
                 .distinctUntilChanged()
                 .flatMapLatest { (hideExplicit, hideVideo) ->
@@ -164,7 +164,7 @@ class ArtistViewModel
             viewModelScope.launch {
                 context.dataStore.data
                     .map { preferences ->
-                        (preferences[HideExplicitKey] ?: false) to (preferences[HideVideoKey] ?: false)
+                        (preferences[HideExplicitKey] ?: false) to (preferences[HideVideoKey] ?: true)
                     }
                     .distinctUntilChanged()
                     .collect {
@@ -197,7 +197,7 @@ class ArtistViewModel
         private suspend fun fetchArtistFromYTM() {
             run {
                 val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                val hideVideo = context.dataStore.get(HideVideoKey, false)
+                val hideVideo = context.dataStore.get(HideVideoKey, true)
                 val blockedArtistIds = database.getBlockedArtistIds().toSet()
                 YouTube
                     .artist(artistId)

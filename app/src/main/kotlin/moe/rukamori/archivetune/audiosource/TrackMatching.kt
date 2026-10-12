@@ -59,18 +59,34 @@ internal object TrackMatching {
     )
 
     /**
-     * Clean and explicit editions share title, album and length, so without this they tie and the
-     * first search hit (often the clean one) wins. Only applied when the wanted song is explicit.
+     * The explicit edition always wins when one exists. Clean and explicit editions share title,
+     * album and length, so without this they tie and the first search hit (often the clean one) wins.
+     *
+     *  - explicit candidate: bonus, whether or not the wanted song is flagged (a catalogue that lists
+     *    both editions must never hand back the censored one);
+     *  - clean candidate for a song flagged explicit: rejected outright, the caller then falls back to
+     *    the next source (YouTube has the explicit upload);
+     *  - unknown flag: neutral.
+     *
+     * The bonus for unflagged songs is switched off by "Hide explicit" ([preferExplicitEditions]).
      */
     fun explicitAdjustment(
         wantedExplicit: Boolean,
         candidateExplicit: Boolean?,
     ): Int =
         when {
-            !wantedExplicit || candidateExplicit == null -> 0
-            candidateExplicit -> EXPLICIT_MATCH_BONUS
-            else -> -EXPLICIT_MATCH_BONUS
+            candidateExplicit == null -> 0
+            candidateExplicit -> if (wantedExplicit || preferExplicitEditions) EXPLICIT_MATCH_BONUS else 0
+            wantedExplicit -> -CLEAN_EDITION_REJECTION
+            else -> 0
         }
+
+    /** false while "Hide explicit" is on: explicit editions get no preference then. */
+    @Volatile
+    var preferExplicitEditions: Boolean = true
+
+    /** Large enough to push any clean edition of an explicit song below [MIN_MATCH_SCORE]. */
+    const val CLEAN_EDITION_REJECTION = 1_000
 
     const val EXPLICIT_MATCH_BONUS = 25
 

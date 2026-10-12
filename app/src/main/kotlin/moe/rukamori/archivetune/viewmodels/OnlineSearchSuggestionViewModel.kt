@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.aicontentfilter.FilterAiContentUseCase
 import moe.rukamori.archivetune.aicontentfilter.LoadAiContentFilterPolicyUseCase
 import moe.rukamori.archivetune.constants.HideExplicitKey
-import moe.rukamori.archivetune.constants.HideVideoKey
+import moe.rukamori.archivetune.constants.ShowVideosInSearchKey
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.SearchHistory
 import kotlinx.coroutines.flow.combine
@@ -115,7 +115,7 @@ class OnlineSearchSuggestionViewModel
                                     val result = YouTube.searchSuggestions(query).getOrNull()
                                     val aiContentFilterPolicy = loadAiContentFilterPolicy()
                                     val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                                    val hideVideo = context.dataStore.get(HideVideoKey, false)
+                                    val hideVideo = !context.dataStore.get(ShowVideosInSearchKey, false)
 
                                     fun <T : YTItem> List<T>.cleaned(): List<T> =
                                         filterAiContent(

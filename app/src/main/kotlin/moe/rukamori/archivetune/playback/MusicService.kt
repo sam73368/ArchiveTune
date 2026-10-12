@@ -275,6 +275,7 @@ import moe.rukamori.archivetune.audiosource.SongSourceQobuzTrackId
 import moe.rukamori.archivetune.audiosource.SongSourceDeezerTrackId
 import moe.rukamori.archivetune.audiosource.SongSourceTidalTrackId
 import moe.rukamori.archivetune.audiosource.TitleMatch
+import moe.rukamori.archivetune.audiosource.TrackMatching
 import moe.rukamori.archivetune.audiosource.pcmBitrateOrNull
 import moe.rukamori.archivetune.applemusic.AppleMusicAudioProvider
 import moe.rukamori.archivetune.applemusic.AppleMusicVirtualStream
@@ -438,6 +439,7 @@ import kotlin.math.roundToLong
 import kotlin.time.Duration.Companion.seconds
 
 private val JIO_SAAVN_NORMALIZE_REGEX = Regex("[^\\p{L}\\p{N}]")
+private val JIO_SAAVN_EXPLICIT_TAG_REGEX = Regex("\\bexplicit\\b", RegexOption.IGNORE_CASE)
 
 private data class EnginePrefTuple(
     val tryptify: Boolean,
@@ -654,7 +656,7 @@ class MusicService :
     private var currentQueue: Queue = EmptyQueue
     var queueTitle: String? = null
     private var blockedArtistIds: Set<String> = emptySet()
-    private var hideMusicVideos = false
+    private var hideMusicVideos = true
     private var infiniteQueueJob: Job? = null
 
     // Smart Shuffle: while shuffling, one similar song from the radio is slipped in every few tracks.
@@ -1500,10 +1502,15 @@ class MusicService :
             }
         var isInitialHideVideoValue = true
         dataStore.data
-            .map { preferences -> preferences[HideVideoKey] ?: false }
+            .map { preferences -> preferences[HideVideoKey] ?: true }
             .distinctUntilChanged()
             .collect(scope) { shouldHideMusicVideos ->
-                hideMusicVideos = shouldHideMusicVideos
+                if (!shouldHideMusicVideos) {
+                    // Songs are always played as their studio version; clips only exist in search results.
+                    // Whatever wrote "false" (old settings, a restored backup) is overridden.
+                    scope.launch(SilentHandler) { dataStore.edit { it[HideVideoKey] = true } }
+                }
+                hideMusicVideos = true
                 // Re-evaluate the studio/clip choice for everything except the file playing right now.
                 releaseStudioPins(player.currentMediaItem?.mediaId)
                 // Only prune when the user actually turns the setting on (not on startup, which
@@ -1520,6 +1527,7 @@ class MusicService :
             .map { preferences -> preferences[HideExplicitKey] ?: false }
             .distinctUntilChanged()
             .collect(scope) { shouldHideExplicit ->
+                TrackMatching.preferExplicitEditions = !shouldHideExplicit
                 if (shouldHideExplicit) {
                     scope.launch(SilentHandler) { removeExplicitItems() }
                 }
@@ -2657,7 +2665,9 @@ class MusicService :
                         song = snapshot.song,
                         positionMs = snapshot.positionMs,
                         isPaused = snapshot.isPaused,
-                        isMusicVideo = (currentMediaMetadata.value?.isMusicVideo ?: false) && !hideMusicVideos,
+                        isMusicVideo =
+                            (currentMediaMetadata.value?.isMusicVideo ?: false) &&
+                                (!hideMusicVideos || UserChosenClips.contains(currentMediaMetadata.value?.id)),
                     )
                 if (!updated) {
                     Timber.tag(DISCORD_SYNC_TAG).d(
@@ -5345,7 +5355,7 @@ class MusicService :
             try {
                 autoLoadMoreEnabled = dataStore.getAsync(AutoLoadMoreKey, true)
                 val hideExplicit = shouldHideExplicitTracks()
-                val hideVideo = dataStore.get(HideVideoKey, false)
+                val hideVideo = dataStore.get(HideVideoKey, true)
                 val preloadItem =
                     queue.preloadItem
                         ?.toMediaItem()
@@ -5539,7 +5549,7 @@ class MusicService :
                         .getInitialStatus()
                         .filterPlaybackContent(
                             hideExplicit = shouldHideExplicitTracks(),
-                            hideVideo = dataStore.get(HideVideoKey, false),
+                            hideVideo = dataStore.get(HideVideoKey, true),
                         )
                 }
 
@@ -5603,7 +5613,7 @@ class MusicService :
             scope.launch(SilentHandler) {
                 try {
                     val hideExplicit = dataStore.get(HideExplicitKey, false)
-                    val hideVideo = dataStore.get(HideVideoKey, false)
+                    val hideVideo = dataStore.get(HideVideoKey, true)
                     val radioQueue =
                         YouTubeQueue(
                             WatchEndpoint(videoId = resolvedSeedMediaId),
@@ -6766,7 +6776,7 @@ class MusicService :
         val metadata = mediaItem.metadata ?: return
         if (!metadata.isMusicVideo) return
         val mediaId = mediaItem.mediaId
-        val hide = hideMusicVideos
+        val hide = hideMusicVideos && !UserChosenClips.contains(mediaItem.mediaId)
         scope.launch(SilentHandler) {
             val target =
                 if (hide) {
@@ -6911,7 +6921,7 @@ class MusicService :
                         .nextPage()
                         .filterPlaybackContent(
                             hideExplicit = dataStore.get(HideExplicitKey, false),
-                            hideVideo = dataStore.get(HideVideoKey, false),
+                            hideVideo = dataStore.get(HideVideoKey, true),
                         )
                 if (player.playbackState != STATE_IDLE) {
                     // Skip only items already queued instead of blindly dropping the first one:
@@ -6977,7 +6987,7 @@ class MusicService :
         smartShuffleJob =
             scope.launch(SilentHandler) {
                 val hideExplicit = dataStore.get(HideExplicitKey, false)
-                val hideVideo = dataStore.get(HideVideoKey, false)
+                val hideVideo = dataStore.get(HideVideoKey, true)
                 val status =
                     withContext(Dispatchers.IO) {
                         YouTubeQueue(WatchEndpoint(videoId = seed), followAutomixPreview = true)
@@ -7054,7 +7064,7 @@ class MusicService :
                     Timber.tag(TAG).d("Prefetching stream URL for next media item: %s", mediaId)
 
                     val lowData = isLowDataModeActive()
-                    if (!lowData && studioVariantPins.getOrPut(mediaId) { prefersStudioAudio(mediaId) }) {
+                    if (!lowData && !UserChosenClips.contains(mediaId) && studioVariantPins.getOrPut(mediaId) { prefersStudioAudio(mediaId) }) {
                         // The clip's own stream will not be played ("Hide music videos"): warm up the
                         // studio version instead of resolving the clip through up to 7 YouTube clients.
                         val studioWarm =
@@ -9112,9 +9122,13 @@ class MusicService :
                         stream = stream,
                     )
                 }
-            if (match.accepted && match.score > bestScore) {
+            val explicitAdjustment = TrackMatching.explicitAdjustment(query.explicit, candidate.explicit)
+            // A clean edition of an explicit song is never used; an explicit edition wins ties.
+            if (explicitAdjustment <= -TrackMatching.CLEAN_EDITION_REJECTION) continue
+            val adjustedScore = match.score + explicitAdjustment / 1000.0
+            if (match.accepted && adjustedScore > bestScore) {
                 winner = candidate to stream
-                bestScore = match.score
+                bestScore = adjustedScore
             }
         }
         val (candidate, placeholder) = winner ?: return null
@@ -9599,12 +9613,27 @@ class MusicService :
                             penalty
                         } ?: return@runBlocking null
 
-                if (query.explicit && !candidate.explicitContent && !allowCleanEdit) {
-                    Timber.tag("MusicService").i(
-                        "JioSaavn skipped for \"%s\": song is explicit but JioSaavn only has the clean edit",
-                        query.title,
-                    )
-                    return@runBlocking null
+                // JioSaavn serves the censored audio even for tracks it flags explicit (its catalogue is
+                // region-sanitised), so its flag cannot be trusted. Whenever the song, the matched
+                // JioSaavn track or any same-titled JioSaavn edition is explicit, JioSaavn is skipped and
+                // the next source (ultimately YouTube's explicit upload) plays.
+                if (TrackMatching.preferExplicitEditions && !allowCleanEdit) {
+                    val wantedKey = query.title.lowercase().replace(JIO_SAAVN_NORMALIZE_REGEX, "")
+                    val explicitEditionExists =
+                        query.explicit ||
+                            JIO_SAAVN_EXPLICIT_TAG_REGEX.containsMatchIn(candidate.name) ||
+                            searchResult.any { song ->
+                                val songKey = song.name.lowercase().replace(JIO_SAAVN_NORMALIZE_REGEX, "")
+                                (song.explicitContent || JIO_SAAVN_EXPLICIT_TAG_REGEX.containsMatchIn(song.name)) &&
+                                    (songKey.contains(wantedKey) || wantedKey.contains(songKey))
+                            }
+                    if (explicitEditionExists) {
+                        Timber.tag("MusicService").i(
+                            "JioSaavn skipped for \"%s\": an explicit edition exists and JioSaavn serves the censored audio",
+                            query.title,
+                        )
+                        return@runBlocking null
+                    }
                 }
 
                 val streamUrl = SaavnService.selectBestUrl(candidate.downloadUrl, qualityApiValue) ?: return@runBlocking null
@@ -9867,7 +9896,8 @@ class MusicService :
     private fun prefersStudioAudio(mediaId: String): Boolean =
         !mediaId.isLocalMediaId() &&
             !mediaId.isTelegramMediaId() &&
-            dataStore.get(HideVideoKey, false) &&
+            dataStore.get(HideVideoKey, true) &&
+            !UserChosenClips.contains(mediaId) &&
             isMusicVideoPlayback(mediaId)
 
     /** True when every byte of [mediaId] is in the download cache (the offline copy is complete). */
@@ -9927,7 +9957,8 @@ class MusicService :
                 durationMs = query.durationMs,
                 studioOnly = studioOnly,
                 hideExplicit = dataStore.get(HideExplicitKey, false),
-                preferExplicit = query.explicit,
+                // The explicit upload always beats the clean edit (unless "Hide explicit" is on).
+                preferExplicit = TrackMatching.preferExplicitEditions || query.explicit,
             )
         val found =
             runCatching {
@@ -10061,7 +10092,9 @@ class MusicService :
 
         // Studio version instead of a clip ("Hide music videos"): lossless/JioSaavn sources first,
         // then the studio upload on YouTube; the clip itself stays the fallback.
-        val wantStudio = !lowDataModeActive && studioVariantPins.getOrPut(mediaId) { prefersStudioAudio(mediaId) }
+        val wantStudio =
+            !lowDataModeActive && !UserChosenClips.contains(mediaId) &&
+                studioVariantPins.getOrPut(mediaId) { prefersStudioAudio(mediaId) }
         val fullyDownloaded = wantStudio && isFullyDownloaded(mediaId)
         if (wantStudio && !fullyDownloaded) {
             // The YouTube lookup keeps its own negative cache; a miss there must not disable the

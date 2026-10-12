@@ -104,4 +104,6 @@
     <string name="ai_playlist_create_on_youtube">La créer aussi sur mon compte YouTube Music</string>
     <string name="smart_playlist_save">Enregistrer</string>
     <string name="smart_playlist_saved">Enregistrée comme playlist normale : %1$s</string>
+    <string name="search_show_music_videos">Vidéoclips</string>
+    <string name="search_show_music_videos_summary">Les clips ne sont proposés que dans les résultats de recherche. Partout ailleurs (albums, playlists, accueil, radio), les chansons sont toujours lues en version studio.</string>
 </resources>

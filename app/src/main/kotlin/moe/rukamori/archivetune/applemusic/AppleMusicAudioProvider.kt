@@ -279,6 +279,8 @@ object AppleMusicAudioProvider {
         val matchedArtist: String?,
         val matchedAlbum: String?,
         val matchedDurationMs: Long?,
+        /** Catalogue `contentRating`: true explicit, false clean, null when Apple does not say. */
+        val explicit: Boolean? = null,
     )
 
     suspend fun resolveCandidates(
@@ -343,9 +345,11 @@ object AppleMusicAudioProvider {
                 if (songIds.isEmpty()) return@runCatching emptyList()
 
                 val out = mutableListOf<AppleMusicStream>()
-                for (id in songIds.take(5)) {
+                // Explicit editions are resolved first so they always make it into the 3 candidates.
+                for ((id, explicit) in songIds.sortedBy { if (it.second == true) 0 else 1 }.take(5)) {
                     if (out.size >= 3) break
-                    webPlayback(id, devToken, mediaToken, storefront, quality)?.let { out += it }
+                    webPlayback(id, devToken, mediaToken, storefront, quality)
+                        ?.let { out += it.copy(explicit = explicit) }
                 }
                 out
             }.getOrElse { error ->
@@ -361,7 +365,7 @@ object AppleMusicAudioProvider {
         storefront: String,
         devToken: String,
         mediaToken: String,
-    ): List<String> {
+    ): List<Pair<String, Boolean?>> {
         val url =
             "$AMP_BASE/v1/catalog/$storefront/search".toHttpUrl()
                 .newBuilder()
@@ -389,7 +393,21 @@ object AppleMusicAudioProvider {
             val songs =
                 root["results"]?.jsonObject?.get("songs")?.jsonObject?.get("data")?.jsonArray
                     ?: return emptyList()
-            return songs.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.contentOrNull }
+            return songs.mapNotNull { element ->
+                val song = element.jsonObject
+                val id = song["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                val rating =
+                    (song["attributes"] as? JsonObject)
+                        ?.get("contentRating")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                id to
+                    when (rating) {
+                        "explicit" -> true
+                        "clean" -> false
+                        else -> null
+                    }
+            }
         }
     }
 

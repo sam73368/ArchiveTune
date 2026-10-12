@@ -100,7 +100,7 @@ class LocalPlaylistViewModel
                 sortType,
                 sortDescending,
                 context.dataStore.data
-                    .map { preferences -> preferences[HideVideoKey] ?: false }
+                    .map { preferences -> preferences[HideVideoKey] ?: true }
                     .distinctUntilChanged(),
             ) { songs, sortType, sortDescending, hideVideo ->
                 val visibleSongs =
@@ -600,7 +600,7 @@ class LocalPlaylistViewModel
 
         private suspend fun filterSuggestionItems(items: List<YTItem>): List<YTItem> {
             val hideExplicit = context.dataStore.data.first()[HideExplicitKey] ?: false
-            val hideVideos = context.dataStore.data.first()[HideVideoKey] ?: false
+            val hideVideos = context.dataStore.data.first()[HideVideoKey] ?: true
 
             var filteredItems =
                 items

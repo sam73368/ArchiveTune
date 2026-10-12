@@ -8,6 +8,11 @@
 package moe.rukamori.archivetune.ui.screens.search
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import moe.rukamori.archivetune.extensions.isMusicVideoClip
+import moe.rukamori.archivetune.utils.rememberPreference
+import moe.rukamori.archivetune.constants.ShowVideosInSearchKey
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -64,6 +69,7 @@ import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.LocalStableSystemBarsTopPadding
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.SearchProvider
+import moe.rukamori.archivetune.playback.UserChosenClips
 import moe.rukamori.archivetune.constants.SearchSource
 import moe.rukamori.archivetune.extensions.togglePlayPause
 import moe.rukamori.archivetune.innertube.YouTube.SearchFilter.Companion.FILTER_ALBUM
@@ -152,6 +158,11 @@ fun OnlineSearchResult(
     }
 
     val searchFilter by viewModel.filter.collectAsStateWithLifecycle()
+    val (showVideos, onShowVideosChange) = rememberPreference(ShowVideosInSearchKey, defaultValue = false)
+    LaunchedEffect(showVideos) {
+        // The "Videos" tab does not exist while clips are switched off.
+        if (!showVideos && viewModel.filter.value == FILTER_VIDEO) viewModel.filter.value = null
+    }
     val searchSummary = viewModel.summaryPage
     val itemsPage by remember(searchFilter) {
         derivedStateOf {
@@ -176,6 +187,7 @@ fun OnlineSearchResult(
                 FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
                 FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
             ).forEach { (sectionFilter, sectionTitle) ->
+                if (sectionFilter == FILTER_VIDEO && !showVideos) return@forEach
                 viewModel.viewStateMap[sectionFilter.value]
                     ?.items
                     ?.takeIf { it.isNotEmpty() }
@@ -277,7 +289,7 @@ fun OnlineSearchResult(
                         onClick = {
                             when (item) {
                                 is SongItem -> {
-                                    val playAsVideo = searchFilter == FILTER_VIDEO
+                                    val playAsVideo = showVideos && (searchFilter == FILTER_VIDEO || item.isMusicVideoClip())
                                     val sameTrack = item.id == mediaMetadata?.id
                                     val currentIsVideo = sameTrack && mediaMetadata?.isMusicVideo == true
                                     if (sameTrack && (!playAsVideo || currentIsVideo)) {
@@ -291,6 +303,8 @@ fun OnlineSearchResult(
                                                     metadata
                                                 }
                                             }
+                                        // A clip picked here is the one place a clip is played as a clip.
+                                        if (playAsVideo) UserChosenClips.add(item.id)
                                         playerConnection.playQueue(
                                             YouTubeQueue(
                                                 item.endpoint ?: WatchEndpoint(videoId = item.id),
@@ -378,12 +392,13 @@ fun OnlineSearchResult(
                     onBackLongClick = navController::backToMain,
                     infoLine = headerInfoLine,
                     chipsRow = {
+                      Column {
                         SolidFilterChipsRow(
                             chips =
-                                listOf(
+                                listOfNotNull(
                                     null to stringResource(R.string.filter_all),
                                     FILTER_SONG to stringResource(R.string.filter_songs),
-                                    FILTER_VIDEO to stringResource(R.string.filter_videos),
+                                    (FILTER_VIDEO to stringResource(R.string.filter_videos)).takeIf { showVideos },
                                     FILTER_ALBUM to stringResource(R.string.filter_albums),
                                     FILTER_ARTIST to stringResource(R.string.filter_artists),
                                     FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
@@ -400,6 +415,18 @@ fun OnlineSearchResult(
                                 }
                             },
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.search_show_music_videos),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Switch(checked = showVideos, onCheckedChange = onShowVideosChange)
+                        }
+                      }
                     },
                 )
             }
