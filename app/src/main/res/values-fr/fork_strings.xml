@@ -106,4 +106,7 @@
     <string name="smart_playlist_saved">Enregistrée comme playlist normale : %1$s</string>
     <string name="search_show_music_videos">Vidéoclips</string>
     <string name="search_show_music_videos_summary">Les clips ne sont proposés que dans les résultats de recherche. Partout ailleurs (albums, playlists, accueil, radio), les chansons sont toujours lues en version studio.</string>
+    <string name="lyrics_resync">Resynchroniser</string>
+    <string name="lyrics_hold_scroll">Garder ma position de défilement</string>
+    <string name="lyrics_hold_scroll_summary">Quand tu parcours les paroles à la main, elles restent où tu es jusqu\'à ce que tu appuies sur Resynchroniser (ou que tu touches une ligne, ou que la chanson change).</string>
 </resources>

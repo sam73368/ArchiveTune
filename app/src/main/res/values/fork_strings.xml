@@ -282,4 +282,7 @@
     <string name="smart_playlist_saved">Saved as a regular playlist: %1$s</string>
     <string name="search_show_music_videos">Music videos</string>
     <string name="search_show_music_videos_summary">Clips are only offered in search results. Everywhere else (albums, playlists, home, radio) songs always play as their studio version.</string>
+    <string name="lyrics_resync">Resync</string>
+    <string name="lyrics_hold_scroll">Keep my scroll position</string>
+    <string name="lyrics_hold_scroll_summary">When you browse the lyrics by hand, stay where you are until you press Resync (or tap a line, or the song changes).</string>
 </resources>

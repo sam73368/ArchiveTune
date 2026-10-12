@@ -123,6 +123,7 @@ import moe.rukamori.archivetune.constants.LyricsRomanizeHindiKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeJapaneseKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeKoreanKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeOtherLanguagesKey
+import moe.rukamori.archivetune.constants.LyricsHoldManualScrollKey
 import moe.rukamori.archivetune.constants.LyricsScrollKey
 import moe.rukamori.archivetune.constants.LyricsTextSizeKey
 import moe.rukamori.archivetune.constants.LyricsV2BounceFactorKey
@@ -224,6 +225,7 @@ fun LyricsV2(
 
     val (lyricsClick) = rememberPreference(LyricsClickKey, defaultValue = true)
     val (lyricsScroll) = rememberPreference(LyricsScrollKey, defaultValue = true)
+    val (holdManualScroll) = rememberPreference(LyricsHoldManualScrollKey, defaultValue = true)
     val (lyricsTextSize) = rememberPreference(LyricsTextSizeKey, defaultValue = 26f)
     val (lyricsLineSpacing) = rememberPreference(LyricsLineSpacingKey, defaultValue = 1.3f)
     val (lyricsLineBlurPreference) = rememberPreference(LyricsLineBlurKey, defaultValue = false)
@@ -487,10 +489,28 @@ fun LyricsV2(
             }
         }
 
-    LaunchedEffect(isManualScrolling, lastManualScrollTime) {
-        if (isManualScrolling) {
+    // By default the position chosen by hand is kept until "Resync" is pressed; with the setting off the
+    // lyrics come back to the sung line after a few idle seconds.
+    LaunchedEffect(isManualScrolling, lastManualScrollTime, holdManualScroll) {
+        if (isManualScrolling && !holdManualScroll) {
             delay(MANUAL_SCROLL_TIMEOUT_MS)
             isManualScrolling = false
+        }
+    }
+
+    // A new song starts in sync.
+    LaunchedEffect(mediaMetadata?.id) {
+        isManualScrolling = false
+    }
+
+    // Dragging the progress bar is asking to go somewhere else in the song: follow it.
+    LaunchedEffect(Unit) {
+        var wasSliderActive = false
+        while (isActive) {
+            val sliderActive = latestSliderPositionProvider.value() != null
+            if (sliderActive && !wasSliderActive) isManualScrolling = false
+            wasSliderActive = sliderActive
+            delay(120L)
         }
     }
 
@@ -860,6 +880,7 @@ fun LyricsV2(
                                             }
                                         } else if (lyricsClick && isSynced && item.time > 0) {
                                             player.seekTo(item.time)
+                                            isManualScrolling = false
                                         }
                                     },
                                     onLongClick = {
@@ -996,30 +1017,28 @@ fun LyricsV2(
             }
         }
 
-        if (isManualScrolling && isSynced) {
-            androidx.compose.material3.FilledTonalButton(
-                onClick = {
-                    isManualScrolling = false
-                    scope.launch {
+        val resyncDirection by rememberLyricsResyncDirection(listState) { currentLineIndex }
+        LyricsResyncButton(
+            visible = isManualScrolling && isSynced && !isSelectionModeActive,
+            direction = resyncDirection,
+            onClick = {
+                isManualScrolling = false
+                scope.launch {
+                    val targetIndex = currentLineIndex
+                    if (targetIndex in 0 until listState.layoutInfo.totalItemsCount) {
                         val viewportHeight = listState.layoutInfo.viewportSize.height
                         listState.animateScrollToItem(
-                            index = currentLineIndex,
+                            index = targetIndex,
                             scrollOffset = -(viewportHeight * 0.35f).toInt(),
                         )
                     }
-                },
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp),
-                shapes = ButtonDefaults.shapes(),
-            ) {
-                Text(
-                    text = "Resume",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-        }
+                }
+            },
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp),
+        )
         if (isSelectionModeActive) {
             mediaMetadata?.let { metadata ->
                 Box(

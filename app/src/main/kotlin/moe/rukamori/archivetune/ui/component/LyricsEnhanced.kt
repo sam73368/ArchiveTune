@@ -120,6 +120,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.rukamori.archivetune.LocalAnimationsDisabled
@@ -127,7 +128,9 @@ import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.player.LocalLyricsScrollListener
 import moe.rukamori.archivetune.constants.LyricsClickKey
+import moe.rukamori.archivetune.constants.LyricsHoldManualScrollKey
 import moe.rukamori.archivetune.constants.LyricsLineBlurKey
+import moe.rukamori.archivetune.constants.LyricsScrollKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeChineseKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeHindiKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeJapaneseKey
@@ -165,6 +168,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 
 private const val LYRIC_SYNC_LEAD_MS = 120L
@@ -244,6 +248,8 @@ fun LyricsEnhanced(
     val playbackParameters by playerConnection.playbackParameters.collectAsStateWithLifecycle()
 
     val (lyricsClick) = rememberPreference(LyricsClickKey, defaultValue = true)
+    val (lyricsAutoScroll) = rememberPreference(LyricsScrollKey, defaultValue = true)
+    val (holdManualScroll) = rememberPreference(LyricsHoldManualScrollKey, defaultValue = true)
     val (lyricsTextSizePreference) = rememberPreference(LyricsTextSizeKey, defaultValue = 26f)
     val lyricsTextSize = textSizeOverride ?: lyricsTextSizePreference
 
@@ -726,8 +732,10 @@ fun LyricsEnhanced(
             }
         }
 
-    LaunchedEffect(isManualScrolling, lastManualScrollTime) {
-        if (isManualScrolling) {
+    // By default the position chosen by hand is kept until "Resync" is pressed; with the setting off the
+    // lyrics come back to the sung line after a few idle seconds.
+    LaunchedEffect(isManualScrolling, lastManualScrollTime, holdManualScroll) {
+        if (isManualScrolling && !holdManualScroll) {
             delay(MANUAL_SCROLL_TIMEOUT_MS)
             isManualScrolling = false
         }
@@ -739,6 +747,7 @@ fun LyricsEnhanced(
     }
 
     val latestSyncedLyricsForScroll = rememberUpdatedState(syncedLyrics)
+    val lyricsAutoScrollState = rememberUpdatedState(lyricsAutoScroll)
 
     LaunchedEffect(lyricsSessionKey, isSynced, positionResetCounter, karaokeGeneration) {
         if (!isSynced || singleActiveLine) {
@@ -753,7 +762,7 @@ fun LyricsEnhanced(
 
         var forceNextScroll = true
         snapshotFlow {
-            if (isManualScrolling || isSelectionModeActive) {
+            if (isManualScrolling || isSelectionModeActive || !lyricsAutoScrollState.value) {
                 null
             } else {
                 currentLineIndexState.intValue
@@ -1046,6 +1055,7 @@ fun LyricsEnhanced(
                             onLineClick = { line ->
                                 if (lyricsClick && line.start > 0) {
                                     player.seekTo(line.start.toLong())
+                                    isManualScrolling = false
                                 }
                             },
                             modifier = Modifier.fillMaxSize(),
@@ -1080,6 +1090,7 @@ fun LyricsEnhanced(
                                         toggleSelectedLine(line.selectionKey())
                                     } else if (lyricsClick && isSynced && line.start > 0) {
                                         player.seekTo(line.start.toLong())
+                                        isManualScrolling = false
                                     }
                                 },
                                 onLinePressed = { line ->
@@ -1110,6 +1121,30 @@ fun LyricsEnhanced(
                             )
                         }
                     }
+
+                    val resyncScope = rememberCoroutineScope()
+                    val resyncDirection by rememberLyricsResyncDirection(listState) { currentLineIndexState.intValue }
+                    LyricsResyncButton(
+                        visible = isManualScrolling && isSynced && !isSelectionModeActive,
+                        direction = resyncDirection,
+                        onClick = {
+                            isManualScrolling = false
+                            if (!lyricsAutoScroll) {
+                                // Automatic scrolling is off: Resync is the only thing that brings the sung line back.
+                                resyncScope.launch {
+                                    listState.scrollLyricIntoFocus(
+                                        index = currentLineIndexState.intValue,
+                                        animateToNearbyItem = true,
+                                        force = true,
+                                    )
+                                }
+                            }
+                        },
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 16.dp),
+                    )
                 }
             }
         }
