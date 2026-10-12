@@ -738,13 +738,15 @@ fun Queue(
                     .background(backgroundColor),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
+                // Observed, so the shuffle button follows changes made elsewhere (notification, Smart Shuffle...).
+                val queueShuffleEnabled by playerConnection.shuffleModeEnabled.collectAsState()
                 CurrentSongHeader(
                     sheetState = state,
                     mediaMetadata = mediaMetadata,
                     liked = currentSongLiked,
                     isPlaying = isPlaying,
                     repeatMode = repeatMode,
-                    shuffleModeEnabled = playerConnection.player.shuffleModeEnabled,
+                    shuffleModeEnabled = queueShuffleEnabled,
                     locked = locked,
                     songCount = queueWindows.size,
                     queueDuration = queueLength,

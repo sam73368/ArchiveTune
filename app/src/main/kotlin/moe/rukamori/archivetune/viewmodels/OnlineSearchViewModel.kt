@@ -42,6 +42,7 @@ import moe.rukamori.archivetune.ui.screens.search.OnlineSearchProviderArgument
 import moe.rukamori.archivetune.ui.screens.search.OnlineSearchResultArgument
 import moe.rukamori.archivetune.ui.screens.search.decodeOnlineSearchQuery
 import moe.rukamori.archivetune.extensions.toEnum
+import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.utils.reportException
@@ -161,7 +162,7 @@ class OnlineSearchViewModel
                                             .copy(
                                                 items =
                                                     filterAiContent(
-                                                        summary.items,
+                                                        summary.items.dropCleanTwins(),
                                                         aiContentFilterPolicy,
                                                     ),
                                             )
@@ -204,7 +205,8 @@ class OnlineSearchViewModel
                                                 HideExplicitKey,
                                                 false,
                                             ),
-                                        ).filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false)),
+                                        ).filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false))
+                                        .dropCleanTwins(),
                                     aiContentFilterPolicy,
                                 ),
                                 result.continuation,
@@ -259,7 +261,7 @@ class OnlineSearchViewModel
                         )
                     viewStateMap[filter] =
                         ItemsPage(
-                            (viewState.items + continuedItems).distinctBy { it.id },
+                            (viewState.items + continuedItems).distinctBy { it.id }.dropCleanTwins(),
                             searchResult.continuation,
                         )
                 }

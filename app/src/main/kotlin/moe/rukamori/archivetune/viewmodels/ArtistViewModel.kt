@@ -56,6 +56,7 @@ import moe.rukamori.archivetune.innertube.pages.ArtistSection
 import moe.rukamori.archivetune.innertube.pages.ArtistSectionLayout
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
+import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
 import moe.rukamori.archivetune.utils.SongViewRanking
 import moe.rukamori.archivetune.utils.isLowDataModeActive
 import moe.rukamori.archivetune.utils.reportException
@@ -210,7 +211,8 @@ class ArtistViewModel
                                             section.items
                                                 .filterExplicit(hideExplicit)
                                                 .filterVideo(hideVideo)
-                                                .filterBlockedArtists(blockedArtistIds),
+                                                .filterBlockedArtists(blockedArtistIds)
+                                                .dropCleanTwins(),
                                     )
                                 }
 
@@ -262,6 +264,7 @@ class ArtistViewModel
                     .filterExplicit(hideExplicit)
                     .filterVideo(hideVideo)
                     .filterBlockedArtists(blockedArtistIds)
+                    .dropCleanTwins()
             // Fall back to the songs of the page itself if the full list is unavailable.
             val candidates =
                 if (everySong.size >= previewSize) {

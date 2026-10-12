@@ -29,6 +29,7 @@ import moe.rukamori.archivetune.innertube.models.filterVideo
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPage
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPageLayout
 import moe.rukamori.archivetune.models.ItemsPage
+import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
 import moe.rukamori.archivetune.utils.SongViewRanking
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
@@ -81,7 +82,8 @@ class ArtistItemsViewModel
                                         .distinctBy { it.id }
                                         .filterExplicit(context.dataStore.get(HideExplicitKey, false))
                                         .filterVideo(context.dataStore.get(HideVideoKey, true))
-                                        .filterBlockedArtists(database.getBlockedArtistIds().toSet()),
+                                        .filterBlockedArtists(database.getBlockedArtistIds().toSet())
+                                        .dropCleanTwins(),
                                 continuation = artistItemsPage.continuation,
                             )
 
@@ -116,7 +118,8 @@ class ArtistItemsViewModel
                     collected.songs
                         .filterExplicit(context.dataStore.get(HideExplicitKey, false))
                         .filterVideo(context.dataStore.get(HideVideoKey, true))
-                        .filterBlockedArtists(database.getBlockedArtistIds().toSet()),
+                        .filterBlockedArtists(database.getBlockedArtistIds().toSet())
+                        .dropCleanTwins(),
                 )
             if (ranked.isEmpty()) return
             // Songs beyond the ranked head stay reachable through the remaining continuation.
@@ -138,7 +141,8 @@ class ArtistItemsViewModel
                                         .distinctBy { it.id }
                                         .filterExplicit(context.dataStore.get(HideExplicitKey, false))
                                         .filterVideo(context.dataStore.get(HideVideoKey, true))
-                                        .filterBlockedArtists(database.getBlockedArtistIds().toSet()),
+                                        .filterBlockedArtists(database.getBlockedArtistIds().toSet())
+                                        .dropCleanTwins(),
                                 continuation = artistItemsContinuationPage.continuation,
                             )
                         }
