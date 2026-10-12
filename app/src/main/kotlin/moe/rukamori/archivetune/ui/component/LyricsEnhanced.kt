@@ -1574,7 +1574,7 @@ private fun mainLyricLineIndex(
 ): Int {
     if (lines.isEmpty()) return -1
     var target = index.coerceIn(0, lines.lastIndex)
-    while (target > 0 && (lines[target] as? KaraokeLine)?.isAccompaniment == true) target--
+    while (target > 0 && lines[target] is KaraokeLine.AccompanimentKaraokeLine) target--
     return target
 }
 
