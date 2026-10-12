@@ -59,7 +59,13 @@ jobs:
 
       - name: Build Mobile Universal Debug APK
         shell: bash
-        run: ./gradlew --console=plain assembleGmsMobileUniversalDebug --warning-mode summary
+        # Compile errors are also reported as annotations: the raw job log is not always reachable.
+        run: |
+          set -o pipefail
+          ./gradlew --console=plain assembleGmsMobileUniversalDebug --warning-mode summary 2>&1 | tee build.log || {
+            grep -E "^e: |What went wrong" -A2 build.log | head -40 | while IFS= read -r line; do echo "::error::${line}"; done
+            exit 1
+          }
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           PULL_REQUEST: "true"
