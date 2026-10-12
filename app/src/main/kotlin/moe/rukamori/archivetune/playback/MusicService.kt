@@ -6881,10 +6881,10 @@ class MusicService :
 
         beginHistorySession(mediaItem?.mediaId, forceNew = true)
 
-        val currentIndex = player.currentMediaItemIndex
-        val queue = player.mediaItems.map { it.metadata }
-        if (queue.any { it != null }) {
-            lyricsPreloadManager?.onSongChanged(currentIndex, queue)
+        // The songs about to play, in play order (shuffle included), not the next ones in the list.
+        val upcomingMetadata = upcomingMediaItems(MAX_LYRICS_PRELOAD_LOOKAHEAD).map { it.metadata }
+        if (upcomingMetadata.any { it != null }) {
+            lyricsPreloadManager?.onSongChanged(0, listOf<MediaMetadata?>(null) + upcomingMetadata)
         }
 
         updateSongPreload()
@@ -8144,6 +8144,22 @@ class MusicService :
 
     private val preloadSongsFragmentBytes = 5L * 1024 * 1024
 
+    /** The next [count] items in the order they will really play (follows the shuffle order). */
+    private fun upcomingMediaItems(count: Int): List<MediaItem> {
+        val timeline = player.currentTimeline
+        if (timeline.isEmpty || count <= 0) return emptyList()
+        val shuffle = player.shuffleModeEnabled
+        val window = Timeline.Window()
+        val result = ArrayList<MediaItem>(count)
+        var index = player.currentMediaItemIndex
+        while (result.size < count) {
+            index = timeline.getNextWindowIndex(index, REPEAT_MODE_OFF, shuffle)
+            if (index == C.INDEX_UNSET) break
+            result += timeline.getWindow(index, window).mediaItem
+        }
+        return result
+    }
+
     private fun updateSongPreload() {
         songPreloadJob?.cancel()
         songPreloadJob = null
@@ -8152,11 +8168,8 @@ class MusicService :
         }
         val preloadCount = dataStore.get(PreloadSongsCountKey, DEFAULT_PRELOAD_SONGS_COUNT)
         if (preloadCount <= 0) return
-        val currentIndex = player.currentMediaItemIndex
-        if (currentIndex < 0) return
-        val upcoming =
-            (currentIndex + 1 until minOf(player.mediaItemCount, currentIndex + 1 + preloadCount))
-                .map { player.getMediaItemAt(it) }
+        if (player.currentMediaItemIndex < 0) return
+        val upcoming = upcomingMediaItems(preloadCount)
         if (upcoming.isEmpty()) return
         songPreloadJob =
             ioScope.launch(SilentHandler) {
@@ -12266,6 +12279,7 @@ class MusicService :
         private const val ALTERNATE_UPLOAD_CACHE_KEY_PREFIX = "ytalt:"
         private const val ALTERNATE_SEARCH_TIMEOUT_MS = 8_000L
         private const val STUDIO_MIN_TITLE_SCORE = 0.92
+        private const val MAX_LYRICS_PRELOAD_LOOKAHEAD = 10
         private const val QUEUE_SAVE_DEBOUNCE_MS = 2_000L
         private const val ALTERNATE_CANDIDATE_TIMEOUT_MS = 10_000L
         private const val ALTERNATE_TOTAL_TIMEOUT_MS = 15_000L
