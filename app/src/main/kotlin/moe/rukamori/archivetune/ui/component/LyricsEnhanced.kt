@@ -79,6 +79,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
@@ -175,6 +176,7 @@ private const val LYRIC_VISUAL_TUNING_OFFSET_MS = 0L
 private const val MANUAL_SCROLL_TIMEOUT_MS = 3000L
 private const val MANUAL_SCROLL_DEBOUNCE_MS = 50L
 private const val LYRIC_HOLD_SETTLE_MS = 120L
+private const val LYRIC_ANCHOR_SCREEN_RATIO = 0.11f
 
 
 private const val SMOOTH_PLAYBACK_MAX_FORWARD_DRIFT_MS = 80L
@@ -1116,9 +1118,15 @@ fun LyricsEnhanced(
                             .fillMaxSize()
                             .nestedScroll(nestedScrollConnection),
                 ) {
+                    // Must not follow the height of this box: in the players the playback controls
+                    // appear under the lyrics on every touch and hide again a few seconds later, which
+                    // resizes this box. The karaoke view restarts its auto-scroll whenever `offset`
+                    // changes, so a height-based offset sent the list back to the sung line on every
+                    // touch. The screen height is stable (it only changes on rotation).
+                    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
                     val lyricsViewportOffset =
-                        remember(maxHeight) {
-                            val proportional = maxHeight * 0.16f
+                        remember(screenHeight) {
+                            val proportional = screenHeight * LYRIC_ANCHOR_SCREEN_RATIO
                             if (proportional > 112.dp) proportional else 112.dp
                         }
 
