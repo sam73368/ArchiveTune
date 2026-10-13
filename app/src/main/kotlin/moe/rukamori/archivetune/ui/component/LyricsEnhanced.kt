@@ -18,6 +18,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -113,6 +114,7 @@ import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeSyllable
 import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import com.mocharealm.accompanist.lyrics.ui.composable.lyrics.KaraokeLyricsView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -162,6 +164,7 @@ import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.utils.reportException
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import androidx.compose.runtime.getValue
@@ -176,6 +179,10 @@ private const val LYRIC_VISUAL_TUNING_OFFSET_MS = 0L
 private const val MANUAL_SCROLL_TIMEOUT_MS = 3000L
 private const val MANUAL_SCROLL_DEBOUNCE_MS = 50L
 private const val LYRIC_HOLD_SETTLE_MS = 120L
+private const val LYRIC_SMOOTH_RETURN_MAX_LINES = 5
+private const val LYRIC_RETURN_FADE_OUT_MS = 110
+private const val LYRIC_RETURN_SETTLE_MS = 500L
+private const val LYRIC_RETURN_FADE_IN_MS = 180
 private const val LYRIC_ANCHOR_SCREEN_RATIO = 0.11f
 
 
@@ -583,6 +590,9 @@ fun LyricsEnhanced(
         }
     }
 
+    // Multiplies the list alpha while it jumps far back to the sung line (see the resync effect).
+    val returnVeil = remember(listState) { Animatable(1f) }
+
     LaunchedEffect(awaitingFirstFocus) {
         if (!awaitingFirstFocus) return@LaunchedEffect
         delay(LYRIC_FIRST_FOCUS_TIMEOUT_MS)
@@ -832,7 +842,22 @@ fun LyricsEnhanced(
         if (lines.isEmpty()) return@LaunchedEffect
         val target = if (index < 0) 0 else mainLyricLineIndex(lines, index)
         if (target in 0 until listState.layoutInfo.totalItemsCount) {
-            listState.animateScrollToItem(target, 0)
+            val distance = abs(target - listState.firstVisibleItemIndex)
+            if (distance <= LYRIC_SMOOTH_RETURN_MAX_LINES) {
+                listState.animateScrollToItem(target, 0)
+            } else {
+                // A long way back: the karaoke view springs every line from its old place after such a
+                // jump, which shows as lines piling up on each other. Hide the jump instead.
+                try {
+                    returnVeil.animateTo(0f, tween(LYRIC_RETURN_FADE_OUT_MS, easing = LinearEasing))
+                    listState.scrollToItem(target, 0)
+                    delay(LYRIC_RETURN_SETTLE_MS)
+                } finally {
+                    withContext(NonCancellable) {
+                        returnVeil.animateTo(1f, tween(LYRIC_RETURN_FADE_IN_MS, easing = LinearEasing))
+                    }
+                }
+            }
         }
     }
 
@@ -1014,7 +1039,7 @@ fun LyricsEnhanced(
                 .fillMaxSize()
                 .padding(bottom = 12.dp)
 
-                .graphicsLayer { alpha = firstFocusAlpha.value },
+                .graphicsLayer { alpha = firstFocusAlpha.value * returnVeil.value },
     ) {
         when {
             lyrics == LYRICS_NOT_FOUND -> {
