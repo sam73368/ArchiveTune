@@ -36,11 +36,13 @@ data class LyricsRomanizationPreferences(
 
 @Suppress("RegExpRedundantEscape")
 object LyricsUtils {
-    val LINE_REGEX = Regex("""((\[\d{1,3}:\d{2}(?:[.:]\d{2,3})?\]\s*)+)(.*)""")
-    val TIME_REGEX = Regex("""\[(\d{1,3}):(\d{2})(?:[.:](\d{2,3}))?\]""")
+    // The fraction may have 1 to 3 digits ("[00:12.5]" is valid LRC and used to be dropped).
+    val LINE_REGEX = Regex("""((\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]\s*)+)(.*)""")
+    val TIME_REGEX = Regex("""\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]""")
+    private val LRC_OFFSET_TAG_REGEX = Regex("""^\s*\[offset:\s*([+-]?\d{1,7})\s*]\s*$""", RegexOption.IGNORE_CASE)
     private val WHITESPACE_REGEX = "\\s+".toRegex()
-    private val ENHANCED_LRC_WORD_TIME_REGEX = Regex("""<\d{1,3}:\d{2}(?:[.:]\d{2,3})?>""")
-    private val ENHANCED_LRC_WORD_TOKEN_REGEX = Regex("""(<\d{1,3}:\d{2}(?:[.:]\d{2,3})?>)([^<]*)""")
+    private val ENHANCED_LRC_WORD_TIME_REGEX = Regex("""<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>""")
+    private val ENHANCED_LRC_WORD_TOKEN_REGEX = Regex("""(<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>)([^<]*)""")
     private val INLINE_MILLISECONDS_TIME_REGEX = Regex("""<\d{1,8}(?:,\d{1,8})?>""")
     private val YRC_LINE_REGEX = Regex("""\[(\d{1,8}),\d{1,8}\](.*)""")
     private val YRC_WORD_TIME_REGEX = Regex("""\(\d{1,8},\d{1,8}(?:,\d{1,8})?\)""")
@@ -629,10 +631,18 @@ object LyricsUtils {
         return lastMs < durationMs * 65 / 100 && durationMs - lastMs > 40_000L
     }
 
+    /** Never throws: unreadable lyrics give an empty list, which the screens show as "not found". */
     fun parseTtml(
         lyrics: String,
         durationSeconds: Int? = null,
-    ): List<LyricsEntry> {
+    ): List<LyricsEntry> =
+        try {
+            parseTtmlUnsafe(lyrics)
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+    private fun parseTtmlUnsafe(lyrics: String): List<LyricsEntry> {
         val parsedLines = TTMLParser.parseTTML(normalizeLyricsText(lyrics))
         if (parsedLines.isEmpty()) return emptyList()
         val scale = 1.0
@@ -668,7 +678,25 @@ object LyricsUtils {
             }.sorted()
     }
 
-    fun parseLyrics(lyrics: String): List<LyricsEntry> {
+    /** Never throws: unreadable lyrics give an empty list, which the screens show as "not found". */
+    fun parseLyrics(lyrics: String): List<LyricsEntry> =
+        try {
+            parseLyricsUnsafe(lyrics)
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+    /**
+     * The standard LRC `[offset:+/-ms]` tag: a positive value shows the lyrics earlier. It was ignored,
+     * so files that rely on it were out of sync by that amount.
+     */
+    internal fun lrcOffsetMs(lyrics: String): Long =
+        lyrics
+            .lineSequence()
+            .firstNotNullOfOrNull { LRC_OFFSET_TAG_REGEX.matchEntire(it)?.groupValues?.get(1)?.toLongOrNull() }
+            ?: 0L
+
+    private fun parseLyricsUnsafe(lyrics: String): List<LyricsEntry> {
         val normalizedLyrics = normalizeLyricsText(lyrics)
         if (QRCParser.isQrc(normalizedLyrics)) {
             val translationsByStartMs = extractQrcTranslations(normalizedLyrics)
@@ -702,8 +730,25 @@ object LyricsUtils {
                 result.addAll(entries)
             }
         }
-        val merged = mergeLineSyncedTranslations(result).sorted()
+        val offsetMs = lrcOffsetMs(normalizedLyrics)
+        val shifted = if (offsetMs == 0L) result else result.map { it.shiftedBy(-offsetMs) }
+        val merged = mergeLineSyncedTranslations(shifted).sorted()
         return clampEnhancedLrcLastWordEnds(merged)
+    }
+
+    private fun LyricsEntry.shiftedBy(deltaMs: Long): LyricsEntry {
+        val newTime = (time + deltaMs).coerceAtLeast(0L)
+        val actualDeltaSec = (newTime - time) / 1000.0
+        return copy(
+            time = newTime,
+            words =
+                words?.map { word ->
+                    word.copy(
+                        startTime = (word.startTime + actualDeltaSec).coerceAtLeast(0.0),
+                        endTime = (word.endTime + actualDeltaSec).coerceAtLeast(0.0),
+                    )
+                },
+        )
     }
 
     private fun clampEnhancedLrcLastWordEnds(entries: List<LyricsEntry>): List<LyricsEntry> =

@@ -1667,22 +1667,40 @@ class MusicService :
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
             dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
-        ) { mediaMetadata, _ ->
+            // Coming back online retries a song whose lyrics could not be fetched while offline.
+            isNetworkConnected,
+        ) { mediaMetadata, _, _ ->
             mediaMetadata
         }.collectLatest(ioScope) { mediaMetadata ->
             if (mediaMetadata == null || mediaMetadata.isPodcast) return@collectLatest
 
-            val stored = database.lyrics(mediaMetadata.id).first()
-            val shouldFetch =
-                stored == null || stored.lyrics == LyricsEntity.LYRICS_NOT_FOUND
-            if (shouldFetch) {
-                val lyricsResult = lyricsHelper.getLyricsWithProvider(mediaMetadata)
-                database.query {
-                    replaceLyricsIfAbsentOrNotFound(
-                        id = mediaMetadata.id,
-                        lyrics = lyricsResult.lyrics,
-                        providerName = lyricsResult.providerName,
-                    )
+            // One failure (database, provider, parser) used to end this collector for the rest of the
+            // session: lyrics then stayed on the loading placeholder for every following song.
+            try {
+                val stored = database.lyrics(mediaMetadata.id).first()
+                val shouldFetch =
+                    stored == null || stored.lyrics == LyricsEntity.LYRICS_NOT_FOUND
+                if (shouldFetch) {
+                    val lyricsResult = lyricsHelper.getLyricsWithProvider(mediaMetadata)
+                    database.query {
+                        replaceLyricsIfAbsentOrNotFound(
+                            id = mediaMetadata.id,
+                            lyrics = lyricsResult.lyrics,
+                            providerName = lyricsResult.providerName,
+                        )
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportException(e)
+                // Leave "not found" rather than an endless loading placeholder; it is retried later.
+                runCatching {
+                    if (database.getLyricsById(mediaMetadata.id) == null) {
+                        database.query {
+                            replaceLyricsIfAbsentOrNotFound(id = mediaMetadata.id, lyrics = LyricsEntity.LYRICS_NOT_FOUND)
+                        }
+                    }
                 }
             }
         }

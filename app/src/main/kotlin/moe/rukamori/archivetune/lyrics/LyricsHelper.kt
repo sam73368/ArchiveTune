@@ -12,7 +12,11 @@ import android.util.Log
 import android.util.LruCache
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.coroutineScope
@@ -61,6 +65,11 @@ class LyricsHelper
         private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
         private val singleLyricsCache = LruCache<String, LyricsResult>(MAX_CACHE_SIZE)
 
+        // The player service, the queue pre-loader and the lyrics screen can all ask for the same song at
+        // the same moment: they now share one search instead of hitting every provider two or three times.
+        private val inFlightScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val inFlight = HashMap<String, Deferred<LyricsResult>>()
+
         suspend fun getLyrics(
             mediaMetadata: MediaMetadata,
             preferredProviderOnly: Boolean = false,
@@ -75,6 +84,35 @@ class LyricsHelper
             mediaMetadata: MediaMetadata,
             preferredProviderOnly: Boolean = false,
             forceRefresh: Boolean = false,
+        ): LyricsResult {
+            if (forceRefresh || preferredProviderOnly) {
+                return fetchLyricsWithProvider(mediaMetadata, preferredProviderOnly, forceRefresh)
+            }
+            val key = mediaMetadata.lyricsCacheKey
+            lateinit var created: Deferred<LyricsResult>
+            val shared =
+                synchronized(inFlight) {
+                    inFlight[key]?.takeIf { it.isActive }
+                        ?: inFlightScope
+                            .async(start = CoroutineStart.LAZY) {
+                                try {
+                                    fetchLyricsWithProvider(mediaMetadata, preferredProviderOnly = false, forceRefresh = false)
+                                } finally {
+                                    synchronized(inFlight) { inFlight.remove(key, created) }
+                                }
+                            }.also {
+                                created = it
+                                inFlight[key] = it
+                            }
+                }
+            shared.start()
+            return shared.await()
+        }
+
+        private suspend fun fetchLyricsWithProvider(
+            mediaMetadata: MediaMetadata,
+            preferredProviderOnly: Boolean,
+            forceRefresh: Boolean,
         ): LyricsResult {
             val cacheKey = mediaMetadata.lyricsCacheKey
 
@@ -275,7 +313,10 @@ class LyricsHelper
                     }.forEach { it.await() }
                 }
             }
-            cache.put(cacheKey, allResult.toList())
+            // An empty list (offline, every provider timed out) must not be cached: the next search
+            // would show nothing until the cache entry is evicted.
+            val found = synchronized(allResult) { allResult.toList() }
+            if (found.isNotEmpty()) cache.put(cacheKey, found)
         }
 
         private suspend fun fetchPriorityLyricsResult(

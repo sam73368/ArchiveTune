@@ -207,6 +207,8 @@ private data class KaraokeBuild(
     val lyrics: SyncedLyrics,
     val romanization: Map<Int, List<String?>>,
     val generation: Int,
+    /** The parsed lines this build was made from: until it matches, the loading placeholder shows. */
+    val forEntries: List<LyricsEntry>? = null,
 )
 
 private fun Map<Int, List<String?>>.renderedRomanization(): Map<Int, List<String?>> =
@@ -430,18 +432,28 @@ fun LyricsEnhanced(
             val changesVisibleLines =
                 previous.lyrics.lines.isNotEmpty() &&
                     romanization.renderedRomanization() != previous.romanization.renderedRomanization()
+            // A line the karaoke builder cannot handle must not take the whole screen down.
+            val built =
+                try {
+                    buildSyncedLyrics(
+                        entries = lyricsEntries,
+                        romanizationMap = romanization,
+                        providerHeader = lyricsProviderLabel,
+                        composerFooter = composerFooterLabel,
+                        compactTranslation = singleActiveLine,
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    reportException(e)
+                    SyncedLyrics(emptyList())
+                }
             karaokeBuild =
                 KaraokeBuild(
-                    lyrics =
-                        buildSyncedLyrics(
-                            entries = lyricsEntries,
-                            romanizationMap = romanization,
-                            providerHeader = lyricsProviderLabel,
-                            composerFooter = composerFooterLabel,
-                            compactTranslation = singleActiveLine,
-                        ),
+                    lyrics = built,
                     romanization = romanization,
                     generation = if (changesVisibleLines) previous.generation + 1 else previous.generation,
+                    forEntries = lyricsEntries,
                 )
         }
 
@@ -537,6 +549,16 @@ fun LyricsEnhanced(
             }
         }
     val currentLineIndexState = remember { mutableIntStateOf(-1) }
+
+    // Lines are timed in "lyrics time" = player position + sync offset + lead. Tapping a line used to
+    // seek the player to the lyrics time, which with a sync offset landed up to 3 s away from the line.
+    val playerPositionForLyricTime: (Int) -> Long =
+        remember {
+            { lyricTimeMs ->
+                (lyricTimeMs.toLong() - latestLyricsSyncOffset.value - latestLeadMs.value - LYRIC_VISUAL_TUNING_OFFSET_MS)
+                    .coerceAtLeast(0L)
+            }
+        }
 
     val activeKaraokeLine =
         remember(syncedLyrics, currentLineIndexState.intValue, singleActiveLine) {
@@ -644,6 +666,9 @@ fun LyricsEnhanced(
             if (lastRawPositionMs - rawPlayerPosition > POSITION_RESET_BACKWARD_THRESHOLD_MS) {
                 positionResetCounter += 1
                 currentLineIndexState.intValue = -1
+                // Force a new search: a jump back inside the same long line left the index at -1
+                // (no highlighted line) until the next line started.
+                cachedLineIdx = -1
             }
             lastRawPositionMs = rawPlayerPosition
 
@@ -1059,7 +1084,7 @@ fun LyricsEnhanced(
                 }
             }
 
-            isSynced && syncedLyrics.lines.isEmpty() && lyricsEntries.isNotEmpty() -> {
+            isSynced && lyricsEntries.isNotEmpty() && karaokeBuild.forEntries !== lyricsEntries -> {
                 ShimmerHost {
                     repeat(6) { TextPlaceholder() }
                 }
@@ -1125,8 +1150,8 @@ fun LyricsEnhanced(
                             phoneticTextStyle = phoneticTextStyle,
                             showTranslation = showTranslations,
                             onLineClick = { line ->
-                                if (lyricsClick && line.start > 0) {
-                                    player.seekTo(line.start.toLong())
+                                if (lyricsClick && line.isTimedLyricLine()) {
+                                    player.seekTo(playerPositionForLyricTime(line.start))
                                     isManualScrolling = false
                                 }
                             },
@@ -1166,8 +1191,8 @@ fun LyricsEnhanced(
                                 onLineClicked = { line ->
                                     if (isSelectionModeActive) {
                                         toggleSelectedLine(line.selectionKey())
-                                    } else if (lyricsClick && isSynced && line.start > 0) {
-                                        player.seekTo(line.start.toLong())
+                                    } else if (lyricsClick && isSynced && line.isTimedLyricLine()) {
+                                        player.seekTo(playerPositionForLyricTime(line.start))
                                         if (isManualScrolling) {
                                             resyncTarget = syncedLyrics.lines.indexOf(line)
                                             resyncRequests++
@@ -1746,7 +1771,19 @@ private fun buildSyncedLyrics(
 
             val lineStart = mainSyllables.first().start
             val lineEnd = mainSyllables.last().end
-            if (lineEnd <= lineStart) return@forEachIndexed
+            if (lineEnd <= lineStart) {
+                // Broken word timings: keep the line, timed as a whole, instead of dropping its text.
+                lines.add(
+                    buildLineSyncedLrcLine(
+                        entry = entry,
+                        romanizedText = romanizationMap[index]?.filterNotNull()?.joinToString(" "),
+                        start = entry.time.toInt(),
+                        end = lineSyncedEnd(entries, index),
+                        compactTranslation = compactTranslation,
+                    ),
+                )
+                return@forEachIndexed
+            }
 
             val lineTranslation = translation
 
@@ -1785,14 +1822,7 @@ private fun buildSyncedLyrics(
                 ),
             )
         } else {
-            val nextEntry = entries.getOrNull(index + 1)
-
-            val lineEnd =
-                if (nextEntry != null && nextEntry.time > entry.time) {
-                    nextEntry.time.toInt()
-                } else {
-                    (entry.time + LINE_SYNCED_TRAILING_LINE_DURATION_MS).toInt()
-                }
+            val lineEnd = lineSyncedEnd(entries, index)
             lines.add(
                 buildLineSyncedLrcLine(
                     entry = entry,
@@ -1816,8 +1846,29 @@ private fun buildSyncedLyrics(
         )
     }
 
-    return SyncedLyrics(lines = lines)
+    // The current line is found by a binary search on `start`: word-timed lines take their start from
+    // their first word, which can come slightly before the previous line's start. Keep them ordered
+    // (stable sort: the header stays first, the credits last).
+    return SyncedLyrics(lines = lines.sortedBy { it.start })
 }
+
+/** End of a line-timed line: the next line that starts later, or a few seconds when there is none. */
+private fun lineSyncedEnd(
+    entries: List<LyricsEntry>,
+    index: Int,
+): Int {
+    val entry = entries[index]
+    val nextStart =
+        entries
+            .asSequence()
+            .drop(index + 1)
+            .firstOrNull { it.time > entry.time }
+            ?.time
+    return (nextStart ?: (entry.time + LINE_SYNCED_TRAILING_LINE_DURATION_MS)).toInt()
+}
+
+/** A sung line (not the provider header or the credits, which use negative / far-away times). */
+private fun ISyncedLine.isTimedLyricLine(): Boolean = start in 0 until 86_400_000
 
 private fun buildLineSyncedLrcLine(
     entry: LyricsEntry,

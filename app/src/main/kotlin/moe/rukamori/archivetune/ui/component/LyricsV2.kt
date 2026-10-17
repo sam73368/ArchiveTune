@@ -278,7 +278,8 @@ fun LyricsV2(
     var showShareImageDialog by remember { mutableStateOf(false) }
 
     val currentLyrics by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
-    val lyrics = currentLyrics?.lyrics
+    // While the song changes, the lyrics row can still be the previous song's for a moment.
+    val lyrics = currentLyrics?.takeIf { it.id == mediaMetadata?.id }?.lyrics
     val showTranslations =
         remember(currentLyrics?.source) {
             currentLyrics?.source == LyricsEntity.Source.AI_TRANSLATION.value
@@ -403,6 +404,17 @@ fun LyricsV2(
     var currentPositionMs by currentPositionMsState
     var playbackPositionMs by remember { mutableLongStateOf(0L) }
     var currentLineIndex by remember { mutableIntStateOf(0) }
+
+    // Lines are timed in "lyrics time" (player position + sync offset + lead): seeking to a line must
+    // take those back off, or a sync offset sends the player up to 3 s away from the tapped line.
+    val latestLyricsSyncOffsetV2 = rememberUpdatedState(lyricsSyncOffset)
+    val latestLeadMsV2 = rememberUpdatedState(leadMs + visualTuningMs)
+    val playerPositionForLyricTime: (Long) -> Long =
+        remember {
+            { lyricTimeMs ->
+                (lyricTimeMs - latestLyricsSyncOffsetV2.value - latestLeadMsV2.value).coerceAtLeast(0L)
+            }
+        }
 
     val currentPositionProvider: () -> Long =
         remember(currentPositionMsState) { { currentPositionMsState.longValue } }
@@ -677,7 +689,7 @@ fun LyricsV2(
                         textColor = textColor,
                         inactiveAlpha = inactiveAlpha,
                         playbackPositionProvider = { playbackPositionMs },
-                        onSeek = { time -> player.seekTo(time) },
+                        onSeek = { time -> player.seekTo(playerPositionForLyricTime(time)) },
                     )
                     return@itemsIndexed
                 }
@@ -878,8 +890,8 @@ fun LyricsV2(
                                                     showMaxSelectionToast = true
                                                 }
                                             }
-                                        } else if (lyricsClick && isSynced && item.time > 0) {
-                                            player.seekTo(item.time)
+                                        } else if (lyricsClick && isSynced && item.time >= 0) {
+                                            player.seekTo(playerPositionForLyricTime(item.time))
                                             isManualScrolling = false
                                         }
                                     },
