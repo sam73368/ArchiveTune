@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import moe.rukamori.archivetune.ForkRepositoryUrl
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.component.EditTextPreference
 import moe.rukamori.archivetune.ui.component.FrostedHeaderPill
@@ -94,7 +95,7 @@ fun DiscordExperimental(
     val (button2CustomUrl, onButton2CustomUrlChange) =
         rememberPreference(
             key = DiscordActivityButton2CustomUrlKey,
-            defaultValue = "https://github.com/rukamori/ArchiveTune",
+            defaultValue = ForkRepositoryUrl,
         )
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()

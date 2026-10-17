@@ -428,8 +428,8 @@ fun LyricsMenu(
                 Slider(
                     value = tempLyricsSyncOffset,
                     onValueChange = { tempLyricsSyncOffset = it },
-                    valueRange = -1000f..1000f,
-                    steps = 79,
+                    valueRange = -3000f..3000f,
+                    steps = 239,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

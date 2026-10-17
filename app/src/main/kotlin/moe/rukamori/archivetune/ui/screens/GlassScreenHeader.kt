@@ -85,6 +85,7 @@ fun BoxScope.GlassScreenHeaderOverlay(
     onBackLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     onSearch: (() -> Unit)? = null,
+    onHome: (() -> Unit)? = null,
     scrolled: Boolean = true,
     trailing: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)? = null,
 ) {
@@ -124,7 +125,7 @@ fun BoxScope.GlassScreenHeaderOverlay(
         GlassPillTitleText(text = title)
     }
 
-    if (onSearch != null || trailing != null) {
+    if (onHome != null || onSearch != null || trailing != null) {
         LiquidGlassActionPill(
             backdrop = backdrop,
             modifier =
@@ -132,6 +133,23 @@ fun BoxScope.GlassScreenHeaderOverlay(
                     .align(Alignment.TopEnd)
                     .padding(end = 12.dp, top = systemBarsTopPadding + 12.dp),
         ) {
+            if (onHome != null) {
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AppIconButton(
+                        onClick = onHome,
+                        onLongClick = {},
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                            tint = liquidGlassContentColor(),
+                        )
+                    }
+                }
+            }
             if (onSearch != null) {
                 Box(
                     modifier = Modifier.size(48.dp),

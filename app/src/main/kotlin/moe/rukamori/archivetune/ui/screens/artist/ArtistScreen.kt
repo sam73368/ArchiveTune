@@ -198,6 +198,7 @@ import moe.rukamori.archivetune.ui.theme.PlayerPaletteCache
 import moe.rukamori.archivetune.ui.utils.YtimgResizePolicy
 import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.ui.utils.formatCompactCount
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.ui.utils.resize
 import moe.rukamori.archivetune.utils.ReleaseRadarRepository
 import moe.rukamori.archivetune.utils.UpcomingRelease
@@ -1164,7 +1165,7 @@ fun ArtistScreen(
                                                     playerConnection.playQueue(
                                                         ListQueue(
                                                             title = libraryArtist?.artist?.name ?: "Unknown Artist",
-                                                            items = librarySongs.map { it.toMediaItem() },
+                                                            items = filteredLibrarySongs.map { it.toMediaItem() },
                                                             startIndex = index,
                                                         ),
                                                     )
@@ -1613,6 +1614,13 @@ fun ArtistScreen(
             ) {
                 LiquidGlassIconButton(
                     backdrop = artworkBackdrop,
+                    painter = painterResource(R.drawable.home_outlined),
+                    contentDescription = stringResource(R.string.home),
+                    modifier = Modifier.size(48.dp),
+                    onClick = { navController.navigateHome() },
+                )
+                LiquidGlassIconButton(
+                    backdrop = artworkBackdrop,
                     painter = painterResource(R.drawable.solar_share_linear),
                     contentDescription = stringResource(R.string.share),
                     tint = heroGlassContentColor,
@@ -1705,6 +1713,15 @@ fun ArtistScreen(
             }
         },
         actions = {
+            IconButton(
+                onClick = { navController.navigateHome() },
+                onLongClick = {},
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.home_outlined),
+                    contentDescription = stringResource(R.string.home),
+                )
+            }
             IconButton(
                 onClick = showArtistOverflowMenu,
                 onLongClick = {},

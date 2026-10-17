@@ -25,6 +25,7 @@ object PlayerFadeConfig {
         PlayerDesignStyle.V9 to FadeThresholds(titleMinChars = 30, artistMinChars = 32),
         PlayerDesignStyle.V10 to FadeThresholds(titleMinChars = 32, artistMinChars = 34),
         PlayerDesignStyle.APPLE_MUSIC to FadeThresholds(titleMinChars = 28, artistMinChars = 30),
+        PlayerDesignStyle.APPLE_MUSIC_CLASSIC to FadeThresholds(titleMinChars = 28, artistMinChars = 30),
     )
 
     val miniPlayer = FadeThresholds(titleMinChars = 22, artistMinChars = 24, fadeWidth = 16.dp)

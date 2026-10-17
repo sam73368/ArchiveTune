@@ -70,6 +70,7 @@ import moe.rukamori.archivetune.podcast.PodcastUiState
 import moe.rukamori.archivetune.ui.component.MediaDetailHero
 import moe.rukamori.archivetune.ui.component.MediaDetailStatePanel
 import moe.rukamori.archivetune.ui.utils.YtimgResizePolicy
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.ui.utils.resize
 import moe.rukamori.archivetune.viewmodels.PodcastViewModel
 
@@ -89,6 +90,7 @@ fun PodcastScreen(
     val onPlayAll = remember(viewModel) { { viewModel.onAction(PodcastAction.PlayAll) } }
     val onPlayEpisode = remember(viewModel) { { id: String -> viewModel.onAction(PodcastAction.PlayEpisode(id)) } }
     val onBack: () -> Unit = remember(navController) { { navController.navigateUp() } }
+    val onHome: () -> Unit = remember(navController) { { navController.navigateHome() } }
 
     LaunchedEffect(viewModel, playerConnection, unknownErrorMessage) {
         viewModel.events.collect { event ->
@@ -119,6 +121,7 @@ fun PodcastScreen(
         state = state,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
+        onHome = onHome,
         onRetry = onRetry,
         onLoadMore = onLoadMore,
         onPlayAll = onPlayAll,
@@ -131,6 +134,7 @@ private fun PodcastScreenContent(
     state: PodcastScreenState,
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
+    onHome: () -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onPlayAll: () -> Unit,
@@ -175,6 +179,7 @@ private fun PodcastScreenContent(
         PodcastTopAppBar(
             title = (state as? PodcastScreenState.Success)?.uiState?.title.orEmpty(),
             onBack = onBack,
+            onHome = onHome,
             modifier = Modifier.align(Alignment.TopCenter),
         )
         SnackbarHost(
@@ -358,6 +363,7 @@ private fun PodcastEpisodeRow(
 private fun PodcastTopAppBar(
     title: String,
     onBack: () -> Unit,
+    onHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     TopAppBar(
@@ -373,6 +379,14 @@ private fun PodcastTopAppBar(
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),
                     contentDescription = stringResource(R.string.back_button_desc),
+                )
+            }
+        },
+        actions = {
+            IconButton(onClick = onHome) {
+                Icon(
+                    painter = painterResource(R.drawable.home_outlined),
+                    contentDescription = stringResource(R.string.home),
                 )
             }
         },

@@ -189,7 +189,10 @@ fun AddToPlaylistDialogOnline(
                                                     if (addToLiked) {
                                                         val entity = media.toSongEntity()
                                                         database.query {
-                                                            update(entity.toggleLike())
+                                                            // Keep the stored row (play time, custom title, block state):
+                                                            // only flip it to liked when it isn't already.
+                                                            val current = getSongByIdBlocking(entity.id)?.song ?: entity
+                                                            if (!current.liked) update(current.toggleLike())
                                                         }
                                                     }
                                                     synchronized(succeededIds) {
@@ -437,7 +440,8 @@ fun AddToPlaylistDialogOnline(
                                     .fillMaxWidth()
                                     .height(150.dp),
                         ) {
-                            items(summary.failedItems, key = { it }) { title ->
+                            items(summary.failedItems.size, key = { it }) { failedIndex ->
+                                val title = summary.failedItems[failedIndex]
                                 Text(
                                     text = "• $title",
                                     style = MaterialTheme.typography.bodySmall,

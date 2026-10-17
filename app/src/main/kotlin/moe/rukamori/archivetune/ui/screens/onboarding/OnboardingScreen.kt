@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.onboarding
 
+import androidx.activity.compose.BackHandler
 import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -264,6 +265,8 @@ private fun OnboardingSuccessContent(
             initialPage = uiState.currentPage,
             pageCount = { uiState.pages.size },
         )
+
+    BackHandler(enabled = uiState.currentPage > 0, onBack = onBack)
 
     LaunchedEffect(uiState.currentPage, uiState.pages.size) {
         val targetPage = uiState.currentPage.coerceIn(0, uiState.pages.lastIndex)

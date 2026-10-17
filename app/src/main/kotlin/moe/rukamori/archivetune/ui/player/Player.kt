@@ -192,6 +192,9 @@ import moe.rukamori.archivetune.constants.DarkModeKey
 import moe.rukamori.archivetune.constants.DisableBlurKey
 import moe.rukamori.archivetune.constants.EnableHapticFeedbackKey
 import moe.rukamori.archivetune.constants.EnableVideoPlaybackKey
+import moe.rukamori.archivetune.constants.HideVideoKey
+import moe.rukamori.archivetune.playback.UserChosenClips
+import moe.rukamori.archivetune.utils.rememberPersistedLyricsSyncOffset
 import moe.rukamori.archivetune.constants.InnerTubeCookieKey
 import moe.rukamori.archivetune.constants.MaxCanvasCacheSizeKey
 import moe.rukamori.archivetune.constants.PlayerBackgroundStyle
@@ -448,6 +451,7 @@ fun BottomSheetPlayer(
         playerDesignStyle == PlayerDesignStyle.V9 ||
             playerDesignStyle == PlayerDesignStyle.V10 ||
             playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC ||
+                playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC_CLASSIC ||
             playerDesignStyle == PlayerDesignStyle.BITCHORD ||
             playerDesignStyle == PlayerDesignStyle.TIKTOK ||
             playerDesignStyle == PlayerDesignStyle.SIMPMUSIC ||
@@ -468,6 +472,9 @@ fun BottomSheetPlayer(
     val (showCodecOnPlayer) = rememberPreference(ShowCodecOnPlayerKey, false)
     val (incrementalSeekSkipEnabled) = rememberPreference(moe.rukamori.archivetune.constants.SeekExtraSeconds, defaultValue = false)
     val enableVideoPlayback by rememberPreference(EnableVideoPlaybackKey, defaultValue = true)
+    // "Hide music videos": clips play as audio (their studio version when one exists), so the
+    // clip picture is not shown either.
+    val hideMusicVideos by rememberPreference(HideVideoKey, defaultValue = true)
     var keyboardSkipMultiplier by remember { mutableStateOf(1) }
     var lastKeyboardTapTime by remember { mutableLongStateOf(0L) }
 
@@ -581,9 +588,7 @@ fun BottomSheetPlayer(
 
     val durationUpdatedState = rememberUpdatedState(duration)
     val durationProvider = remember { { durationUpdatedState.value } }
-    var lyricsSyncOffset by rememberSaveable(mediaMetadata?.id) {
-        mutableIntStateOf(0)
-    }
+    var lyricsSyncOffset by rememberPersistedLyricsSyncOffset(mediaMetadata?.id)
     var sliderPosition by remember(mediaMetadata?.id) {
         mutableStateOf<Long?>(null)
     }
@@ -836,10 +841,6 @@ fun BottomSheetPlayer(
             }
         }
 
-    val download by LocalDownloadUtil.current
-        .getDownload(mediaMetadata?.id ?: "")
-        .collectAsStateWithLifecycle(initialValue = null)
-
     val sleepTimerEnabled =
         remember(
             playerConnection.service.sleepTimer.triggerTime,
@@ -857,7 +858,9 @@ fun BottomSheetPlayer(
             while (isActive) {
                 sleepTimerTimeLeft =
                     if (playerConnection.service.sleepTimer.pauseWhenSongEnd) {
-                        playerConnection.player.duration - playerConnection.player.currentPosition
+                        playerConnection.player.duration.let { total ->
+                            if (total == androidx.media3.common.C.TIME_UNSET) 0L else (total - playerConnection.player.currentPosition).coerceAtLeast(0L)
+                        }
                     } else {
                         playerConnection.service.sleepTimer.triggerTime - System.currentTimeMillis()
                     }
@@ -1011,6 +1014,7 @@ fun BottomSheetPlayer(
         if (
             playerDesignStyle == PlayerDesignStyle.V5 ||
             playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC ||
+                playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC_CLASSIC ||
             playerDesignStyle == PlayerDesignStyle.BITCHORD ||
             playerDesignStyle == PlayerDesignStyle.TIKTOK ||
             playerDesignStyle == PlayerDesignStyle.SIMPMUSIC ||
@@ -1169,9 +1173,10 @@ fun BottomSheetPlayer(
     }
 
     val videoFullscreenHolder = LocalVideoFullscreenState.current
+    val chosenClips by UserChosenClips.ids.collectAsStateWithLifecycle()
     val videoMediaId =
         mediaMetadata
-            ?.takeIf { enableVideoPlayback && it.isMusicVideo == true && !it.id.isLocalMediaId() }
+            ?.takeIf { enableVideoPlayback && (!hideMusicVideos || it.id in chosenClips) && it.isMusicVideo == true && !it.id.isLocalMediaId() }
             ?.id
 
     var videoQualityStored by rememberPreference(VideoQualityPreferredHeightKey, VideoQualityPreference.HIGH_QUALITY)
@@ -1296,7 +1301,10 @@ fun BottomSheetPlayer(
                             lastKeyboardTapTime = now
                             val skipAmount = 5000L * keyboardSkipMultiplier
                             playerConnection.player.seekTo(
-                                (playerConnection.player.currentPosition + skipAmount).coerceAtMost(playerConnection.player.duration),
+                                playerConnection.player.duration.let { total ->
+                                    val target = playerConnection.player.currentPosition + skipAmount
+                                    if (total == C.TIME_UNSET || total <= 0L) target else target.coerceAtMost(total)
+                                },
                             )
                             true
                         }
@@ -1479,6 +1487,7 @@ fun BottomSheetPlayer(
             canvasOptionsEnabled &&
                 (
                     playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC ||
+                playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC_CLASSIC ||
                         playerDesignStyle == PlayerDesignStyle.V9 ||
                         playerDesignStyle == PlayerDesignStyle.SPATIALFLOW ||
                         playerDesignStyle == PlayerDesignStyle.BITCHORD ||
@@ -1687,6 +1696,7 @@ fun BottomSheetPlayer(
             playerDesignStyle != PlayerDesignStyle.V9 &&
             playerDesignStyle != PlayerDesignStyle.V10 &&
             playerDesignStyle != PlayerDesignStyle.APPLE_MUSIC &&
+                playerDesignStyle != PlayerDesignStyle.APPLE_MUSIC_CLASSIC &&
             playerDesignStyle != PlayerDesignStyle.BITCHORD &&
             playerDesignStyle != PlayerDesignStyle.TIKTOK &&
             playerDesignStyle != PlayerDesignStyle.SIMPMUSIC &&
@@ -2154,6 +2164,42 @@ fun BottomSheetPlayer(
                                     .windowInsetsPadding(
                                         WindowInsets.systemBars.only(WindowInsetsSides.Horizontal),
                                     ).nestedScroll(state.preUpPostDownNestedScrollConnection),
+                        )
+                    }
+                } else if (playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC_CLASSIC) {
+                    enrichedMetadata?.let { metadata ->
+                        AppleMusicPlayerContent(
+                            mediaMetadata = metadata,
+                            playbackState = playbackState,
+                            isPlaying = isPlaying,
+                            isLoading = isLoading,
+                            canSkipPrevious = canSkipPrevious,
+                            canSkipNext = canSkipNext,
+                            sliderPosition = sliderPosition,
+                            positionProvider = positionProvider,
+                            duration = duration,
+                            playerConnection = playerConnection,
+                            navController = navController,
+                            state = state,
+                            bottomSheetPageState = bottomSheetPageState,
+                            currentSongLiked = currentSongLiked,
+                            volume = deviceMusicVolumeController.volumeFraction,
+                            onVolumeChange = onPlayerVolumeChange,
+                            canvasPrimaryUrl = artworkCanvas?.animated,
+                            canvasFallbackUrl = artworkCanvas?.videoUrl,
+                            currentFormat = currentFormat,
+                            contentBottomPadding = queueSheetState.collapsedBound + 20.dp,
+                            onSliderValueChange = onSliderValueChange,
+                            onSliderValueChangeFinished = onSliderValueChangeFinished,
+                            lyricsSyncOffset = lyricsSyncOffset,
+                            onLyricsSyncOffsetChange = { lyricsSyncOffset = it },
+                            onLyricsVisibilityChange = { isAppleMusicInlineLyricsOpen = it },
+                            landscape = true,
+                            orientationRefreshEpoch = orientationRefreshEpoch,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(state.preUpPostDownNestedScrollConnection),
                         )
                     }
                 } else if (playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC) {
@@ -2696,6 +2742,41 @@ fun BottomSheetPlayer(
                                     ).nestedScroll(state.preUpPostDownNestedScrollConnection),
                         )
                     }
+                } else if (playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC_CLASSIC) {
+                    enrichedMetadata?.let { metadata ->
+                        AppleMusicPlayerContent(
+                            mediaMetadata = metadata,
+                            playbackState = playbackState,
+                            isPlaying = isPlaying,
+                            isLoading = isLoading,
+                            canSkipPrevious = canSkipPrevious,
+                            canSkipNext = canSkipNext,
+                            sliderPosition = sliderPosition,
+                            positionProvider = positionProvider,
+                            duration = duration,
+                            playerConnection = playerConnection,
+                            navController = navController,
+                            state = state,
+                            bottomSheetPageState = bottomSheetPageState,
+                            currentSongLiked = currentSongLiked,
+                            volume = deviceMusicVolumeController.volumeFraction,
+                            onVolumeChange = onPlayerVolumeChange,
+                            canvasPrimaryUrl = artworkCanvas?.animated,
+                            canvasFallbackUrl = artworkCanvas?.videoUrl,
+                            currentFormat = currentFormat,
+                            contentBottomPadding = queueSheetState.collapsedBound + 20.dp,
+                            onSliderValueChange = onSliderValueChange,
+                            onSliderValueChangeFinished = onSliderValueChangeFinished,
+                            lyricsSyncOffset = lyricsSyncOffset,
+                            onLyricsSyncOffsetChange = { lyricsSyncOffset = it },
+                            onLyricsVisibilityChange = { isAppleMusicInlineLyricsOpen = it },
+                            orientationRefreshEpoch = orientationRefreshEpoch,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(state.preUpPostDownNestedScrollConnection),
+                        )
+                    }
                 } else if (playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC) {
                     enrichedMetadata?.let { metadata ->
                         FlamingoPlayerContent(
@@ -2795,6 +2876,7 @@ fun BottomSheetPlayer(
 
         val queueOnBackgroundColor =
             if (playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC ||
+                playerDesignStyle == PlayerDesignStyle.APPLE_MUSIC_CLASSIC ||
                 playerDesignStyle == PlayerDesignStyle.BITCHORD ||
                 playerDesignStyle == PlayerDesignStyle.TIKTOK ||
                 playerDesignStyle == PlayerDesignStyle.SIMPMUSIC ||

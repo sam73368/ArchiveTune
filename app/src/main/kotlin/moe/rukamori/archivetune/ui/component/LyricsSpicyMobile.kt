@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -74,7 +75,6 @@ import kotlin.math.exp
 import kotlin.math.sin
 
 private val SpicyLineSpacing = 24.dp
-private const val SpicyManualResumeMs = 3000L
 private const val SpicyInterludeGapMs = 5000
 
 private const val SpicyWordDimAlpha = 0.55f
@@ -254,34 +254,14 @@ fun SpicyLyricsView(
     showTranslation: Boolean = true,
     showPhonetic: Boolean = true,
     anchorTopPadding: Dp = 112.dp,
+    // Owned by the caller (LyricsEnhanced): the same list state, browse state, scroll guard and
+    // "Resync" button as the Accompanist view, so browsing the lyrics by hand is never pulled back.
+    listState: LazyListState = rememberLazyListState(),
+    manualScrolling: Boolean = false,
 ) {
-    val listState = rememberLazyListState()
     val density = LocalDensity.current
     val anchorTopPx = with(density) { anchorTopPadding.roundToPx() }
     val latestPosition = rememberUpdatedState(currentPosition)
-
-    var manualScrolling by remember { mutableStateOf(false) }
-    var lastManualScrollAt by remember { mutableLongStateOf(0L) }
-    val scrollConnection =
-        remember {
-            object : NestedScrollConnection {
-                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                    if (source == NestedScrollSource.UserInput && available.y != 0f) {
-                        manualScrolling = true
-                        lastManualScrollAt = System.currentTimeMillis()
-                    }
-                    return Offset.Zero
-                }
-            }
-        }
-    LaunchedEffect(manualScrolling, lastManualScrollAt) {
-        if (manualScrolling) {
-            delay(SpicyManualResumeMs)
-            if (System.currentTimeMillis() - lastManualScrollAt >= SpicyManualResumeMs - 64L) {
-                manualScrolling = false
-            }
-        }
-    }
 
     LaunchedEffect(activeLineIndex, manualScrolling, lyrics, anchorTopPx) {
         if (manualScrolling || lyrics.lines.isEmpty()) return@LaunchedEffect
@@ -304,8 +284,7 @@ fun SpicyLyricsView(
             state = listState,
             modifier =
                 Modifier
-                    .fillMaxSize()
-                    .nestedScroll(scrollConnection),
+                    .fillMaxSize(),
             contentPadding =
                 PaddingValues(
                     top = anchorTopPadding,

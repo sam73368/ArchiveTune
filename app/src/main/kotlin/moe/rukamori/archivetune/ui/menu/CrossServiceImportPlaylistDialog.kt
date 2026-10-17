@@ -274,7 +274,7 @@ fun CrossServiceImportPlaylistDialog(
                                     bookmarkedAt = LocalDateTime.now(),
                                     thumbnailUrl = resolved.thumbnailUrl,
                                 )
-                                database.query { insert(newPlaylist) }
+                                database.withTransaction { insert(newPlaylist) }
                                 newPlaylist.id
                             }
 

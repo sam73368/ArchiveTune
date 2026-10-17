@@ -78,6 +78,7 @@ import moe.rukamori.archivetune.constants.LyricsRomanizeHindiKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeJapaneseKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeKoreanKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeOtherLanguagesKey
+import moe.rukamori.archivetune.constants.LyricsHoldManualScrollKey
 import moe.rukamori.archivetune.constants.LyricsScrollKey
 import moe.rukamori.archivetune.constants.AutoHideLyricsPlayerControlsKey
 import moe.rukamori.archivetune.constants.ShowLyricsPlayerControlsKey
@@ -117,6 +118,8 @@ fun LyricsSettings(
 ) {
     val (lyricsClick, onLyricsClickChange) = rememberPreference(LyricsClickKey, defaultValue = true)
     val (lyricsScroll, onLyricsScrollChange) = rememberPreference(LyricsScrollKey, defaultValue = true)
+    val (holdManualScroll, onHoldManualScrollChange) =
+        rememberPreference(LyricsHoldManualScrollKey, defaultValue = true)
 
     val (showPlayerControls, onShowPlayerControlsChange) =
         rememberPreference(ShowLyricsPlayerControlsKey, defaultValue = true)
@@ -281,7 +284,7 @@ fun LyricsSettings(
                 },
                 buttons = {
                     TextButton(
-                        onClick = { tempTextSize = 24f },
+                        onClick = { tempTextSize = 26f },
                         shapes = ButtonDefaults.shapes(),
                     ) {
                         Text(stringResource(R.string.reset))
@@ -468,6 +471,17 @@ fun LyricsSettings(
                     icon = { Icon(painterResource(R.drawable.lyrics), null) },
                     checked = lyricsScroll,
                     onCheckedChange = onLyricsScrollChange,
+                )
+            }
+
+            item {
+                SwitchPreference(
+                    modifier = positions.modifierFor("lyrics_hold_scroll"),
+                    title = { Text(stringResource(R.string.lyrics_hold_scroll)) },
+                    description = stringResource(R.string.lyrics_hold_scroll_summary),
+                    icon = { Icon(painterResource(R.drawable.sync), null) },
+                    checked = holdManualScroll,
+                    onCheckedChange = onHoldManualScrollChange,
                 )
             }
 

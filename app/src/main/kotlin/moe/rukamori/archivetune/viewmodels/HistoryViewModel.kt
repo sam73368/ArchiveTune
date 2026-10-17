@@ -134,7 +134,8 @@ class HistoryViewModel
 
             viewModelScope.launch(Dispatchers.IO) {
                 try {
-                    database.deleteEventsByIds(uniqueEventIds)
+                    // Android < 11 caps a statement at 999 bound variables.
+                    uniqueEventIds.chunked(500).forEach { database.deleteEventsByIds(it) }
                     loadedEvents.clear()
                     events.value = emptyMap()
                     canLoadMoreEvents.value = true

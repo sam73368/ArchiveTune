@@ -1,10 +1,12 @@
 
 package moe.rukamori.archivetune.qobuz
 
+import moe.rukamori.archivetune.audiosource.TrackMatching
 import moe.rukamori.archivetune.BuildConfig
 import moe.rukamori.archivetune.audiosource.DirectStream
 import moe.rukamori.archivetune.constants.AudioSourceType
 import moe.rukamori.archivetune.tidal.TidalAudioProvider
+import moe.rukamori.archivetune.utils.PoolAccountManager
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -177,8 +179,9 @@ object QobuzAudioProvider {
                         .url(source)
                         .header("User-Agent", USER_AGENT)
 
-                if (BuildConfig.SOURCE_PROVIDER_KEY.isNotBlank()) {
-                    builder.header("Authorization", "Bearer ${BuildConfig.SOURCE_PROVIDER_KEY}")
+                val poolKey = PoolAccountManager.effectiveReadKey()
+                if (poolKey.isNotBlank()) {
+                    builder.header("Authorization", "Bearer $poolKey")
                 }
                 val request = builder.get().build()
                 healthClient.newCall(request).execute().use { response ->
@@ -188,7 +191,7 @@ object QobuzAudioProvider {
                                 .tag("QobuzDiscovery")
                                 .w(
                                     "Pool discovery %s rejected as unauthorized (HTTP 401); " +
-                                        "SOURCE_PROVIDER_KEY is missing or invalid for this build.",
+                                        "no valid pool key (set a personal key in Settings › Integration, or build with SOURCE_PROVIDER_KEY).",
                                     source,
                                 )
                         }
@@ -309,6 +312,8 @@ object QobuzAudioProvider {
         val durationMs: Long?,
 
         val directTrackId: String? = null,
+        /** The song being played is flagged explicit: prefer the explicit edition over the clean one. */
+        val explicit: Boolean = false,
     )
 
     fun resolve(
@@ -612,7 +617,16 @@ object QobuzAudioProvider {
                     candidateArtist = candidateArtist.normalized(),
                     wantedDurationMs = query.durationMs,
                     candidateDurationMs = candidateDurationMs,
-                )
+                ).let { base ->
+                    if (base == Int.MIN_VALUE) {
+                        base
+                    } else {
+                        base + TrackMatching.explicitAdjustment(
+                            query.explicit,
+                            if (item.has("parental_warning")) item.optBoolean("parental_warning") else null,
+                        )
+                    }
+                }
             if (score > bestScore) {
                 bestScore = score
                 bestId = id
@@ -1018,6 +1032,7 @@ object QobuzAudioProvider {
             album.normalized(),
             durationMs?.div(1000L)?.toString().orEmpty(),
             directTrackId.orEmpty(),
+            if (explicit) "explicit" else "",
         ).joinToString("::")
 
     private fun String?.normalized(): String =

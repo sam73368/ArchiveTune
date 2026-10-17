@@ -96,7 +96,7 @@ class AppUpdateService : Service() {
     private fun openUpdateScreenPendingIntent(): PendingIntent {
         val intent =
             Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("navigate_to", "settings/update")
             }
         return PendingIntent.getActivity(

@@ -9,6 +9,9 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.constants.AppLockDelayKey
+import moe.rukamori.archivetune.constants.AppLockHideRecentsKey
+import moe.rukamori.archivetune.constants.AppLockKey
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -59,6 +62,7 @@ import moe.rukamori.archivetune.constants.PauseSearchHistoryKey
 import moe.rukamori.archivetune.ui.component.DefaultDialog
 import moe.rukamori.archivetune.ui.component.FrostedHeaderPill
 import moe.rukamori.archivetune.ui.component.IconButton
+import moe.rukamori.archivetune.ui.component.ListPreference
 import moe.rukamori.archivetune.playback.MusicHapticsSettings
 import moe.rukamori.archivetune.ui.component.PreferenceEntry
 import kotlin.math.roundToInt
@@ -95,6 +99,10 @@ fun PrivacySettings(
     val database = LocalDatabase.current
     val context = LocalContext.current
     val isAndroid12OrLater = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+    val (appLockEnabled, onAppLockEnabledChange) = rememberPreference(AppLockKey, defaultValue = false)
+    val (appLockDelay, onAppLockDelayChange) = rememberPreference(AppLockDelayKey, defaultValue = 15)
+    val (appLockHideRecents, onAppLockHideRecentsChange) = rememberPreference(AppLockHideRecentsKey, defaultValue = true)
+    val privacyContext = LocalContext.current
     val (pauseListenHistory, onPauseListenHistoryChange) =
         rememberPreference(
             key = PauseListenHistoryKey,
@@ -308,6 +316,61 @@ fun PrivacySettings(
                 .padding(top = topPadding)
                 .padding(bottom = playerAwareBottomPadding + SettingsDimensions.ScreenBottomPadding),
         ) {
+            PreferenceGroup(
+                modifier = positions.modifierFor("app_lock"),
+                title = stringResource(R.string.app_lock),
+            ) {
+                item {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.app_lock)) },
+                        description = stringResource(R.string.app_lock_desc),
+                        icon = { Icon(painterResource(R.drawable.lock), null) },
+                        checked = appLockEnabled,
+                        onCheckedChange = { enable ->
+                            if (enable && !moe.rukamori.archivetune.utils.AppLockController.isDeviceSecure(privacyContext)) {
+                                Toast.makeText(privacyContext, R.string.app_lock_no_screen_lock, Toast.LENGTH_LONG).show()
+                            } else {
+                                onAppLockEnabledChange(enable)
+                            }
+                        },
+                    )
+                }
+
+                item {
+                    ListPreference(
+                        modifier = positions.modifierFor("app_lock_delay"),
+                        title = { Text(stringResource(R.string.app_lock_delay)) },
+                        description = stringResource(R.string.app_lock_delay_desc),
+                        icon = { Icon(painterResource(R.drawable.history), null) },
+                        selectedValue = appLockDelay,
+                        values = listOf(0, 15, 60, 300, 900),
+                        valueText = {
+                            when (it) {
+                                0 -> stringResource(R.string.app_lock_delay_immediately)
+                                15 -> stringResource(R.string.app_lock_delay_seconds, 15)
+                                60 -> stringResource(R.string.app_lock_delay_minutes, 1)
+                                300 -> stringResource(R.string.app_lock_delay_minutes, 5)
+                                else -> stringResource(R.string.app_lock_delay_minutes, 15)
+                            }
+                        },
+                        onValueSelected = onAppLockDelayChange,
+                        isEnabled = appLockEnabled,
+                    )
+                }
+
+                item {
+                    SwitchPreference(
+                        modifier = positions.modifierFor("app_lock_hide_recents"),
+                        title = { Text(stringResource(R.string.app_lock_hide_recents)) },
+                        description = stringResource(R.string.app_lock_hide_recents_desc),
+                        icon = { Icon(painterResource(R.drawable.visibility_off), null) },
+                        checked = appLockHideRecents,
+                        onCheckedChange = onAppLockHideRecentsChange,
+                        isEnabled = appLockEnabled,
+                    )
+                }
+            }
+
             PreferenceGroup(
                 modifier = positions.modifierFor("pause_listen_history"),
                 title = stringResource(R.string.listen_history),

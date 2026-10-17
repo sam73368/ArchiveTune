@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -24,12 +25,17 @@ import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.extensions.filterBlockedArtists
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.BrowseEndpoint
+import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.filterExplicit
 import moe.rukamori.archivetune.innertube.models.filterVideo
+import moe.rukamori.archivetune.innertube.pages.ArtistItemsPage
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPageLayout
 import moe.rukamori.archivetune.models.ItemsPage
+import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
+import moe.rukamori.archivetune.utils.SongViewRanking
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
+import moe.rukamori.archivetune.utils.isLowDataModeActive
 import moe.rukamori.archivetune.utils.reportException
 import javax.inject.Inject
 
@@ -63,6 +69,9 @@ class ArtistItemsViewModel
             database
                 .artist(routeArtistId)
                 .stateIn(viewModelScope, SharingStarted.Lazily, null)
+        // While the whole list is being ranked by views, loading "more" would race with it.
+        @Volatile
+        private var ranking = false
 
         init {
             viewModelScope.launch {
@@ -81,17 +90,53 @@ class ArtistItemsViewModel
                                     artistItemsPage.items
                                         .distinctBy { it.id }
                                         .filterExplicit(context.dataStore.get(HideExplicitKey, false))
-                                        .filterVideo(context.dataStore.get(HideVideoKey, false))
-                                        .filterBlockedArtists(database.getBlockedArtistIds().toSet()),
+                                        .filterVideo(context.dataStore.get(HideVideoKey, true))
+                                        .filterBlockedArtists(database.getBlockedArtistIds().toSet())
+                                        .dropCleanTwins(),
                                 continuation = artistItemsPage.continuation,
                             )
+
+                        // A list of songs is shown from the most viewed to the least viewed. The
+                        // first page appears at once in YouTube's order; the whole list is then
+                        // loaded, ranked, and swapped in.
+                        val onlySongs =
+                            artistItemsPage.layout == ArtistItemsPageLayout.LIST &&
+                                artistItemsPage.items.isNotEmpty() &&
+                                artistItemsPage.items.all { it is SongItem }
+                        if (onlySongs && !context.isLowDataModeActive()) {
+                            ranking = true
+                            viewModelScope.launch(Dispatchers.IO) {
+                                try {
+                                    rankBySongViews(artistItemsPage)
+                                } finally {
+                                    ranking = false
+                                }
+                            }
+                        }
                     }.onFailure {
                         reportException(it)
                     }
             }
         }
 
+        private suspend fun rankBySongViews(firstPage: ArtistItemsPage) {
+            val collected = SongViewRanking.collectSongs(firstPage)
+            val ranked =
+                SongViewRanking.rank(
+                    context,
+                    collected.songs
+                        .filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                        .filterVideo(context.dataStore.get(HideVideoKey, true))
+                        .filterBlockedArtists(database.getBlockedArtistIds().toSet())
+                        .dropCleanTwins(),
+                )
+            if (ranked.isEmpty()) return
+            // Songs beyond the ranked head stay reachable through the remaining continuation.
+            itemsPage.value = ItemsPage(items = ranked, continuation = collected.continuation)
+        }
+
         fun loadMore() {
+            if (ranking) return
             viewModelScope.launch {
                 val oldItemsPage = itemsPage.value ?: return@launch
                 val continuation = oldItemsPage.continuation ?: return@launch
@@ -104,8 +149,9 @@ class ArtistItemsViewModel
                                     (oldItemsPage.items + artistItemsContinuationPage.items)
                                         .distinctBy { it.id }
                                         .filterExplicit(context.dataStore.get(HideExplicitKey, false))
-                                        .filterVideo(context.dataStore.get(HideVideoKey, false))
-                                        .filterBlockedArtists(database.getBlockedArtistIds().toSet()),
+                                        .filterVideo(context.dataStore.get(HideVideoKey, true))
+                                        .filterBlockedArtists(database.getBlockedArtistIds().toSet())
+                                        .dropCleanTwins(),
                                 continuation = artistItemsContinuationPage.continuation,
                             )
                         }

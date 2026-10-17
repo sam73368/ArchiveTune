@@ -20,6 +20,7 @@ import moe.rukamori.archivetune.constants.AudioSourceType
 import moe.rukamori.archivetune.utils.PoolAccountManager
 import android.util.Base64
 import moe.rukamori.archivetune.constants.TidalAudioQuality
+import moe.rukamori.archivetune.utils.PoolAccountManager
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -321,8 +322,9 @@ object TidalAudioProvider {
                         .url(source)
                         .header("User-Agent", DOWNLOAD_USER_AGENT)
 
-                if (BuildConfig.SOURCE_PROVIDER_KEY.isNotBlank()) {
-                    builder.header("Authorization", "Bearer ${BuildConfig.SOURCE_PROVIDER_KEY}")
+                val poolKey = PoolAccountManager.effectiveReadKey()
+                if (poolKey.isNotBlank()) {
+                    builder.header("Authorization", "Bearer $poolKey")
                 }
                 val request = builder.get().build()
                 healthClient.newCall(request).withAudioSourceAttemptDeadline().execute().use { response ->
@@ -332,7 +334,7 @@ object TidalAudioProvider {
                                 .tag("TidalHealth")
                                 .w(
                                     "Pool discovery %s rejected as unauthorized (HTTP 401); " +
-                                        "SOURCE_PROVIDER_KEY is missing or invalid for this build.",
+                                        "no valid pool key (set a personal key in Settings › Integration, or build with SOURCE_PROVIDER_KEY).",
                                     source,
                                 )
                         }
@@ -400,6 +402,8 @@ object TidalAudioProvider {
         val album: String?,
         val isrc: String?,
         val durationMs: Long?,
+        /** The song being played is flagged explicit: prefer the explicit edition over the clean one. */
+        val explicit: Boolean = false,
     )
 
     data class Resolved(
@@ -468,6 +472,8 @@ object TidalAudioProvider {
         val sampleRate: Int?,
         val albumId: String? = null,
         val albumCoverId: String? = null,
+        /** null when the catalogue does not say. */
+        val explicit: Boolean? = null,
     ) {
         fun supportsLossless(): Boolean =
             qualitySignals().any { signal ->
@@ -978,7 +984,7 @@ object TidalAudioProvider {
         if (AudioSourceAttemptScope.current()?.isExpired() != true) {
             resolveSongLinkTidalTrackId(query)?.let { tidalId ->
                 val track = resolveTrackById(tidalId) ?: query.toDirectMatchedTrack(tidalId)
-                val score = scoreTrack(track, wantedTitle, wantedArtists, wantedAlbum, wantedIsrc, wantedDurationMs)
+                val score = scoreTrack(track, wantedTitle, wantedArtists, wantedAlbum, wantedIsrc, wantedDurationMs, query.explicit)
                 if (score >= MIN_MATCH_SCORE) {
                     if (track.losslessRank() > 0) {
                         return listOf(track)
@@ -1169,7 +1175,7 @@ object TidalAudioProvider {
             val obj = results.optJSONObject(index) ?: continue
             val track = obj.toMatchedTrack() ?: continue
             if (exactIsrcOnly && normalizeIsrc(track.isrc) != wantedIsrc) continue
-            val score = scoreTrack(track, wantedTitle, wantedArtists, wantedAlbum, wantedIsrc, wantedDurationMs)
+            val score = scoreTrack(track, wantedTitle, wantedArtists, wantedAlbum, wantedIsrc, wantedDurationMs, query.explicit)
             if (score >= MIN_MATCH_SCORE) {
                 candidates += ScoredTrack(track, score)
             }
@@ -1190,6 +1196,7 @@ object TidalAudioProvider {
         wantedAlbum: String,
         wantedIsrc: String?,
         wantedDurationMs: Long?,
+        wantedExplicit: Boolean = false,
     ): Int {
         val candidateTitle = track.title.titleMatchNormalized()
         val candidateArtists = track.artistNames.map { it.normalized() }.filter { it.isNotBlank() }
@@ -1261,6 +1268,8 @@ object TidalAudioProvider {
                 else -> -50
             }
         }
+
+        score += TrackMatching.explicitAdjustment(wantedExplicit, track.explicit)
 
         score += track.qualityScoreBoost()
 
@@ -2546,6 +2555,7 @@ object TidalAudioProvider {
             sampleRate = normalizeSampleRate(doubleOrNull("sampleRate")),
             albumId = albumObj?.stringOrNull("id"),
             albumCoverId = albumObj?.stringOrNull("cover"),
+            explicit = if (has("explicit")) optBoolean("explicit") else null,
         )
     }
 
@@ -2623,6 +2633,7 @@ object TidalAudioProvider {
                 artists.joinToString(",") { it.normalized() },
                 album.normalized(),
                 durationMs?.div(1000L)?.toString().orEmpty(),
+                if (explicit) "explicit" else "",
             ).joinToString("::")
 
     private fun String?.normalized(): String =

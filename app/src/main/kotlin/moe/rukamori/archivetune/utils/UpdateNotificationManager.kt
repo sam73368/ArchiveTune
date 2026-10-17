@@ -37,6 +37,7 @@ import moe.rukamori.archivetune.constants.LastUpdateCheckKey
 import moe.rukamori.archivetune.constants.UpdateChannel
 import moe.rukamori.archivetune.constants.UpdateChannelKey
 import moe.rukamori.archivetune.defaultUpdateChannel
+import moe.rukamori.archivetune.isCanaryBuild
 import java.util.concurrent.TimeUnit
 
 object UpdateNotificationManager {
@@ -109,7 +110,7 @@ object UpdateNotificationManager {
             try {
                 val dataStore = context.dataStore
 
-                val isEnabled = dataStore.data.map { it[EnableUpdateNotificationKey] ?: false }.first()
+                val isEnabled = dataStore.data.map { it[EnableUpdateNotificationKey] ?: isCanaryBuild }.first()
                 if (!isEnabled) {
                     cancelPeriodicUpdateCheck(context)
                     return@launch

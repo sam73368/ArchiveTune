@@ -617,7 +617,7 @@ class HomeViewModel
                 val aiContentFilterPolicy = loadAiContentFilterPolicy()
                 supervisorScope {
                     val hideExplicit = context.dataStore.getAsync(HideExplicitKey, false)
-                    val hideVideo = context.dataStore.getAsync(HideVideoKey, false)
+                    val hideVideo = context.dataStore.getAsync(HideVideoKey, true)
                     val blockedArtistIds = database.getBlockedArtistIds().toSet()
                     val blockedSongIds = database.getBlockedSongIds().toSet()
                     val fromTimeStamp = System.currentTimeMillis() - 86400000 * 7 * 2
@@ -737,7 +737,7 @@ class HomeViewModel
 
         private suspend fun loadSimilarRecommendations() {
             val hideExplicit = context.dataStore.getAsync(HideExplicitKey, false)
-            val hideVideo = context.dataStore.getAsync(HideVideoKey, false)
+            val hideVideo = context.dataStore.getAsync(HideVideoKey, true)
             val blockedArtistIds = database.getBlockedArtistIds().toSet()
             val blockedSongIds = database.getBlockedSongIds().toSet()
             val aiContentFilterPolicy = loadAiContentFilterPolicy()
@@ -907,7 +907,7 @@ class HomeViewModel
             loadMoreJob = viewModelScope.launch(Dispatchers.IO) {
                 try {
                     val hideExplicit = context.dataStore.getAsync(HideExplicitKey, false)
-                    val hideVideo = context.dataStore.getAsync(HideVideoKey, false)
+                    val hideVideo = context.dataStore.getAsync(HideVideoKey, true)
                     val blockedArtistIds = database.getBlockedArtistIds().toSet()
                     val blockedSongIds = database.getBlockedSongIds().toSet()
                     val aiContentFilterPolicy = loadAiContentFilterPolicy()
@@ -970,7 +970,7 @@ class HomeViewModel
             chipLoadJob =
                 viewModelScope.launch(Dispatchers.IO) {
                     val hideExplicit = context.dataStore.getAsync(HideExplicitKey, false)
-                    val hideVideo = context.dataStore.getAsync(HideVideoKey, false)
+                    val hideVideo = context.dataStore.getAsync(HideVideoKey, true)
                     val blockedArtistIds = database.getBlockedArtistIds().toSet()
                     val blockedSongIds = database.getBlockedSongIds().toSet()
                     val aiContentFilterPolicy = loadAiContentFilterPolicy()

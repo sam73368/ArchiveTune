@@ -89,7 +89,7 @@ object ReplayGainTagParser {
     }
 
     private fun parseOgg(bytes: ByteArray): ReplayGain? {
-        val signatures = listOf(byteArrayOf(3, 'v'.code.toByte(), 'o'.code.toByte(), 'r'.code.toByte()), byteArrayOf('O'.code.toByte(), 'p'.code.toByte(), 'u'.code.toByte(), 's'.code.toByte()))
+        val signatures = listOf(byteArrayOf(3, 'v'.code.toByte(), 'o'.code.toByte(), 'r'.code.toByte()), "OpusTags".toByteArray(Charsets.US_ASCII))
         for (signature in signatures) {
             val index = indexOf(bytes, signature, limit = 64 * 1024) ?: continue
             val start =
@@ -255,7 +255,18 @@ object ReplayGainTagParser {
         if (length <= 0) return ""
         val safeLength = length.coerceAtMost(bytes.size - from)
         return when (encoding) {
-            1 -> String(bytes, from, safeLength, Charsets.UTF_16LE)
+            1 -> {
+                // UTF-16 with a byte-order mark (ID3v2.3/2.4): honour and strip it.
+                val bigEndian =
+                    safeLength >= 2 && bytes[from] == 0xFE.toByte() && bytes[from + 1] == 0xFF.toByte()
+                val littleEndian =
+                    safeLength >= 2 && bytes[from] == 0xFF.toByte() && bytes[from + 1] == 0xFE.toByte()
+                when {
+                    bigEndian -> String(bytes, from + 2, safeLength - 2, Charsets.UTF_16BE)
+                    littleEndian -> String(bytes, from + 2, safeLength - 2, Charsets.UTF_16LE)
+                    else -> String(bytes, from, safeLength, Charsets.UTF_16LE)
+                }
+            }
             2 -> String(bytes, from, safeLength, Charsets.UTF_16BE)
             4 -> String(bytes, from, safeLength, Charsets.UTF_8)
             else -> String(bytes, from, safeLength, Charsets.ISO_8859_1)

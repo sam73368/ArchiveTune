@@ -139,7 +139,7 @@ class NewReleaseViewModel
                                         } ?: Int.MAX_VALUE
                                     firstArtistKey
                                 }.filterExplicit(context.dataStore.get(HideExplicitKey, false))
-                                .filterVideo(context.dataStore.get(HideVideoKey, false))
+                                .filterVideo(context.dataStore.get(HideVideoKey, true))
                                 .filterBlockedArtists(blockedArtistIds),
                             aiContentFilterPolicy,
                         ).distinctBy { it.id }

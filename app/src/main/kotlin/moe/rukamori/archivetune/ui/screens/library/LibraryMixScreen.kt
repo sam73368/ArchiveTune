@@ -37,6 +37,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,6 +76,7 @@ import moe.rukamori.archivetune.LocalDownloadUtil
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.ui.screens.SMART_PLAYLISTS_ROUTE
 import moe.rukamori.archivetune.constants.HideCachedCardKey
 import moe.rukamori.archivetune.constants.HideLikedSongsCardKey
 import moe.rukamori.archivetune.constants.HideLocalFilesCardKey
@@ -246,6 +248,20 @@ fun LibraryMixScreen(
                         onLocalFilesClick = { navController.navigate("local_songs") },
                         onTop50Click = { navController.navigate("top_playlist/$topSize") },
                         onHistoryClick = { navController.navigate("history") },
+                    )
+                }
+
+                item(key = "smart_playlists_entry", contentType = "smart_playlists") {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.smart_playlists_title)) },
+                        supportingContent = { Text(stringResource(R.string.smart_playlists_subtitle)) },
+                        leadingContent = {
+                            Icon(painterResource(R.drawable.library_music), contentDescription = null)
+                        },
+                        modifier =
+                            Modifier
+                                .padding(horizontal = 8.dp)
+                                .clickable { navController.navigate(SMART_PLAYLISTS_ROUTE) },
                     )
                 }
 

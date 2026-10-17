@@ -115,7 +115,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -215,6 +217,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.aod.ACTION_AOD_MODE
+import moe.rukamori.archivetune.constants.AppLockHideRecentsKey
+import moe.rukamori.archivetune.constants.AppLockKey
 import moe.rukamori.archivetune.constants.AppBarHeight
 import moe.rukamori.archivetune.constants.BackAnimationStyle
 import moe.rukamori.archivetune.constants.PlayerHeaderGlassFadeRamp
@@ -372,6 +376,7 @@ import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.ui.utils.resetHeightOffset
 import moe.rukamori.archivetune.utils.PreferenceStore
 import moe.rukamori.archivetune.utils.SyncUtils
+import moe.rukamori.archivetune.utils.AppUpdateService
 import moe.rukamori.archivetune.utils.Updater
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
@@ -395,12 +400,15 @@ import java.util.Locale
 import javax.inject.Inject
 
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val appLock = moe.rukamori.archivetune.utils.AppLockController(this)
+
     @Inject
     lateinit var database: MusicDatabase
 
@@ -555,8 +563,14 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    override fun onPostCreate(savedInstanceState: Bundle?) {
+        super.onPostCreate(savedInstanceState)
+        appLock.install()
+    }
+
     override fun onStart() {
         super.onStart()
+        appLock.onStart()
         registerAodScreenOffReceiver()
         serviceBindingJob = lifecycleScope.launch {
             try {
@@ -612,6 +626,7 @@ class MainActivity : ComponentActivity() {
         serviceBindingJob?.cancel()
         serviceBindingJob = null
         safeUnbindMusicService()
+        appLock.onStop()
         super.onStop()
     }
 
@@ -701,6 +716,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        appLock.onCreate()
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -762,7 +778,10 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             dataStore.data
-                .map { it[DisableScreenshotKey] ?: false }
+                .map {
+                    (it[DisableScreenshotKey] ?: false) ||
+                        ((it[AppLockKey] ?: false) && (it[AppLockHideRecentsKey] ?: true))
+                }
                 .distinctUntilChanged()
                 .collectLatest {
                     withContext(Dispatchers.Main) {
@@ -898,8 +917,28 @@ class MainActivity : ComponentActivity() {
                 androidx.compose.material3.Button(
                     onClick = {
                         bottomSheetPageState.dismiss()
-                        this@MainActivity.navController.navigate("settings/update") {
-                            launchSingleTop = true
+                        val downloadUrl =
+                            when (latestUpdateChannel) {
+                                UpdateChannel.CANARY -> Updater.getLatestCanaryDownloadUrl()
+                                UpdateChannel.STABLE -> Updater.getLatestDownloadUrl()
+                            }
+                        // One tap: download in the background service, then hand the APK to the
+                        // system installer. Falls back to the update screen when that isn't possible.
+                        val started =
+                            AppUpdateService.isSupported() &&
+                                downloadUrl.isNotBlank() &&
+                                runCatching {
+                                    AppUpdateService
+                                        .startPendingIntent(
+                                            this@MainActivity,
+                                            downloadUrl,
+                                            latestVersionName,
+                                        ).send()
+                                }.isSuccess
+                        if (!started) {
+                            this@MainActivity.navController.navigate("settings/update") {
+                                launchSingleTop = true
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -908,7 +947,19 @@ class MainActivity : ComponentActivity() {
                     Text(text = stringResource(R.string.update_text))
                 }
 
-                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        bottomSheetPageState.dismiss()
+                        this@MainActivity.navController.navigate(
+                            "settings/changelog?channel=$latestUpdateChannel",
+                        ) {
+                            launchSingleTop = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(text = stringResource(R.string.view_changelog))
+                }
 
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -954,6 +1005,38 @@ class MainActivity : ComponentActivity() {
                         }
 
                     bottomSheetPageState.show(updateSheetContent)
+                }
+            }
+
+            // Keep looking for new builds while the app is open (and each time it comes back to the
+            // foreground), so the update popup also shows up mid-session, not only at cold start.
+            LaunchedEffect(Unit) {
+                this@MainActivity.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    delay(5_000)
+                    while (true) {
+                        if (BuildConfig.UPDATER_AVAILABLE) {
+                            val channelString =
+                                withContext(Dispatchers.IO) { dataStore.data.first()[UpdateChannelKey] }
+                            val actualChannel =
+                                if (isCanaryBuild) {
+                                    UpdateChannel.CANARY
+                                } else {
+                                    UpdateChannel.fromStoredName(channelString, defaultUpdateChannel)
+                                }
+                            val versionResult =
+                                when (actualChannel) {
+                                    UpdateChannel.CANARY -> Updater.getLatestCanaryVersionName()
+                                    UpdateChannel.STABLE -> Updater.getLatestVersionName()
+                                }
+                            versionResult.onSuccess {
+                                if (Updater.isUpdateAvailable(it, BuildConfig.VERSION_NAME)) {
+                                    latestUpdateChannel = actualChannel
+                                    latestVersionName = it
+                                }
+                            }
+                        }
+                        delay(10.minutes)
+                    }
                 }
             }
 
@@ -1309,13 +1392,16 @@ class MainActivity : ComponentActivity() {
                         searchBarFocusRequester.requestFocus()
                     }
 
-                    val onSearch: (String) -> Unit = {
-                        if (it.isNotEmpty()) {
+                    val onSearch: (String) -> Unit = { rawQuery ->
+                        val query = rawQuery.trim()
+                        if (query.isNotEmpty()) {
                             onActiveChange(false)
-                            navController.navigate(onlineSearchResultRoute(it, searchProvider))
+                            navController.navigate(onlineSearchResultRoute(query, searchProvider)) {
+                                launchSingleTop = true
+                            }
                             if (!pauseSearchHistory) {
                                 database.query {
-                                    insert(SearchHistory(query = it))
+                                    insert(SearchHistory(query = query))
                                 }
                             }
                         }
@@ -2195,7 +2281,10 @@ class MainActivity : ComponentActivity() {
                         if (pendingIntent != null) {
                             handleIntent(pendingIntent, navController)
                             pendingIntent = null
-                        } else {
+                        } else if (savedInstanceState == null) {
+                            // Not on recreation (theme / language change): the launch intent was
+                            // already handled and would otherwise restart playback, rejoin a
+                            // Listen Together room, relaunch song recognition, etc.
                             handleIntent(intent, navController)
                         }
                     }
@@ -3751,8 +3840,11 @@ class MainActivity : ComponentActivity() {
             return
         }
         intent.getStringExtra("navigate_to")?.takeIf { it.isNotBlank() }?.let { route ->
-            navController.navigate(route) {
-                launchSingleTop = true
+            // The activity is exported, so an unknown route must not crash the app.
+            runCatching {
+                navController.navigate(route) {
+                    launchSingleTop = true
+                }
             }
             intent.removeExtra("navigate_to")
             return
@@ -3771,12 +3863,28 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (intent.action == "android.media.action.MEDIA_PLAY_FROM_SEARCH") {
+            // Assistants often send an empty "query" together with structured extras (title, artist,
+            // album, playlist), so an empty string must not hide them.
+            val structuredQuery =
+                listOf(
+                    android.provider.MediaStore.EXTRA_MEDIA_TITLE,
+                    android.provider.MediaStore.EXTRA_MEDIA_ARTIST,
+                    android.provider.MediaStore.EXTRA_MEDIA_ALBUM,
+                    android.provider.MediaStore.EXTRA_MEDIA_PLAYLIST,
+                ).mapNotNull { key -> intent.getStringExtra(key)?.trim()?.takeIf { it.isNotEmpty() } }
+                    .joinToString(" ")
             val query =
-                (
-                    intent.getStringExtra("query")
-                        ?: intent.getStringExtra("android.intent.extra.TITLE")
-                        ?: ""
-                ).trim()
+                intent
+                    .getStringExtra("query")
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: structuredQuery.takeIf { it.isNotEmpty() }
+                    ?: intent.getStringExtra("android.intent.extra.TITLE")?.trim().orEmpty()
+            moe.rukamori.archivetune.utils.GlobalLog.append(
+                android.util.Log.INFO,
+                "VoiceSearch",
+                "MEDIA_PLAY_FROM_SEARCH received: query='$query' extras=${intent.extras?.keySet()?.joinToString().orEmpty()}",
+            )
             if (query.isNotBlank()) {
                 pendingVoiceSearchQuery = query
                 startMusicServiceSafely()
@@ -3884,7 +3992,16 @@ class MainActivity : ComponentActivity() {
         intent: Intent,
         navController: NavHostController,
     ) {
-        val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
+        val uri =
+            intent.data
+                ?: intent
+                    .getCharSequenceExtra(Intent.EXTRA_TEXT)
+                    ?.toString()
+                    ?.let { Regex("""https?://\S+""").find(it)?.value }
+                    ?.toUri()
+                ?: return
+        // Shared text such as "Title: https://…" can parse to an opaque Uri, which has no query.
+        if (uri.isOpaque) return
         val coroutineScope = lifecycleScope
 
         val authority = uri.authority?.lowercase()
@@ -3912,32 +4029,32 @@ class MainActivity : ComponentActivity() {
 
         when (val path = uri.pathSegments.firstOrNull()) {
             "playlist" -> {
-                uri.getQueryParameter("list")?.let { playlistId ->
+                uri.getQueryParameter("list")?.takeIf { it.isNotBlank() }?.let { playlistId ->
                     if (playlistId.startsWith("OLAK5uy_")) {
                         coroutineScope.launch {
                             YouTube
                                 .albumSongs(playlistId)
                                 .onSuccess { songs ->
                                     songs.firstOrNull()?.album?.id?.let { browseId ->
-                                        navController.navigate("album/$browseId")
+                                        runCatching { navController.navigate("album/${Uri.encode(browseId)}") }
                                     }
                                 }.onFailure { reportException(it) }
                         }
                     } else {
-                        navController.navigate("online_playlist/$playlistId")
+                        runCatching { navController.navigate("online_playlist/${Uri.encode(playlistId)}") }
                     }
                 }
             }
 
             "browse" -> {
-                uri.lastPathSegment?.let { browseId ->
-                    navController.navigate("album/$browseId")
+                uri.lastPathSegment?.takeIf { it.isNotBlank() }?.let { browseId ->
+                    runCatching { navController.navigate("album/${Uri.encode(browseId)}") }
                 }
             }
 
             "channel", "c" -> {
-                uri.lastPathSegment?.let { artistId ->
-                    navController.navigate("artist/$artistId")
+                uri.lastPathSegment?.takeIf { it.isNotBlank() }?.let { artistId ->
+                    runCatching { navController.navigate("artist/${Uri.encode(artistId)}") }
                 }
             }
 
@@ -4005,7 +4122,7 @@ class MainActivity : ComponentActivity() {
                                     pendingDeepLinkQueue = YouTubeQueue.playlist(it)
                                     startMusicServiceSafely()
                                     playPendingDeepLinkQueueIfReady()
-                                } ?: navController.navigate("online_playlist/$playlistId")
+                                } ?: navController.navigate("online_playlist/${Uri.encode(playlistId)}")
                             }.onFailure {
                                 reportException(it)
                             }

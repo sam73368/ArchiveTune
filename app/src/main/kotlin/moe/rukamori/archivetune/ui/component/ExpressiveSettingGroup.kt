@@ -8,6 +8,7 @@
 
 package moe.rukamori.archivetune.ui.component
 
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
@@ -62,7 +63,7 @@ fun ExpressiveSettingGroup(
                     .fillMaxWidth()
                     .animateContentSize(),
                 shape = shape,
-                color = if (androidx.compose.foundation.isSystemInDarkTheme()) {
+                color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) {
                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                 } else {
                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
