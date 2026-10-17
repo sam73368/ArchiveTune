@@ -9,6 +9,9 @@
 
 package moe.rukamori.archivetune.ui.player
 
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusRestorer
+import moe.rukamori.archivetune.utils.isTelevision
 import android.content.Context
 import android.content.res.Configuration
 import android.database.ContentObserver
@@ -1161,6 +1164,9 @@ fun BottomSheetPlayer(
     }
 
     val focusRequester = remember { FocusRequester() }
+    // On a TV the arrows of the remote move between the player's buttons; the keyboard shortcuts
+    // below (arrows = seek / volume) swallowed them, so most controls could not be reached.
+    val isTelevision = remember(context) { context.isTelevision() }
 
     LaunchedEffect(state.isExpanded) {
         if (state.isExpanded) {
@@ -1271,12 +1277,45 @@ fun BottomSheetPlayer(
         state = state,
         modifier =
             modifier
-                .focusRequester(focusRequester)
-                .focusable()
-                .onKeyEvent { keyEvent ->
+                .then(
+                    if (isTelevision) {
+                        // TV: the sheet is a group, so focus goes to its buttons (and, collapsed, the
+                        // sheet no longer keeps the focus while the user browses the other screens).
+                        Modifier
+                            .focusRestorer()
+                            .focusRequester(focusRequester)
+                            .focusGroup()
+                    } else {
+                        Modifier
+                            .focusRequester(focusRequester)
+                            .focusable()
+                    },
+                ).onKeyEvent { keyEvent ->
                     if (keyEvent.type != KeyEventType.KeyDown || state.isCollapsed) return@onKeyEvent false
+                    if (isTelevision &&
+                        keyEvent.key in
+                        setOf(Key.DirectionLeft, Key.DirectionRight, Key.DirectionUp, Key.DirectionDown)
+                    ) {
+                        return@onKeyEvent false
+                    }
 
                     when (keyEvent.key) {
+                        // Rewind / fast-forward keys of TV remotes.
+                        Key.MediaRewind -> {
+                            playerConnection.player.seekTo((playerConnection.player.currentPosition - 10_000L).coerceAtLeast(0))
+                            true
+                        }
+
+                        Key.MediaFastForward -> {
+                            playerConnection.player.seekTo(
+                                playerConnection.player.duration.let { total ->
+                                    val target = playerConnection.player.currentPosition + 10_000L
+                                    if (total == C.TIME_UNSET || total <= 0L) target else target.coerceAtMost(total)
+                                },
+                            )
+                            true
+                        }
+
                         Key.DirectionLeft -> {
                             val now = SystemClock.uptimeMillis()
                             if (incrementalSeekSkipEnabled && now - lastKeyboardTapTime < 1000) {
