@@ -43,6 +43,9 @@ jobs:
     env:
       IS_NIGHTLY_BUILD: "true"
       NIGHTLY_BUILD_HASH: ${{ github.sha }}
+      # Installed builds run like a release: not debuggable (baseline profile applied, optimised
+      # from the first second), no StrictMode / logcat tree. PR builds stay debuggable.
+      FORK_OPTIMIZED_BUILD: "true"
     steps:
       - uses: actions/checkout@v7
         with:

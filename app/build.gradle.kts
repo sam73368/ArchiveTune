@@ -313,8 +313,18 @@ android {
         }
     }
 
+    // Builds handed to users from the fork's CI ("Fork update build") use the debug build type
+    // (same .debug package and persistent keystore, so updates keep installing over each other),
+    // but must run like a release: a debuggable APK skips the baseline profile and runs
+    // unoptimised for the first 20-30 s of every launch, and StrictMode logging of every disk
+    // read at startup adds heavy jank on top.
+    val forkOptimizedBuild =
+        (System.getenv("FORK_OPTIMIZED_BUILD") ?: localProperties.getProperty("FORK_OPTIMIZED_BUILD") ?: "")
+            .equals("true", ignoreCase = true)
+
     buildTypes {
         release {
+            buildConfigField("boolean", "DEV_DIAGNOSTICS", "false")
             if (hasReleaseSigningConfig) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -327,7 +337,8 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
-            isDebuggable = true
+            isDebuggable = !forkOptimizedBuild
+            buildConfigField("boolean", "DEV_DIAGNOSTICS", "${!forkOptimizedBuild}")
             // R8 minified for every build (user request): debug artifacts ship
             // the same shrinking/optimization pass as release so PR CI
             // (assembleGmsMobileUniversalDebug) exercises the full proguard

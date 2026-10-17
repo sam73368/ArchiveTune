@@ -122,7 +122,9 @@ class App :
         }
 
         runCatching { moe.rukamori.archivetune.utils.CrashReporter.install(this) }
-        if (BuildConfig.DEBUG) {
+        // StrictMode only on developer builds: on the builds people install it logged a stack trace for
+        // every disk read during startup.
+        if (BuildConfig.DEV_DIAGNOSTICS) {
             android.os.StrictMode.setThreadPolicy(
                 android.os.StrictMode.ThreadPolicy.Builder()
                     .detectDiskReads().detectDiskWrites().detectNetwork().penaltyLog().build(),
@@ -138,7 +140,7 @@ class App :
 
         moe.rukamori.archivetune.echo.utils.cipher.CipherDeobfuscator.initialize(this)
         PreferenceStore.start(this)
-        if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
+        if (BuildConfig.DEV_DIAGNOSTICS) Timber.plant(Timber.DebugTree())
         try {
             Timber.plant(
                 moe.rukamori.archivetune.utils
