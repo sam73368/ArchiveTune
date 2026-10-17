@@ -78,8 +78,6 @@ import moe.rukamori.archivetune.ui.screens.search.toSearchResultsBarState
 import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.utils.Updater
 import moe.rukamori.archivetune.utils.rememberPreference
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 
 private val CROSS_PAGE_SCROLL_OWNERS: Map<String, String> =
     buildMap {
