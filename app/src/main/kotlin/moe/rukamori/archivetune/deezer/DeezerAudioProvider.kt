@@ -193,6 +193,7 @@ object DeezerAudioProvider {
         val durationMs: Long?,
 
         val isrc: String? = null,
+        val explicit: Boolean = false,
     )
 
     private fun Query.cacheKey(): String =
@@ -684,6 +685,7 @@ object DeezerAudioProvider {
                     album = obj.optString("ALB_TITLE").takeIf { it.isNotBlank() },
 
                     durationMs = obj.optLong("DURATION", 0L).takeIf { it > 0L }?.times(1000L),
+                    explicit = obj.optString("EXPLICIT_LYRICS").takeIf { it.isNotBlank() }?.let { it == "1" || it == "true" },
                 )
             }
 
@@ -695,6 +697,7 @@ object DeezerAudioProvider {
                         artists = query.artists,
                         album = query.album,
                         durationMs = query.durationMs,
+                        explicit = query.explicit,
                     ),
                 candidates = candidates,
             )

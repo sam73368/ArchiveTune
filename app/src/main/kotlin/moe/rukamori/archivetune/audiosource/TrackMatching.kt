@@ -44,6 +44,8 @@ internal object TrackMatching {
         val artists: List<String>,
         val album: String?,
         val durationMs: Long?,
+        /** The song being played is flagged explicit: do not settle for the clean edit. */
+        val explicit: Boolean = false,
     )
 
     data class Candidate(
@@ -52,7 +54,41 @@ internal object TrackMatching {
         val artists: List<String>,
         val album: String?,
         val durationMs: Long?,
+        /** null when the catalogue does not say. */
+        val explicit: Boolean? = null,
     )
+
+    /**
+     * The explicit edition always wins when one exists. Clean and explicit editions share title,
+     * album and length, so without this they tie and the first search hit (often the clean one) wins.
+     *
+     *  - explicit candidate: bonus, whether or not the wanted song is flagged (a catalogue that lists
+     *    both editions must never hand back the censored one);
+     *  - clean candidate for a song flagged explicit: rejected outright, the caller then falls back to
+     *    the next source (YouTube has the explicit upload);
+     *  - unknown flag: neutral.
+     *
+     * The bonus for unflagged songs is switched off by "Hide explicit" ([preferExplicitEditions]).
+     */
+    fun explicitAdjustment(
+        wantedExplicit: Boolean,
+        candidateExplicit: Boolean?,
+    ): Int =
+        when {
+            candidateExplicit == null -> 0
+            candidateExplicit -> if (wantedExplicit || preferExplicitEditions) EXPLICIT_MATCH_BONUS else 0
+            wantedExplicit -> -CLEAN_EDITION_REJECTION
+            else -> 0
+        }
+
+    /** false while "Hide explicit" is on: explicit editions get no preference then. */
+    @Volatile
+    var preferExplicitEditions: Boolean = true
+
+    /** Large enough to push any clean edition of an explicit song below [MIN_MATCH_SCORE]. */
+    const val CLEAN_EDITION_REJECTION = 1_000
+
+    const val EXPLICIT_MATCH_BONUS = 25
 
     fun best(
         target: Target,
@@ -69,7 +105,9 @@ internal object TrackMatching {
                         candidateArtist = normalize(candidate.artists.firstOrNull()),
                         wantedDurationMs = target.durationMs,
                         candidateDurationMs = candidate.durationMs,
-                    )
+                    ).let { base ->
+                        if (base == Int.MIN_VALUE) base else base + explicitAdjustment(target.explicit, candidate.explicit)
+                    }
             }.filter { (_, score) -> score >= MIN_MATCH_SCORE }
             .maxByOrNull { (_, score) -> score }
             ?.first

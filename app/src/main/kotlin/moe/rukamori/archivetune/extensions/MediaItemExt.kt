@@ -15,6 +15,7 @@ import androidx.media3.common.MediaMetadata.MEDIA_TYPE_PODCAST_EPISODE
 import moe.rukamori.archivetune.db.entities.Song
 import moe.rukamori.archivetune.innertube.models.EpisodeItem
 import moe.rukamori.archivetune.innertube.models.SongItem
+import moe.rukamori.archivetune.innertube.models.YTItem
 import moe.rukamori.archivetune.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_OMV
 import moe.rukamori.archivetune.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_UGC
 import moe.rukamori.archivetune.localmedia.LocalMediaUriHeals
@@ -33,7 +34,7 @@ const val ExtraIsPodcast = "moe.rukamori.archivetune.extra.IS_PODCAST"
 val MediaItem.metadata: MediaMetadata?
     get() = localConfiguration?.tag as? MediaMetadata
 
-private fun String?.toNotificationArtworkUri() =
+fun String?.toNotificationArtworkUri() =
     this
         ?.resize(
             width = NotificationArtworkSizePx,
@@ -141,6 +142,9 @@ fun MediaMetadata.toMediaItem() =
                 })
                 .build(),
         ).build()
+
+/** True for an official clip or a user upload (as opposed to the studio "audio track" of a song). */
+fun YTItem.isMusicVideoClip(): Boolean = (this as? SongItem)?.isMusicVideo() == true
 
 private fun SongItem.isMusicVideo(): Boolean {
     val musicVideoType = endpoint?.watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType

@@ -105,15 +105,16 @@ fun ContentSettings(
 
     val (appLanguage, onAppLanguageChange) = rememberPreference(key = AppLanguageKey, defaultValue = SYSTEM_DEFAULT)
 
-    val (contentLanguage, onContentLanguageChange) = rememberPreference(key = ContentLanguageKey, defaultValue = "system")
-    val (contentCountry, onContentCountryChange) = rememberPreference(key = ContentCountryKey, defaultValue = "system")
+    val (contentLanguage, onContentLanguageChange) = rememberPreference(key = ContentLanguageKey, defaultValue = SYSTEM_DEFAULT)
+    val (contentCountry, onContentCountryChange) = rememberPreference(key = ContentCountryKey, defaultValue = SYSTEM_DEFAULT)
     val (playlistSuggestionSource, onPlaylistSuggestionSourceChange) =
         rememberEnumPreference(
             key = PlaylistSuggestionSourceKey,
             defaultValue = PlaylistSuggestionSource.BOTH,
         )
     val (hideExplicit, onHideExplicitChange) = rememberPreference(key = HideExplicitKey, defaultValue = false)
-    val (hideVideo, onHideVideoChange) = rememberPreference(key = HideVideoKey, defaultValue = false)
+    val (showVideosInSearch, onShowVideosInSearchChange) =
+        rememberPreference(key = ShowVideosInSearchKey, defaultValue = false)
     val (homeCatalogueSwitch, onHomeCatalogueSwitchChange) =
         rememberPreference(key = HomeCatalogueSwitchKey, defaultValue = false)
     val (presaveReleaseRadar, onPresaveReleaseRadarChange) =
@@ -253,10 +254,11 @@ fun ContentSettings(
             item {
                 SwitchPreference(
                     modifier = positions.modifierFor("hide_video", "enable_video"),
-                    title = { Text(stringResource(R.string.hide_video)) },
+                    title = { Text(stringResource(R.string.search_show_music_videos)) },
+                    description = stringResource(R.string.search_show_music_videos_summary),
                     icon = { Icon(painterResource(R.drawable.slow_motion_video), null) },
-                    checked = hideVideo,
-                    onCheckedChange = onHideVideoChange,
+                    checked = showVideosInSearch,
+                    onCheckedChange = onShowVideosInSearchChange,
                 )
             }
 

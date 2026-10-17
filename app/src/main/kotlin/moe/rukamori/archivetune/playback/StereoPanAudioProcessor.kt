@@ -8,8 +8,49 @@ import androidx.media3.common.C
 import java.nio.ByteBuffer
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.sin
+
+/**
+ * Karaoke mode: attenuates what sits dead centre in the stereo image (usually the lead vocal)
+ * while keeping the sides and the bass. Process-wide so every player instance (including the
+ * crossfade one) follows the same switch.
+ */
+object KaraokeMode {
+    @Volatile
+    var enabled: Boolean = false
+}
+
+/**
+ * Estimates the part of the mix that is dead centre and above the bass range. Subtracting it
+ * from both channels removes most of a studio lead vocal and leaves kick, bass and the sides.
+ */
+internal class KaraokeFilter {
+    private var lowMid = 0f
+
+    fun reset() {
+        lowMid = 0f
+    }
+
+    /** [alpha] is the one-pole low-pass coefficient that defines the preserved bass range. */
+    fun centreAboveBass(
+        left: Float,
+        right: Float,
+        alpha: Float,
+    ): Float {
+        val mid = (left + right) * 0.5f
+        lowMid += alpha * (mid - lowMid)
+        return mid - lowMid
+    }
+
+    companion object {
+        const val STRENGTH = 0.9f
+        const val BASS_HZ = 150.0
+
+        fun alphaFor(sampleRate: Int): Float = 1f - exp(-2.0 * PI * BASS_HZ / sampleRate).toFloat()
+    }
+}
 
 class StereoPanAudioProcessor : BaseAudioProcessor() {
     @Volatile
@@ -22,6 +63,8 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
     private var rotationSpeedHz: Float = DEFAULT_SPEED_HZ
 
     private var phase: Double = 0.0
+
+    private val karaokeFilter = KaraokeFilter()
 
     private var echoHistory: ShortArray? = null
     private var echoWriteIndex: Int = 0
@@ -57,17 +100,19 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
         val balanceNow = balance
         val rotationOn = rotationEnabled
         val balanceOn = abs(balanceNow) > BALANCE_EPSILON
+        val karaokeOn = KaraokeMode.enabled
         if (
             (!floatIn && format.encoding != C.ENCODING_PCM_16BIT) ||
             format.channelCount != STEREO_CHANNEL_COUNT ||
             format.sampleRate <= 0 ||
-            (!rotationOn && !balanceOn)
+            (!rotationOn && !balanceOn && !karaokeOn)
         ) {
             replaceOutputBuffer(inputBuffer.remaining()).put(inputBuffer).flip()
             return
         }
 
         val sampleRate = format.sampleRate
+        val karaokeAlpha = KaraokeFilter.alphaFor(sampleRate)
 
         val history = ensureEchoHistory(sampleRate)
         val bytesPerSample = if (floatIn) 4 else 2
@@ -94,14 +139,21 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
         var writeIndex = echoWriteIndex
 
         repeat(frameCount) {
-            val inLeft: Float
-            val inRight: Float
+            val rawLeft: Float
+            val rawRight: Float
             if (floatIn) {
-                inLeft = inputBuffer.float * 32767f
-                inRight = inputBuffer.float * 32767f
+                rawLeft = inputBuffer.float * 32767f
+                rawRight = inputBuffer.float * 32767f
             } else {
-                inLeft = inputBuffer.short.toFloat()
-                inRight = inputBuffer.short.toFloat()
+                rawLeft = inputBuffer.short.toFloat()
+                rawRight = inputBuffer.short.toFloat()
+            }
+            var inLeft = rawLeft
+            var inRight = rawRight
+            if (karaokeOn) {
+                val vocalBand = karaokeFilter.centreAboveBass(rawLeft, rawRight, karaokeAlpha)
+                inLeft = rawLeft - KaraokeFilter.STRENGTH * vocalBand
+                inRight = rawRight - KaraokeFilter.STRENGTH * vocalBand
             }
 
             val left: Float
@@ -159,12 +211,14 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
     override fun onFlush() {
         echoHistory?.fill(0)
         echoWriteIndex = 0
+        karaokeFilter.reset()
     }
 
     override fun onReset() {
         phase = 0.0
         echoHistory = null
         echoWriteIndex = 0
+        karaokeFilter.reset()
     }
 
     private fun ensureEchoHistory(sampleRate: Int): ShortArray {

@@ -2028,7 +2028,7 @@ class MediaLibrarySessionCallback
 
         private suspend fun homeSuggestedSongs(): List<SongItem> {
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-            val hideVideo = context.dataStore.get(HideVideoKey, false)
+            val hideVideo = context.dataStore.get(HideVideoKey, true)
             return YouTube
                 .home()
                 .getOrNull()
@@ -2068,7 +2068,7 @@ class MediaLibrarySessionCallback
 
         private suspend fun homeOnlinePlaylists(): List<MediaItem> {
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-            val hideVideo = context.dataStore.get(HideVideoKey, false)
+            val hideVideo = context.dataStore.get(HideVideoKey, true)
             return YouTube
                 .home()
                 .getOrNull()
@@ -2526,7 +2526,7 @@ class MediaLibrarySessionCallback
 
             val normalizedQuery = query.lowercase(Locale.getDefault())
             return database
-                .getSongsByIds(cachedIds)
+                .let { dao -> cachedIds.chunked(500).flatMap { dao.getSongsByIds(it) } }
                 .asSequence()
                 .filter { it.song.inLibrary == null }
                 .filterNot { it.id in excludeIds }
@@ -2618,7 +2618,7 @@ class MediaLibrarySessionCallback
         ): List<MediaItem> {
             if (!allowed || query.isBlank() || previewSize <= 0) return emptyList()
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-            val hideVideo = context.dataStore.get(HideVideoKey, false)
+            val hideVideo = context.dataStore.get(HideVideoKey, true)
             return YouTube
                 .search(query, YouTube.SearchFilter.FILTER_SONG)
                 .getOrNull()

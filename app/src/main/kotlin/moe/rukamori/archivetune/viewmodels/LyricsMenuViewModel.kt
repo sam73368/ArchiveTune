@@ -158,24 +158,28 @@ class LyricsMenuViewModel
                             duration = duration,
                             forceRefresh = true,
                         ) { result ->
-                            if (generation != searchGeneration.get()) return@getAllLyrics
-                            val model = result.toUiModel(resultModels.size)
-                            if (model.preview.isBlank()) return@getAllLyrics
+                            // Providers answer in parallel on several threads: the list is shared.
+                            synchronized(resultModels) {
+                                if (generation != searchGeneration.get()) return@getAllLyrics
+                                val model = result.toUiModel(resultModels.size)
+                                if (model.preview.isBlank()) return@getAllLyrics
 
-                            resultModels += model
-                            _lyricsSearchState.value =
-                                LyricsSearchScreenState.Success(
-                                    results = ImmutableList.copyOf(resultModels),
-                                    isSearching = true,
-                                )
+                                resultModels += model
+                                _lyricsSearchState.value =
+                                    LyricsSearchScreenState.Success(
+                                        results = ImmutableList.copyOf(resultModels),
+                                        isSearching = true,
+                                    )
+                            }
                         }
                         if (generation != searchGeneration.get()) return@launch
+                        val finalResults = synchronized(resultModels) { ImmutableList.copyOf(resultModels) }
                         _lyricsSearchState.value =
-                            if (resultModels.isEmpty()) {
+                            if (finalResults.isEmpty()) {
                                 LyricsSearchScreenState.Empty
                             } else {
                                 LyricsSearchScreenState.Success(
-                                    results = ImmutableList.copyOf(resultModels),
+                                    results = finalResults,
                                     isSearching = false,
                                 )
                             }
@@ -206,6 +210,13 @@ class LyricsMenuViewModel
             viewModelScope.launch(Dispatchers.IO) {
                 try {
                     val result = lyricsHelper.getLyricsWithProvider(mediaMetadata, forceRefresh = true)
+                    // A failed refetch (offline, providers down) must not wipe the lyrics already there.
+                    val existing = database.withTransaction { getLyricsById(mediaMetadata.id) }
+                    if (result.lyrics == LyricsEntity.LYRICS_NOT_FOUND &&
+                        existing != null && existing.lyrics != LyricsEntity.LYRICS_NOT_FOUND
+                    ) {
+                        return@launch
+                    }
                     database.withTransaction {
                         replaceLyrics(
                             id = mediaMetadata.id,
@@ -294,6 +305,17 @@ class LyricsMenuViewModel
                     try {
                         val prefs = context.dataStore.data.first()
                         isAutomatic = prefs[AutoTranslateLyricsKey] ?: false
+
+                        if (isAutomatic) {
+                            // A player can ask while the song is changing, with the previous song's
+                            // lyrics. That result would be thrown away at the end anyway, and meanwhile
+                            // the request for the song now playing was refused (one at a time).
+                            val stored = database.withTransaction { getLyricsById(mediaMetadata.id) }
+                            if (stored?.lyrics != lyrics) {
+                                Log.d(TAG, "AI translate skipped: lyrics do not belong to song id=${mediaMetadata.id}")
+                                return@launch
+                            }
+                        }
 
                         if (isAutomatic) {
                             val excluded = prefs[AutoTranslateExcludedLanguagesKey] ?: emptySet()

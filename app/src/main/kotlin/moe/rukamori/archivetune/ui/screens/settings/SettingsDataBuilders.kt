@@ -59,7 +59,7 @@ import moe.rukamori.archivetune.constants.HideExplicitKey
 import moe.rukamori.archivetune.constants.HideNavigationBarLabelsKey
 import moe.rukamori.archivetune.constants.HidePlayerThumbnailKey
 import moe.rukamori.archivetune.constants.HideScrollbarKey
-import moe.rukamori.archivetune.constants.HideVideoKey
+import moe.rukamori.archivetune.constants.ShowVideosInSearchKey
 import moe.rukamori.archivetune.constants.EnableHapticFeedbackKey
 import moe.rukamori.archivetune.constants.ListenBrainzEnabledKey
 import moe.rukamori.archivetune.constants.LowDataModeKey
@@ -86,6 +86,7 @@ import moe.rukamori.archivetune.constants.SeekExtraSeconds
 import moe.rukamori.archivetune.constants.ShowHomeCategoryChipsKey
 import moe.rukamori.archivetune.constants.ShowPlayerVolumeBarKey
 import moe.rukamori.archivetune.constants.ShowSpotifyPlaylistsKey
+import moe.rukamori.archivetune.constants.KaraokeModeKey
 import moe.rukamori.archivetune.constants.SkipSilenceKey
 import moe.rukamori.archivetune.constants.SmartTrimmerKey
 import moe.rukamori.archivetune.constants.StopMusicOnTaskClearKey
@@ -131,6 +132,7 @@ import moe.rukamori.archivetune.constants.QobuzEnabledKey
 import moe.rukamori.archivetune.constants.ShowTagsInLibraryKey
 import moe.rukamori.archivetune.constants.StreamBypassProxyKey
 import moe.rukamori.archivetune.constants.SwipeThumbnailKey
+import moe.rukamori.archivetune.constants.ShowViewCountsKey
 import moe.rukamori.archivetune.constants.TabletModeEnabledKey
 import moe.rukamori.archivetune.constants.TidalAccountFirstKey
 import moe.rukamori.archivetune.constants.ListenTogetherSyncVolumeKey
@@ -282,6 +284,7 @@ fun buildSettingsGroups(
                 SettingsChild("Backdrop blur amount", "backdrop_blur_amount", listOf("backdrop blur amount", "backdrop intensity", "background blur amount")),
                 SettingsChild("Customized background", "customized_background", listOf("customized background", "custom background", "background image", "wallpaper")),
                 SettingsChild("Tablet mode", "tablet_mode", listOf("tablet mode", "tablet", "large screen", "landscape layout")) { SearchResultSwitch(TabletModeEnabledKey, false) },
+                SettingsChild("Show view counts", "show_view_counts", listOf("view count", "views", "show views", "youtube views", "plays")) { SearchResultSwitch(ShowViewCountsKey, true) },
                 SettingsChild("Minimal mode", "minimal_home_mode", listOf("minimal mode", "minimal home", "simple home", "clean home")) { SearchResultSwitch(MinimalHomeModeKey, false) },
                 SettingsChild("Liquid Glass effects", "liquid_glass_effects", listOf("liquid glass", "glass effects", "header glass", "mini player glass")),
                 SettingsChild("Theme creator", "theme_creator", listOf("theme creator", "create theme", "custom theme", "make theme")),
@@ -377,6 +380,7 @@ fun buildSettingsGroups(
                 SettingsChild("History duration", "history_duration", listOf("history", "duration", "recent", "queue length")),
                 SettingsChild("Crossfade", "crossfade", listOf("crossfade", "fade", "transition", "mix", "blend")) { SearchResultSwitch(CrossfadeEnabledKey, false) },
                 SettingsChild("Crossfade gapless", "crossfade_gapless", listOf("crossfade gapless", "gapless crossfade", "seamless crossfade")) { SearchResultSwitch(CrossfadeGaplessKey, true) },
+                SettingsChild("Karaoke mode", "karaoke_mode", listOf("karaoke", "vocals", "voice", "sing", "instrumental", "remove vocals")) { SearchResultSwitch(KaraokeModeKey, false) },
                 SettingsChild("Skip silence", "skip_silence", listOf("silence", "skip silence", "blank", "quiet")) { SearchResultSwitch(SkipSilenceKey, false) },
                 SettingsChild("Audio normalization", "audio_normalization", listOf("normalization", "loudness", "normalize", "volume level")) { SearchResultSwitch(AudioNormalizationKey, true) },
                 SettingsChild("ReplayGain", "replay_gain", listOf("replaygain", "replay gain", "r128", "gain", "loudness correction", "track gain", "album gain")),
@@ -596,7 +600,7 @@ fun buildSettingsGroups(
                 SettingsChild("Content language", "content_language", listOf("language", "content language", "locale", "country")),
                 SettingsChild("Content country", "content_country", listOf("country", "region", "content country")),
                 SettingsChild("Hide explicit", "hide_explicit", listOf("explicit", "age", "mature", "age restricted", "clean")) { SearchResultSwitch(HideExplicitKey, false) },
-                SettingsChild("Hide video", "hide_video", listOf("video", "hide video", "music video", "mv")) { SearchResultSwitch(HideVideoKey, false) },
+                SettingsChild("Show music videos in search", "hide_video", listOf("video", "hide video", "music video", "mv", "clip", "show videos")) { SearchResultSwitch(ShowVideosInSearchKey, false) },
                 SettingsChild("Enable video", "enable_video", listOf("video", "music video", "mv", "enable video")),
                 SettingsChild("Quick picks", "quick_picks", listOf("quick picks", "quick mix", "smart mix", "recommendations")),
                 SettingsChild("Allow age-restricted content", "allow_age_restricted", listOf("age restricted", "allow age restricted", "mature content", "18+", "restricted")) { SearchResultSwitch(AllowAgeRestrictedKey, false) },

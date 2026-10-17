@@ -48,7 +48,7 @@ class YouTubeBrowseViewModel
                 YouTube
                     .browse(browseId, params)
                     .onSuccess {
-                        val hideVideo = context.dataStore.get(HideVideoKey, false)
+                        val hideVideo = context.dataStore.get(HideVideoKey, true)
                         val aiContentFilterPolicy = loadAiContentFilterPolicy()
                         val contentFilteredResult =
                             it

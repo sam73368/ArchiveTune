@@ -14,9 +14,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,10 +23,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import moe.rukamori.archivetune.canvas.models.CanvasArtwork
 import moe.rukamori.archivetune.constants.HideVideoKey
 import moe.rukamori.archivetune.db.MusicDatabase
@@ -78,15 +71,10 @@ class OnlinePlaylistViewModel
                 .playlistByBrowseId(playlistId)
                 .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
-        private val _viewCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
-        val viewCounts = _viewCounts.asStateFlow()
 
         private val _canvasArtwork = MutableStateFlow<CanvasArtwork?>(null)
         val canvasArtwork: StateFlow<CanvasArtwork?> = _canvasArtwork.asStateFlow()
 
-        private val viewCountsMutex = Mutex()
-        private val viewCountsInFlight = mutableSetOf<String>()
-        private val viewCountsSemaphore = Semaphore(permits = 4)
 
         var continuation: String? = null
             private set
@@ -101,6 +89,7 @@ class OnlinePlaylistViewModel
         }
 
         fun loadMoreSongs() {
+            if (_isLoading.value || _isRefreshing.value) return
             val nextContinuation = continuation ?: return
             if (!_isLoadingMore.compareAndSet(expect = false, update = true)) return
 
@@ -111,13 +100,12 @@ class OnlinePlaylistViewModel
                         .onSuccess { playlistContinuationPage ->
                             val visibleSongs =
                                 playlistContinuationPage.songs
-                                    .filterVideo(context.dataStore.get(HideVideoKey, false))
+                                    .filterVideo(context.dataStore.get(HideVideoKey, true))
                                     .filterBlockedArtists(database.getBlockedArtistIds().toSet())
                             _playlistSongs.update { currentSongs ->
                                 (currentSongs + visibleSongs).distinctByPlaylistEntry()
                             }
                             continuation = playlistContinuationPage.continuation
-                            prefetchViewCounts(visibleSongs.map { song -> song.id })
                         }.onFailure { throwable ->
                             reportException(throwable)
                         }
@@ -163,28 +151,34 @@ class OnlinePlaylistViewModel
             viewModelScope.launch(Dispatchers.IO) {
                 _error.value = null
 
+                try {
                 YouTube
                     .playlist(playlistId)
                     .onSuccess { playlistPage ->
                         val visibleSongs =
                             playlistPage.songs
-                                .filterVideo(context.dataStore.get(HideVideoKey, false))
+                                .filterVideo(context.dataStore.get(HideVideoKey, true))
                                 .filterBlockedArtists(database.getBlockedArtistIds().toSet())
                                 .distinctByPlaylistEntry()
                         _playlist.value = playlistPage.playlist
                         _playlistSongs.value = visibleSongs
                         continuation = playlistPage.songsContinuation ?: playlistPage.continuation
-                        prefetchViewCounts(visibleSongs.map { song -> song.id })
                         persistMissingPlaylistCover(playlistPage)
                     }.onFailure { throwable ->
                         _error.value = throwable.message ?: "Failed to load playlist"
                         reportException(throwable)
                     }
-
-                if (initial) {
-                    _isLoading.value = false
-                } else {
-                    _isRefreshing.value = false
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _error.value = e.message ?: "Failed to load playlist"
+                    reportException(e)
+                } finally {
+                    if (initial) {
+                        _isLoading.value = false
+                    } else {
+                        _isRefreshing.value = false
+                    }
                 }
             }
         }
@@ -206,40 +200,4 @@ class OnlinePlaylistViewModel
             }
         }
 
-        private fun prefetchViewCounts(videoIds: List<String>) {
-            val uniqueIds = videoIds.distinct().filter { it.isNotBlank() }
-            if (uniqueIds.isEmpty()) return
-
-            viewModelScope.launch(Dispatchers.IO) {
-                coroutineScope {
-                    uniqueIds
-                        .map { videoId ->
-                            async {
-                                val shouldFetch =
-                                    viewCountsMutex.withLock {
-                                        if (_viewCounts.value.containsKey(videoId) || viewCountsInFlight.contains(videoId)) {
-                                            false
-                                        } else {
-                                            viewCountsInFlight.add(videoId)
-                                            true
-                                        }
-                                    }
-
-                                if (!shouldFetch) return@async
-
-                                try {
-                                    viewCountsSemaphore.withPermit {
-                                        val count = YouTube.getMediaInfo(videoId).getOrNull()?.viewCount
-                                        if (count != null && count >= 0) {
-                                            _viewCounts.update { current -> current + (videoId to count) }
-                                        }
-                                    }
-                                } finally {
-                                    viewCountsMutex.withLock { viewCountsInFlight.remove(videoId) }
-                                }
-                            }
-                        }.awaitAll()
-                }
-            }
-        }
     }

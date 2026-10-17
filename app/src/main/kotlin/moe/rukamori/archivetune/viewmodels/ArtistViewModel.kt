@@ -57,9 +57,12 @@ import moe.rukamori.archivetune.innertube.models.filterExplicit
 import moe.rukamori.archivetune.innertube.models.filterVideo
 import moe.rukamori.archivetune.innertube.pages.ArtistPage
 import moe.rukamori.archivetune.innertube.pages.ArtistSection
+import moe.rukamori.archivetune.innertube.pages.ArtistSectionLayout
 import moe.rukamori.archivetune.innertube.pages.isInlineCarousel
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
+import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
+import moe.rukamori.archivetune.utils.SongViewRanking
 import moe.rukamori.archivetune.utils.isLowDataModeActive
 import moe.rukamori.archivetune.utils.reportException
 import java.util.Locale
@@ -148,7 +151,7 @@ class ArtistViewModel
         val librarySongs =
             context.dataStore.data
                 .map { preferences ->
-                    (preferences[HideExplicitKey] ?: false) to (preferences[HideVideoKey] ?: false)
+                    (preferences[HideExplicitKey] ?: false) to (preferences[HideVideoKey] ?: true)
                 }
                 .distinctUntilChanged()
                 .flatMapLatest { (hideExplicit, hideVideo) ->
@@ -168,7 +171,7 @@ class ArtistViewModel
             viewModelScope.launch {
                 context.dataStore.data
                     .map { preferences ->
-                        (preferences[HideExplicitKey] ?: false) to (preferences[HideVideoKey] ?: false)
+                        (preferences[HideExplicitKey] ?: false) to (preferences[HideVideoKey] ?: true)
                     }
                     .distinctUntilChanged()
                     .collect {
@@ -180,21 +183,30 @@ class ArtistViewModel
         fun manualRefresh() {
             if (isManuallyRefreshing) return
             isManuallyRefreshing = true
-            viewModelScope.launch {
-                try {
-                    fetchArtistsFromYTM(manual = true)
-                } finally {
-                    isManuallyRefreshing = false
-                }
-            }
+            // The flag is cleared when the fetch itself finishes (see fetchArtistsFromYTM).
+            fetchArtistsFromYTM(manual = true)
         }
 
         fun fetchArtistsFromYTM(manual: Boolean = false) {
             inlineExpandJob?.cancel()
             inlineExpandJob = null
             viewModelScope.launch {
+                try {
+                    fetchArtistFromYTM()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    reportException(e)
+                } finally {
+                    if (manual) isManuallyRefreshing = false
+                }
+            }
+        }
+
+        private suspend fun fetchArtistFromYTM() {
+            run {
                 val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                val hideVideo = context.dataStore.get(HideVideoKey, false)
+                val hideVideo = context.dataStore.get(HideVideoKey, true)
                 val blockedArtistIds = database.getBlockedArtistIds().toSet()
                 YouTube
                     .artist(artistId)
@@ -207,13 +219,18 @@ class ArtistViewModel
                                             section.items
                                                 .filterExplicit(hideExplicit)
                                                 .filterVideo(hideVideo)
-                                                .filterBlockedArtists(blockedArtistIds),
+                                                .filterBlockedArtists(blockedArtistIds)
+                                                .dropCleanTwins(),
                                     )
                                 }
 
                         artistPage = page.copy(sections = filteredSections)
 
                         expandInlineCarouselSections(filteredSections, hideExplicit, hideVideo, blockedArtistIds)
+
+                        viewModelScope.launch(Dispatchers.IO) {
+                            rankTopSongs(filteredSections, hideExplicit, hideVideo, blockedArtistIds)
+                        }
 
                         viewModelScope.launch(Dispatchers.IO) {
                             fetchArtistCanvas(page)
@@ -227,9 +244,56 @@ class ArtistViewModel
                     }.onFailure {
                         reportException(it)
                     }
-                if (manual) {
-                    isManuallyRefreshing = false
+            }
+        }
+
+        /**
+         * "Top songs" must be the artist's most viewed songs, not the five YouTube happens to list.
+         * The full list behind the section's arrow is loaded, ranked by view count, and the
+         * section is replaced by the best of it (as many songs as the page showed). Until then the
+         * page shows YouTube's own order. Skipped in low-data mode.
+         */
+        private suspend fun rankTopSongs(
+            sections: List<ArtistSection>,
+            hideExplicit: Boolean,
+            hideVideo: Boolean,
+            blockedArtistIds: Set<String>,
+        ) {
+            if (context.isLowDataModeActive()) return
+            val section =
+                sections.firstOrNull { candidate ->
+                    candidate.layout == ArtistSectionLayout.LIST &&
+                        candidate.items.isNotEmpty() &&
+                        candidate.items.all { it is SongItem }
+                } ?: return
+            val previewSize = section.items.size
+            val endpoint = section.moreEndpoint
+
+            val everySong =
+                (endpoint?.let { SongViewRanking.fetchAllSongs(it)?.songs } ?: emptyList())
+                    .filterExplicit(hideExplicit)
+                    .filterVideo(hideVideo)
+                    .filterBlockedArtists(blockedArtistIds)
+                    .dropCleanTwins()
+            // Fall back to the songs of the page itself if the full list is unavailable.
+            val candidates =
+                if (everySong.size >= previewSize) {
+                    everySong
+                } else {
+                    (section.items.filterIsInstance<SongItem>() + everySong).distinctBy { it.id }
                 }
+
+            val ranked = SongViewRanking.rank(context, candidates).take(previewSize)
+            if (ranked.isEmpty()) return
+
+            withContext(Dispatchers.Main) {
+                val current = artistPage ?: return@withContext
+                // Ignore the result if the page was refreshed in the meantime.
+                if (current.sections.none { it === section }) return@withContext
+                artistPage =
+                    current.copy(
+                        sections = current.sections.map { if (it === section) it.copy(items = ranked) else it },
+                    )
             }
         }
 

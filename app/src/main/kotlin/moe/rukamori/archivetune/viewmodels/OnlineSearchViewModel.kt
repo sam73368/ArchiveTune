@@ -16,11 +16,14 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.aicontentfilter.FilterAiContentUseCase
 import moe.rukamori.archivetune.aicontentfilter.LoadAiContentFilterPolicyUseCase
 import moe.rukamori.archivetune.constants.HideExplicitKey
-import moe.rukamori.archivetune.constants.HideVideoKey
+import moe.rukamori.archivetune.constants.ShowVideosInSearchKey
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.YouTube.SearchFilter.Companion.FILTER_ALBUM
 import moe.rukamori.archivetune.innertube.YouTube.SearchFilter.Companion.FILTER_ARTIST
@@ -39,6 +42,7 @@ import moe.rukamori.archivetune.ui.screens.search.OnlineSearchProviderArgument
 import moe.rukamori.archivetune.ui.screens.search.OnlineSearchResultArgument
 import moe.rukamori.archivetune.ui.screens.search.decodeOnlineSearchQuery
 import moe.rukamori.archivetune.extensions.toEnum
+import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.utils.reportException
@@ -99,20 +103,39 @@ class OnlineSearchViewModel
         init {
             if (searchProvider == SearchProvider.YOUTUBE) {
                 viewModelScope.launch {
-                    filter.collect { selectedFilter ->
-                        if (selectedFilter == null) {
-                            viewModelScope.launch {
-                                loadSummaryIfNeeded()
-                            }
-                            allModeFilters.forEach { allModeFilter ->
-                                viewModelScope.launch {
-                                    loadFilterIfNeeded(allModeFilter)
-                                }
-                            }
-                        } else {
-                            loadFilterIfNeeded(selectedFilter)
+                    filter.collect { selectedFilter -> loadFor(selectedFilter) }
+                }
+                // The "Music videos" switch of the results screen: results are filtered when loaded,
+                // so a change throws the cached pages away and loads them again.
+                viewModelScope.launch {
+                    context.dataStore.data
+                        .map { it[ShowVideosInSearchKey] ?: false }
+                        .distinctUntilChanged()
+                        .drop(1)
+                        .collect {
+                            summaryPage = null
+                            viewStateMap.clear()
+                            loadingFilters.clear()
+                            isSummaryLoading = false
+                            loadFor(filter.value)
                         }
+                }
+            }
+        }
+
+        private fun loadFor(selectedFilter: YouTube.SearchFilter?) {
+            if (selectedFilter == null) {
+                viewModelScope.launch {
+                    loadSummaryIfNeeded()
+                }
+                allModeFilters.forEach { allModeFilter ->
+                    viewModelScope.launch {
+                        loadFilterIfNeeded(allModeFilter)
                     }
+                }
+            } else {
+                viewModelScope.launch {
+                    loadFilterIfNeeded(selectedFilter)
                 }
             }
         }
@@ -130,7 +153,7 @@ class OnlineSearchViewModel
                         val contentFilteredPage =
                             it
                                 .filterExplicit(context.dataStore.get(HideExplicitKey, false))
-                                .filterVideo(context.dataStore.get(HideVideoKey, false))
+                                .filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false))
                         summaryPage =
                             contentFilteredPage.copy(
                                 summaries =
@@ -139,7 +162,7 @@ class OnlineSearchViewModel
                                             .copy(
                                                 items =
                                                     filterAiContent(
-                                                        summary.items,
+                                                        summary.items.dropCleanTwins(),
                                                         aiContentFilterPolicy,
                                                     ),
                                             )
@@ -163,6 +186,11 @@ class OnlineSearchViewModel
                     loadPodcastFilter()
                     return
                 }
+                if (filter == FILTER_VIDEO && !context.dataStore.get(ShowVideosInSearchKey, false)) {
+                    // Clips are only offered while the search switch is on.
+                    viewStateMap[filterKey] = ItemsPage(emptyList(), null)
+                    return
+                }
                 YouTube
                     .search(query, filter)
                     .onSuccess { result ->
@@ -177,7 +205,8 @@ class OnlineSearchViewModel
                                                 HideExplicitKey,
                                                 false,
                                             ),
-                                        ).filterVideo(context.dataStore.get(HideVideoKey, false)),
+                                        ).filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false))
+                                        .dropCleanTwins(),
                                     aiContentFilterPolicy,
                                 ),
                                 result.continuation,
@@ -227,12 +256,12 @@ class OnlineSearchViewModel
                         filterAiContent(
                             searchResult.items
                                 .filterExplicit(context.dataStore.get(HideExplicitKey, false))
-                                .filterVideo(context.dataStore.get(HideVideoKey, false)),
+                                .filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false)),
                             aiContentFilterPolicy,
                         )
                     viewStateMap[filter] =
                         ItemsPage(
-                            (viewState.items + continuedItems).distinctBy { it.id },
+                            (viewState.items + continuedItems).distinctBy { it.id }.dropCleanTwins(),
                             searchResult.continuation,
                         )
                 }

@@ -441,6 +441,26 @@ fun NavGraphBuilder.navigationBuilder(
     ) {
         AutoPlaylistScreen(navController, scrollBehavior)
     }
+    composable(CAR_MODE_ROUTE) {
+        CarModeScreen(navController)
+    }
+    composable(SMART_PLAYLISTS_ROUTE) {
+        SmartPlaylistsScreen(navController)
+    }
+    composable(
+        route = "$SMART_PLAYLIST_ROUTE_BASE/{ruleId}",
+        arguments =
+            listOf(
+                navArgument("ruleId") {
+                    type = NavType.StringType
+                },
+            ),
+    ) { backStackEntry ->
+        SmartPlaylistDetailScreen(
+            navController = navController,
+            ruleId = backStackEntry.arguments?.getString("ruleId").orEmpty(),
+        )
+    }
     composable(
         route = "cache_playlist/{playlist}",
         arguments =
@@ -489,10 +509,14 @@ fun NavGraphBuilder.navigationBuilder(
         HiddenPlaylistsScreen(navController)
     }
     composable(
-        route = "settings/appearance?scrollTo={scrollTo}",
-        arguments = listOf(navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null }),
+        route = "settings/appearance?scrollTo={scrollTo}&section={section}",
+        arguments =
+            listOf(
+                navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("section") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
     ) {
-        AppearanceSettings(navController, it.savedStateHandle["scrollTo"])
+        AppearanceSettings(navController, it.savedStateHandle["scrollTo"], it.savedStateHandle["section"])
     }
     composable(
         route = "settings/appearance/extras?scrollTo={scrollTo}",
@@ -555,10 +579,14 @@ fun NavGraphBuilder.navigationBuilder(
         InternetSettings(navController, it.savedStateHandle["scrollTo"])
     }
     composable(
-        route = "settings/player?scrollTo={scrollTo}",
-        arguments = listOf(navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null }),
+        route = "settings/player?scrollTo={scrollTo}&section={section}",
+        arguments =
+            listOf(
+                navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("section") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
     ) {
-        PlayerSettings(navController, it.savedStateHandle["scrollTo"])
+        PlayerSettings(navController, it.savedStateHandle["scrollTo"], it.savedStateHandle["section"])
     }
     composable(
         route = "settings/appearance/liquid_glass?scrollTo={scrollTo}",

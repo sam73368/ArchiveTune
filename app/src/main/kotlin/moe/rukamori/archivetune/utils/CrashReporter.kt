@@ -129,23 +129,28 @@ object CrashReporter {
 
     private fun startSessionLogFlusher(dir: File) {
         Thread {
-            var written = 0
+            // The log is a 500-entry ring buffer, so its size stops growing once full: track the
+            // last entry written (by identity) rather than a count.
+            var lastWritten: LogEntry? = null
             while (true) {
                 try {
                     Thread.sleep(FLUSH_INTERVAL_MS)
                     GlobalLog.flush()
                     val entries = GlobalLog.logs.value
                     if (entries.isEmpty()) continue
-                    val delta = when {
-                        written == 0 -> entries
-                        entries.size >= written -> entries.subList(written, entries.size)
-                        else -> entries
-                    }
+                    val previous = lastWritten
+                    val delta =
+                        if (previous == null) {
+                            entries
+                        } else {
+                            val index = entries.indexOfLast { it === previous }
+                            if (index >= 0) entries.subList(index + 1, entries.size) else entries
+                        }
                     if (delta.isEmpty()) continue
                     synchronized(sessionLogLock) {
                         appendToSessionLog(dir, delta)
                     }
-                    written = entries.size
+                    lastWritten = entries.last()
                 } catch (_: InterruptedException) {
                     return@Thread
                 } catch (_: Throwable) {

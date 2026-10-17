@@ -19,3 +19,24 @@ fun NavController.backToMain() {
         popBackStack()
     }
 }
+
+/**
+ * Jumps straight back to the Home tab from anywhere in the app.
+ *
+ * Pops back to an existing Home entry when there is one (keeps its scroll position and loaded
+ * feed); otherwise navigates to Home the same way the bottom bar does, so the back stack never
+ * grows a second Home copy.
+ */
+fun NavController.navigateHome() {
+    val homeRoute = Screens.Home.route
+    if (currentDestination?.route == homeRoute) return
+    val popped = runCatching { popBackStack(homeRoute, false) }.getOrDefault(false)
+    if (popped && currentDestination?.route == homeRoute) return
+    runCatching {
+        navigate(homeRoute) {
+            popUpTo(graph.startDestinationId) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+}

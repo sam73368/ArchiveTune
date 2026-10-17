@@ -71,7 +71,7 @@ class AutoPlaylistViewModel
                                 ?: true
                         ),
                         it[HideExplicitKey] ?: false,
-                        it[HideVideoKey] ?: false,
+                        it[HideVideoKey] ?: true,
                     )
                 }.distinctUntilChanged()
                 .flatMapLatest { (sortDesc, hideExplicit, hideVideo) ->

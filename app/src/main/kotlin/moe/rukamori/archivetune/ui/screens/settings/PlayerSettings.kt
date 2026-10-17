@@ -7,6 +7,8 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.constants.SmartShuffleEveryKey
+import moe.rukamori.archivetune.constants.SmartShuffleKey
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -84,6 +86,7 @@ import moe.rukamori.archivetune.constants.PauseOnDeviceMuteKey
 import moe.rukamori.archivetune.constants.PermanentShuffleKey
 import moe.rukamori.archivetune.constants.PersistentQueueKey
 import moe.rukamori.archivetune.constants.SeekExtraSeconds
+import moe.rukamori.archivetune.constants.KaraokeModeKey
 import moe.rukamori.archivetune.constants.SkipSilenceKey
 import moe.rukamori.archivetune.constants.PreferredArtworkProvider
 import moe.rukamori.archivetune.constants.StopMusicOnTaskClearKey
@@ -95,6 +98,7 @@ import moe.rukamori.archivetune.constants.PlayerDesignStyleKey
 import moe.rukamori.archivetune.constants.WakelockKey
 import moe.rukamori.archivetune.ui.component.ArtistSeparatorsDialog
 import moe.rukamori.archivetune.ui.component.CrossfadeSliderPreference
+import moe.rukamori.archivetune.ui.component.ListPreference
 import moe.rukamori.archivetune.ui.component.DefaultDialog
 import moe.rukamori.archivetune.ui.component.EnumListPreference
 import moe.rukamori.archivetune.ui.component.FrostedHeaderPill
@@ -127,12 +131,16 @@ import moe.rukamori.archivetune.ui.component.SettingsPageTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
+fun PlayerSettings(
+    navController: NavController,
+    scrollTo: String? = null,
+    section: String? = null,
+) {
     val playerDesignStyle by rememberEnumPreference(
         key = PlayerDesignStyleKey,
         defaultValue = PlayerDesignStyle.V4,
     )
-
+    val activeSection = section ?: playerSectionForKey(scrollTo)
     val (persistentQueue, onPersistentQueueChange) =
         rememberPreference(
             PersistentQueueKey,
@@ -141,6 +149,21 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
     val (permanentShuffle, onPermanentShuffleChange) =
         rememberPreference(
             PermanentShuffleKey,
+            defaultValue = false,
+        )
+    val (smartShuffle, onSmartShuffleChange) =
+        rememberPreference(
+            SmartShuffleKey,
+            defaultValue = false,
+        )
+    val (smartShuffleEvery, onSmartShuffleEveryChange) =
+        rememberPreference(
+            SmartShuffleEveryKey,
+            defaultValue = 3,
+        )
+    val (karaokeMode, onKaraokeModeChange) =
+        rememberPreference(
+            KaraokeModeKey,
             defaultValue = false,
         )
     val (skipSilence, onSkipSilenceChange) =
@@ -299,7 +322,7 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
                 SettingsPageTopBar(
-                    titleText = stringResource(R.string.player_and_audio),
+                    titleText = playerSectionTitle(activeSection),
                     onBack = navController::navigateUp,
                     onBackLongClick = navController::backToMain,
                 )
@@ -327,6 +350,7 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                 .padding(top = topPadding)
                 .padding(bottom = playerAwareBottomPadding + SettingsDimensions.ScreenBottomPadding),
         ) {
+            if (activeSection == null) {
             PreferenceGroup(
                 title = stringResource(R.string.settings_section_player_content),
             ) {
@@ -358,6 +382,53 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                 }
             }
 
+                PreferenceGroup(
+                    title = stringResource(R.string.player_settings_sections),
+                ) {
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.video_playback)) },
+                            description = stringResource(R.string.player_section_video_desc),
+                            icon = { Icon(painterResource(R.drawable.slow_motion_video), null) },
+                            onClick = { navController.navigate("settings/player?section=video") },
+                        )
+                    }
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.player)) },
+                            description = stringResource(R.string.player_section_playback_desc),
+                            icon = { Icon(painterResource(R.drawable.music_note), null) },
+                            onClick = { navController.navigate("settings/player?section=playback") },
+                        )
+                    }
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.tidal_artwork)) },
+                            description = stringResource(R.string.player_section_artwork_desc),
+                            icon = { Icon(painterResource(R.drawable.image), null) },
+                            onClick = { navController.navigate("settings/player?section=artwork") },
+                        )
+                    }
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.queue)) },
+                            description = stringResource(R.string.player_section_queue_desc),
+                            icon = { Icon(painterResource(R.drawable.queue_music), null) },
+                            onClick = { navController.navigate("settings/player?section=queue") },
+                        )
+                    }
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.misc)) },
+                            description = stringResource(R.string.player_section_misc_desc),
+                            icon = { Icon(painterResource(R.drawable.tune), null) },
+                            onClick = { navController.navigate("settings/player?section=misc") },
+                        )
+                    }
+                }
+            }
+
+            if (activeSection == "video") {
             PreferenceGroup(
                 modifier = positions.modifierFor("enable_video_playback"),
                 title = stringResource(R.string.video_playback),
@@ -387,7 +458,9 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                     }
                 }
             }
+            }
 
+            if (activeSection == "playback") {
             PreferenceGroup(
                 modifier = positions.modifierFor("low_data_mode"),
                 title = stringResource(R.string.player),
@@ -519,6 +592,19 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                 }
 
                 item {
+                    Column(modifier = positions.modifierFor("karaoke_mode")) {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.karaoke_mode)) },
+                            description = stringResource(R.string.karaoke_mode_desc),
+                            icon = { Icon(painterResource(R.drawable.mic), null) },
+                            checked = karaokeMode,
+                            onCheckedChange = onKaraokeModeChange,
+                            isEnabled = !audioOffload,
+                        )
+                    }
+                }
+
+                item {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.audio_offload)) },
                         description = stringResource(R.string.audio_offload_desc),
@@ -601,7 +687,9 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                     }
                 }
             }
+            }
 
+            if (activeSection == "artwork") {
             PreferenceGroup(
                 modifier = positions.modifierFor("archive_tune_canvas"),
                 title = stringResource(R.string.tidal_artwork),
@@ -615,7 +703,9 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                     )
                 }
             }
+            }
 
+            if (activeSection == "queue") {
             PreferenceGroup(
                 modifier = positions.modifierFor("persistent_queue"),
                 title = stringResource(R.string.queue),
@@ -638,6 +728,33 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                             icon = { Icon(painterResource(R.drawable.shuffle), null) },
                             checked = permanentShuffle,
                             onCheckedChange = onPermanentShuffleChange,
+                        )
+                    }
+                }
+
+                item {
+                    Column(modifier = positions.modifierFor("smart_shuffle")) {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.smart_shuffle)) },
+                            description = stringResource(R.string.smart_shuffle_desc),
+                            icon = { Icon(painterResource(R.drawable.shuffle), null) },
+                            checked = smartShuffle,
+                            onCheckedChange = onSmartShuffleChange,
+                        )
+                    }
+                }
+
+                item {
+                    Column(modifier = positions.modifierFor("smart_shuffle_every")) {
+                        ListPreference(
+                            title = { Text(stringResource(R.string.smart_shuffle_every)) },
+                            description = stringResource(R.string.smart_shuffle_every_desc),
+                            icon = { Icon(painterResource(R.drawable.shuffle), null) },
+                            selectedValue = smartShuffleEvery.coerceIn(2, 8),
+                            values = listOf(2, 3, 4, 5, 6, 8),
+                            valueText = { stringResource(R.string.smart_shuffle_every_value, it) },
+                            onValueSelected = onSmartShuffleEveryChange,
+                            isEnabled = smartShuffle,
                         )
                     }
                 }
@@ -758,7 +875,9 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                     }
                 }
             }
+            }
 
+            if (activeSection == "misc") {
             PreferenceGroup(
                 modifier = positions.modifierFor("audio_offload"),
                 title = stringResource(R.string.misc),
@@ -808,6 +927,7 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
                     }
                 }
             }
+            }
         }
 
         ScreenHeaderHaze(
@@ -817,6 +937,29 @@ fun PlayerSettings(navController: NavController, scrollTo: String? = null) {
         }
 }
 }
+
+
+private val PlayerSectionKeys: Map<String, String> =
+    buildMap {
+        listOf("enable_pip_mode", "enable_video_playback").forEach { put(it, "video") }
+        listOf("automix", "automix_performance", "bluetooth_auto_start", "crossfade", "crossfade_gapless", "crossfade_gapless_title", "device_mute_recovery_volume", "history_duration", "low_data_mode", "pause_mute", "preload_songs", "seek_seconds", "seek_seconds_addup", "skip_silence", "karaoke_mode").forEach { put(it, "playback") }
+        listOf("album_canvas_enabled", "archive_tune_canvas", "artwork_priority", "canvas_check", "canvas_resolvers", "spotify_canvas", "tidal_artwork_fallback").forEach { put(it, "artwork") }
+        listOf("auto_skip_error", "enable_swipe_thumbnail", "permanent_shuffle", "persistent_queue", "smart_shuffle", "smart_shuffle_every", "swipe_sensitivity", "swipe_to_song").forEach { put(it, "queue") }
+        listOf("artist_separators", "audio_offload", "manage_playlist_tags", "stop_task_clear", "wakelock").forEach { put(it, "misc") }
+    }
+
+private fun playerSectionForKey(scrollTo: String?): String? = scrollTo?.let(PlayerSectionKeys::get)
+
+@Composable
+private fun playerSectionTitle(section: String?): String =
+    when (section) {
+        "video" -> stringResource(R.string.video_playback)
+        "playback" -> stringResource(R.string.player)
+        "artwork" -> stringResource(R.string.tidal_artwork)
+        "queue" -> stringResource(R.string.queue)
+        "misc" -> stringResource(R.string.misc)
+        else -> stringResource(R.string.player_and_audio)
+    }
 
 internal fun PreferredArtworkProvider.displayName(): String =
     when (this) {

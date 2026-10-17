@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -76,6 +77,7 @@ import moe.rukamori.archivetune.ui.menu.YouTubePlaylistMenu
 import moe.rukamori.archivetune.ui.menu.YouTubeSongMenu
 import moe.rukamori.archivetune.ui.utils.SnapLayoutInfoProvider
 import moe.rukamori.archivetune.ui.utils.backToMain
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.viewmodels.YouTubeBrowseViewModel
 import androidx.compose.runtime.getValue
 
@@ -282,5 +284,16 @@ fun YouTubeBrowseScreen(
         title = { Text(browseResult?.title.orEmpty()) },
         onBack = navController::navigateUp,
         onBackLongClick = navController::backToMain,
+        actions = {
+            IconButton(
+                onClick = { navController.navigateHome() },
+                onLongClick = {},
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.home_outlined),
+                    contentDescription = stringResource(R.string.home),
+                )
+            }
+        },
     )
 }

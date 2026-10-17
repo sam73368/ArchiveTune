@@ -12,6 +12,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,6 +26,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +45,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,6 +65,7 @@ import moe.rukamori.archivetune.innertube.models.BrowseEndpoint
 import moe.rukamori.archivetune.ui.component.NavigationTitle
 import moe.rukamori.archivetune.ui.component.shimmer.ShimmerHost
 import moe.rukamori.archivetune.ui.component.shimmer.TextPlaceholder
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.viewmodels.MoodAndGenresViewModel
 import java.util.concurrent.ConcurrentHashMap
 import androidx.compose.runtime.getValue
@@ -100,10 +105,21 @@ fun MoodAndGenresScreen(
             ),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            NavigationTitle(
-                title = stringResource(R.string.mood_and_genres),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.animateItem(),
-            )
+            ) {
+                NavigationTitle(
+                    title = stringResource(R.string.mood_and_genres),
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = { navController.navigateHome() }) {
+                    Icon(
+                        painter = painterResource(R.drawable.home_outlined),
+                        contentDescription = stringResource(R.string.home),
+                    )
+                }
+            }
         }
 
         if (moodAndGenres == null) {
@@ -131,7 +147,13 @@ fun MoodAndGenresScreen(
                     stripeColor = item.stripeColor,
                     endpoint = item.endpoint,
                     onClick = {
-                        navController.navigate("youtube_browse/${item.endpoint.browseId}?params=${item.endpoint.params}")
+                        val encodedBrowseId = android.net.Uri.encode(item.endpoint.browseId)
+                        val paramsQuery =
+                            item.endpoint.params
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { "?params=${android.net.Uri.encode(it)}" }
+                                .orEmpty()
+                        navController.navigate("youtube_browse/$encodedBrowseId$paramsQuery")
                     },
                     modifier =
                         Modifier

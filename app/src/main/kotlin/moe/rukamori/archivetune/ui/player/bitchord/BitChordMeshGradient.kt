@@ -11,6 +11,8 @@
 
 package moe.rukamori.archivetune.ui.player.bitchord
 
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -45,7 +47,7 @@ data class MeshPalette(val colors: List<Color>)
 @Composable
 fun rememberArtworkColors(imageUrl: String?): MeshPalette {
     val context = LocalContext.current
-    var palette by remember(imageUrl) { mutableStateOf(MeshPalette(FallbackColors)) }
+    var palette by remember { mutableStateOf(MeshPalette(FallbackColors)) }
 
     LaunchedEffect(imageUrl) {
         if (imageUrl == null) return@LaunchedEffect
@@ -56,7 +58,7 @@ fun rememberArtworkColors(imageUrl: String?): MeshPalette {
             .build()
         val result = context.imageLoader.execute(request)
         val bitmap = (result as? SuccessResult)?.image?.toBitmap() ?: return@LaunchedEffect
-        palette = MeshPalette(paletteOf(bitmap))
+        palette = withContext(Dispatchers.Default) { MeshPalette(paletteOf(bitmap)) }
     }
     return palette
 }

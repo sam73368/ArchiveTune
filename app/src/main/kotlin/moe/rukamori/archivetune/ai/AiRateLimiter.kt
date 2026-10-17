@@ -36,6 +36,7 @@ object AiRateLimiter {
         ),
 
         AI_MIX(label = "AI Mix", minIntervalMs = 10L * 60_000L, maxPerHour = 6, smoothingWaitMs = 0L),
+        AI_PLAYLIST(label = "AI playlist", minIntervalMs = 10_000L, maxPerHour = 20, smoothingWaitMs = 10_000L),
     }
 
     private val history = HashMap<Feature, ArrayDeque<Long>>()

@@ -1452,7 +1452,7 @@ fun RichPresence(
                             enabled = !resolvedButton1Url.isNullOrBlank(),
                             onClick = {
                                 resolvedButton1Url?.let {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+                                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -1467,7 +1467,7 @@ fun RichPresence(
                             enabled = !resolvedButton2Url.isNullOrBlank(),
                             onClick = {
                                 resolvedButton2Url?.let {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+                                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),

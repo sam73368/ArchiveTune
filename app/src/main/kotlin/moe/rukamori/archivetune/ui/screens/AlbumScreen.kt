@@ -100,7 +100,9 @@ import moe.rukamori.archivetune.constants.LiquidGlassEnabledKey
 import moe.rukamori.archivetune.ui.player.LocalPlayerLyricsFullScreen
 import moe.rukamori.archivetune.ui.player.LocalPlayerSheetOverlayActive
 import moe.rukamori.archivetune.db.entities.Album
+import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.extensions.togglePlayPause
+import moe.rukamori.archivetune.playback.queues.ListQueue
 import moe.rukamori.archivetune.playback.queues.LocalAlbumRadio
 import moe.rukamori.archivetune.ui.component.IconButton
 import moe.rukamori.archivetune.ui.component.LiquidGlassActionPill
@@ -129,6 +131,7 @@ import moe.rukamori.archivetune.ui.utils.HeaderDownloadState
 import moe.rukamori.archivetune.ui.utils.ItemWrapper
 import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.ui.utils.headerDownloadState
+import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.ui.utils.sendAddMissingDownloads
 import moe.rukamori.archivetune.ui.utils.sendRemoveDownloads
 import moe.rukamori.archivetune.ui.utils.sendPauseRunningDownloads
@@ -212,35 +215,6 @@ fun AlbumScreen(
     val downloadUtil = LocalDownloadUtil.current
     var downloads by remember { mutableStateOf<Map<String, Download>>(emptyMap()) }
     var downloadState by remember { mutableStateOf<HeaderDownloadState>(HeaderDownloadState.None) }
-    val globalDownloadState = remember(downloads) {
-        val activeDownloads = downloads.values.filter {
-            it.state == Download.STATE_DOWNLOADING ||
-            it.state == Download.STATE_QUEUED ||
-            it.state == Download.STATE_RESTARTING ||
-            it.state == Download.STATE_STOPPED
-        }
-        if (activeDownloads.isEmpty()) {
-            HeaderDownloadState.None
-        } else {
-            var progressTotal = 0f
-            var hasRunning = false
-            var hasPaused = false
-            activeDownloads.forEach { download ->
-                val progress = download.percentDownloaded.takeIf { it >= 0f }?.div(100f) ?: 0f
-                progressTotal += progress.coerceIn(0f, 1f)
-                if (download.state == Download.STATE_STOPPED) {
-                    hasPaused = hasPaused || download.stopReason == 1
-                } else {
-                    hasRunning = true
-                }
-            }
-            HeaderDownloadState.Partial(
-                progress = progressTotal / activeDownloads.size,
-                paused = hasPaused && !hasRunning,
-            )
-        }
-    }
-
     LaunchedEffect(albumWithSongs) {
         val songIds = albumWithSongs?.songs?.map { it.id }.orEmpty()
         if (songIds.isEmpty()) {
@@ -416,7 +390,14 @@ fun AlbumScreen(
                                     null
                                 } else {
                                     {
-                                        playerConnection.playQueue(LocalAlbumRadio(albumWithSongs))
+                                        // The album itself, in order, studio versions kept (no radio tail).
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = albumWithSongs.album.title,
+                                                items = wrappedSongs.map { it.item.toMediaItem() },
+                                                keepMusicVideos = true,
+                                            ),
+                                        )
                                     }
                                 },
                             onToggleAdd = null,
@@ -554,8 +535,14 @@ fun AlbumScreen(
                                                 if (songWrapper.item.id == mediaMetadata?.id) {
                                                     playerConnection.player.togglePlayPause()
                                                 } else {
+                                                    // Whole album, starting from the tapped song.
                                                     playerConnection.playQueue(
-                                                        LocalAlbumRadio(albumWithSongs, startIndex = index),
+                                                        ListQueue(
+                                                            title = albumWithSongs.album.title,
+                                                            items = wrappedSongs.map { it.item.toMediaItem() },
+                                                            startIndex = index,
+                                                            keepMusicVideos = true,
+                                                        ),
                                                     )
                                                 }
                                             } else {
@@ -879,6 +866,19 @@ fun AlbumScreen(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
+                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                            tint = liquidGlassContentColor(),
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     androidx.compose.material3.IconButton(onClick = {
                         database.query {
                             update(currentAlbumWithSongs.album.toggleLike())
@@ -1036,6 +1036,15 @@ fun AlbumScreen(
                         )
                     }
                 } else {
+                    IconButton(
+                        onClick = { navController.navigateHome() },
+                        onLongClick = {},
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.home_outlined),
+                            contentDescription = stringResource(R.string.home),
+                        )
+                    }
                     if (showTopBarTitle || !liquidGlassHeaderActive) {
                         albumWithSongs?.let { currentAlbum ->
                             IconButton(

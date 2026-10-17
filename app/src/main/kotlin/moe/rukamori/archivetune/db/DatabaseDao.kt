@@ -357,34 +357,36 @@ interface DatabaseDao {
         previewSize: Int = 3,
     ): Flow<List<Song>>
 
+    // Filter related_song_map to the seed songs *before* grouping: grouping first keeps one arbitrary
+    // row per relatedSongId, which silently drops relations from other seeds and miscounts referredCount.
     @Transaction
     @Query(
         """
         SELECT song.*
-        FROM (SELECT *, COUNT(1) AS referredCount
+        FROM (SELECT relatedSongId, COUNT(1) AS referredCount
               FROM related_song_map
+              WHERE songId IN (SELECT songId
+                               FROM (SELECT songId
+                                     FROM event
+                                     ORDER BY ROWID DESC
+                                     LIMIT 5)
+                               UNION
+                               SELECT songId
+                               FROM (SELECT songId
+                                     FROM event
+                                     WHERE timestamp > :now - 86400000 * 7
+                                     GROUP BY songId
+                                     ORDER BY SUM(playTime) DESC
+                                     LIMIT 5)
+                               UNION
+                               SELECT id
+                               FROM (SELECT id
+                                     FROM song
+                                     ORDER BY totalPlayTime DESC
+                                     LIMIT 10))
               GROUP BY relatedSongId) map
                  JOIN song ON song.id = map.relatedSongId
-        WHERE songId IN (SELECT songId
-                         FROM (SELECT songId
-                               FROM event
-                               ORDER BY ROWID DESC
-                               LIMIT 5)
-                         UNION
-                         SELECT songId
-                         FROM (SELECT songId
-                               FROM event
-                               WHERE timestamp > :now - 86400000 * 7
-                               GROUP BY songId
-                               ORDER BY SUM(playTime) DESC
-                               LIMIT 5)
-                         UNION
-                         SELECT id
-                         FROM (SELECT id
-                               FROM song
-                               ORDER BY totalPlayTime DESC
-                               LIMIT 10))
-        ORDER BY referredCount DESC
+        ORDER BY map.referredCount DESC
         LIMIT 100
     """,
     )
@@ -821,14 +823,14 @@ interface DatabaseDao {
                 WHERE artistId = artist.id
                   AND song.inLibrary IS NOT NULL) AS songCount
         FROM artist
-                 JOIN(SELECT artistId, SUM(totalPlayTime) AS totalPlayTime
-                      FROM song_artist_map
-                               JOIN song
-                                    ON song_artist_map.songId = song.id
-                      GROUP BY artistId
-                      ORDER BY totalPlayTime)
-                     ON artist.id = artistId
+                 JOIN (SELECT artistId, SUM(totalPlayTime) AS totalPlayTime
+                       FROM song_artist_map
+                                JOIN song
+                                     ON song_artist_map.songId = song.id
+                       GROUP BY artistId) artistPlayTime
+                      ON artist.id = artistPlayTime.artistId
         WHERE songCount > 0
+        ORDER BY artistPlayTime.totalPlayTime
     """,
     )
     fun artistsByPlayTimeAsc(): Flow<List<Artist>>
@@ -854,6 +856,8 @@ interface DatabaseDao {
     )
     fun artistsBookmarkedBySongCountAsc(): Flow<List<Artist>>
 
+    // LEFT JOIN so bookmarked artists without any local songs are still listed (as zero play time);
+    // the ORDER BY must be on the outer query, an ordered subquery doesn't order the join result.
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query(
@@ -865,14 +869,14 @@ interface DatabaseDao {
                 WHERE artistId = artist.id
                   AND song.inLibrary IS NOT NULL) AS songCount
         FROM artist
-                 JOIN(SELECT artistId, SUM(totalPlayTime) AS totalPlayTime
-                      FROM song_artist_map
-                               JOIN song
-                                    ON song_artist_map.songId = song.id
-                      GROUP BY artistId
-                      ORDER BY totalPlayTime)
-                     ON artist.id = artistId
-        WHERE bookmarkedAt IS NOT NULL
+                 LEFT JOIN (SELECT artistId, SUM(totalPlayTime) AS totalPlayTime
+                            FROM song_artist_map
+                                     JOIN song
+                                          ON song_artist_map.songId = song.id
+                            GROUP BY artistId) artistPlayTime
+                           ON artist.id = artistPlayTime.artistId
+        WHERE artist.bookmarkedAt IS NOT NULL
+        ORDER BY COALESCE(artistPlayTime.totalPlayTime, 0)
     """,
     )
     fun artistsBookmarkedByPlayTimeAsc(): Flow<List<Artist>>
@@ -993,17 +997,18 @@ interface DatabaseDao {
     @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY duration")
     fun albumsLikedByLengthAsc(): Flow<List<Album>>
 
+    // LEFT JOIN so liked albums without any local songs are still listed (as zero play time).
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query(
         """
         SELECT album.*
         FROM album
-                 JOIN song
-                      ON song.albumId = album.id
-        WHERE bookmarkedAt IS NOT NULL
+                 LEFT JOIN song
+                           ON song.albumId = album.id
+        WHERE album.bookmarkedAt IS NOT NULL
         GROUP BY album.id
-        ORDER BY SUM(song.totalPlayTime)
+        ORDER BY COALESCE(SUM(song.totalPlayTime), 0)
     """,
     )
     fun albumsLikedByPlayTimeAsc(): Flow<List<Album>>
@@ -1346,7 +1351,9 @@ interface DatabaseDao {
         playlist: Playlist,
         songEntries: List<Pair<String, String?>>,
     ) {
-        var position = playlist.songCount
+        // Read the real end of the playlist inside the transaction: `playlist` can be a stale copy
+        // (e.g. parallel imports sharing one), which gave every song the same position.
+        var position = maxOf(playlist.songCount, (maxPlaylistSongPosition(playlist.id) ?: -1) + 1)
         songEntries.forEach { (songId, setVideoId) ->
             insert(
                 PlaylistSongMap(
@@ -1438,6 +1445,9 @@ interface DatabaseDao {
     )
     fun recentSongs(limit: Int = 100): Flow<List<Song>>
 
+    @Query("SELECT songId, COUNT(1) AS plays, MAX(timestamp) AS lastPlayed FROM event GROUP BY songId")
+    fun songPlayStats(): Flow<List<moe.rukamori.archivetune.db.entities.SongPlayStat>>
+
     @Query("SELECT * FROM library_top_mix ORDER BY position LIMIT :limit")
     fun libraryTopMixes(limit: Int): Flow<List<LibraryTopMixEntity>>
 
@@ -1453,9 +1463,11 @@ interface DatabaseDao {
     )
     fun libraryTopMixSongs(mixId: String): List<Song>
 
+    // Event timestamps are written from LocalDateTime.now() (already local wall-clock time, stored as
+    // if it were UTC), so no 'localtime' conversion here: it would shift every slot by the UTC offset.
     @Query(
         """
-        SELECT CAST(strftime('%H', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS slot,
+        SELECT CAST(strftime('%H', datetime(timestamp / 1000, 'unixepoch')) AS INTEGER) AS slot,
                SUM(playTime) AS timeListened
         FROM event
         WHERE timestamp > :fromTimestamp AND timestamp <= :toTimestamp
@@ -1470,7 +1482,7 @@ interface DatabaseDao {
 
     @Query(
         """
-        SELECT CAST(strftime('%w', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS slot,
+        SELECT CAST(strftime('%w', datetime(timestamp / 1000, 'unixepoch')) AS INTEGER) AS slot,
                SUM(playTime) AS timeListened
         FROM event
         WHERE timestamp > :fromTimestamp AND timestamp <= :toTimestamp
@@ -1497,10 +1509,10 @@ interface DatabaseDao {
     ): Flow<ListeningTotals>
 
     @Transaction
-    @Query("SELECT * FROM event ORDER BY rowId ASC LIMIT 1")
+    @Query("SELECT * FROM event ORDER BY timestamp ASC, rowId ASC LIMIT 1")
     fun firstEvent(): Flow<EventWithSong?>
 
-    @Query("SELECT songId FROM event ORDER BY rowId DESC LIMIT 1")
+    @Query("SELECT songId FROM event ORDER BY timestamp DESC, rowId DESC LIMIT 1")
     fun lastEventSongId(): Flow<String?>
 
     @Transaction
@@ -1562,9 +1574,10 @@ interface DatabaseDao {
     @Query("SELECT COUNT(1) FROM related_song_map WHERE songId = :songId LIMIT 1")
     fun hasRelatedSongs(songId: String): Boolean
 
+    // Filter by songId before anything else; the old GROUP BY relatedSongId ran first and lost rows.
     @Transaction
     @Query(
-        "SELECT song.* FROM (SELECT * from related_song_map GROUP BY relatedSongId) map JOIN song ON song.id = map.relatedSongId where songId = :songId",
+        "SELECT song.* FROM song WHERE id IN (SELECT relatedSongId FROM related_song_map WHERE songId = :songId)",
     )
     fun getRelatedSongs(songId: String): Flow<List<Song>>
 
@@ -1572,13 +1585,10 @@ interface DatabaseDao {
     @Query(
         """
         SELECT song.*
-        FROM (SELECT *
-              FROM related_song_map
-              GROUP BY relatedSongId) map
-                 JOIN
-             song
-             ON song.id = map.relatedSongId
-        WHERE songId = :songId
+        FROM song
+        WHERE id IN (SELECT relatedSongId
+                     FROM related_song_map
+                     WHERE songId = :songId)
         """,
     )
     fun relatedSongs(songId: String): List<Song>
@@ -1599,6 +1609,12 @@ interface DatabaseDao {
         playlistId: String,
         fromPosition: Int,
         toPosition: Int,
+    )
+
+    @Query("UPDATE playlist_song_map SET position = :position WHERE id = :mapId")
+    fun setPlaylistSongPosition(
+        mapId: Int,
+        position: Int,
     )
 
     @Transaction
@@ -1844,12 +1860,13 @@ interface DatabaseDao {
         update(
             artist.copy(
                 name = artistPage.artist.title,
+                // Keep the existing thumbnail when the page has none instead of wiping it to null.
                 thumbnailUrl =
                     artistPage.artist.thumbnail?.resize(
                         width = 1080,
                         height = 1080,
                         ytimgResizePolicy = YtimgResizePolicy.PreserveOriginal,
-                    ),
+                    ) ?: artist.thumbnailUrl,
                 lastUpdateTime = LocalDateTime.now(),
             ),
         )
@@ -1859,6 +1876,9 @@ interface DatabaseDao {
     fun update(
         album: AlbumEntity,
         albumPage: AlbumPage,
+        // Unused, kept for call-site compatibility. Artist rows must never be deleted here: that drops
+        // their subscription/block state and cascades to song_artist_map/album_artist_map. Stale
+        // album->artist links are removed below by clearing this album's album_artist_map rows first.
         artists: List<ArtistEntity>? = emptyList(),
     ) {
         update(
@@ -1873,9 +1893,6 @@ interface DatabaseDao {
                 explicit = albumPage.album.explicit || albumPage.songs.any { it.explicit },
             ),
         )
-        if (artists?.size != albumPage.album.artists?.size) {
-            artists?.forEach(::delete)
-        }
         clearAlbumSongs(album.id)
         albumPage.songs
             .map(SongItem::toMediaMetadata)

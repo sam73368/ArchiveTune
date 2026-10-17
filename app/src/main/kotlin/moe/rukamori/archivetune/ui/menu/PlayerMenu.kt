@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.menu
 
+import moe.rukamori.archivetune.utils.makeTimeString
 import android.content.Intent
 import android.media.audiofx.AudioEffect
 import android.widget.Toast
@@ -63,6 +64,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.datastore.preferences.core.edit
+import moe.rukamori.archivetune.constants.KaraokeModeKey
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -224,6 +227,8 @@ fun PlayerMenu(
     val playerDesignStyle by rememberEnumPreference(PlayerDesignStyleKey, defaultValue = PlayerDesignStyle.APPLE_MUSIC)
     val lowDataModeActive = rememberLowDataModeActive()
     val isCanvasArtworkRefetching by playerConnection.isCanvasArtworkRefetching.collectAsStateWithLifecycle()
+    val abLoop by playerConnection.abLoop.collectAsStateWithLifecycle()
+    val karaokeOn by rememberPreference(KaraokeModeKey, defaultValue = false)
 
     var hasCanvasArtwork by remember(mediaMetadata.id) { mutableStateOf(false) }
     LaunchedEffect(mediaMetadata.id, isCanvasArtworkRefetching) {
@@ -803,7 +808,7 @@ fun PlayerMenu(
             item {
                 val quickActions =
                     buildList {
-                        if (playerDesignStyle != PlayerDesignStyle.APPLE_MUSIC) {
+                        if (playerDesignStyle != PlayerDesignStyle.APPLE_MUSIC && playerDesignStyle != PlayerDesignStyle.APPLE_MUSIC_CLASSIC) {
                             castPlayerMenuAction?.let(::add)
                         }
                         if (!isLocalMedia && !mediaMetadata.isPodcast) {
@@ -1304,6 +1309,78 @@ fun PlayerMenu(
                                     },
                                     title = stringResource(R.string.equalizer),
                                     onClick = { showEqualizerDialog = true },
+                                ),
+                            )
+                        }
+
+                        // Fork features (karaoke mode, car mode, A-B loop) kept in the 18.0 card grid.
+                        if (isQueueTrigger != true) {
+                            add(
+                                PlayerMenuCardModel(
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.mic),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    title = stringResource(R.string.karaoke_mode),
+                                    subtitle =
+                                        stringResource(
+                                            if (karaokeOn) R.string.karaoke_mode_on else R.string.karaoke_mode_desc_short,
+                                        ),
+                                    onClick = {
+                                        coroutineScope.launch { context.dataStore.edit { it[KaraokeModeKey] = !karaokeOn } }
+                                    },
+                                ),
+                            )
+                            add(
+                                PlayerMenuCardModel(
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.directions_car),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    title = stringResource(R.string.car_mode_title),
+                                    subtitle = stringResource(R.string.car_mode_desc),
+                                    onClick = {
+                                        onDismiss()
+                                        playerBottomSheetState.snapTo(playerBottomSheetState.collapsedBound)
+                                        navController.navigate("car_mode")
+                                    },
+                                ),
+                            )
+                            val loop = abLoop
+                            add(
+                                PlayerMenuCardModel(
+                                    icon = {
+                                        Icon(
+                                            painter =
+                                                painterResource(
+                                                    if (loop?.endMs != null) R.drawable.repeat_on else R.drawable.repeat,
+                                                ),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    title =
+                                        when {
+                                            loop == null -> stringResource(R.string.ab_loop_set_a)
+                                            loop.endMs == null ->
+                                                stringResource(R.string.ab_loop_set_b, makeTimeString(loop.startMs))
+                                            else ->
+                                                stringResource(
+                                                    R.string.ab_loop_clear,
+                                                    makeTimeString(loop.startMs),
+                                                    makeTimeString(loop.endMs),
+                                                )
+                                        },
+                                    onClick = {
+                                        when {
+                                            loop == null -> playerConnection.setAbLoopStart()
+                                            loop.endMs == null -> playerConnection.setAbLoopEnd()
+                                            else -> playerConnection.clearAbLoop()
+                                        }
+                                    },
                                 ),
                             )
                         }
@@ -2469,11 +2546,12 @@ private val OnScreenShareStyles =
 private val OnScreenAddToPlaylistStyles =
     setOf(PlayerDesignStyle.V10, PlayerDesignStyle.TIKTOK, PlayerDesignStyle.SIMPMUSIC)
 private val OnScreenDetailsStyles =
-    setOf(PlayerDesignStyle.SIMPMUSIC, PlayerDesignStyle.APPLE_MUSIC)
+    setOf(PlayerDesignStyle.SIMPMUSIC, PlayerDesignStyle.APPLE_MUSIC, PlayerDesignStyle.APPLE_MUSIC_CLASSIC)
 private val OnScreenSleepTimerStyles =
     setOf(
         PlayerDesignStyle.V5,
         PlayerDesignStyle.V9,
         PlayerDesignStyle.V10,
         PlayerDesignStyle.APPLE_MUSIC,
+        PlayerDesignStyle.APPLE_MUSIC_CLASSIC,
     )

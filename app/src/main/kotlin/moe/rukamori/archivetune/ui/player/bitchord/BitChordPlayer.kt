@@ -163,6 +163,7 @@ import moe.rukamori.archivetune.ui.component.LyricsV2
 import moe.rukamori.archivetune.ui.player.LosslessOrStats
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.saveable.rememberSaveable
+import moe.rukamori.archivetune.utils.rememberPersistedLyricsSyncOffset
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.navigation.NavController
 import androidx.compose.runtime.getValue
@@ -459,9 +460,7 @@ fun BitChordPlayerContent(
     var lyricsOpen by remember { mutableStateOf(false) }
     LaunchedEffect(mediaMetadata.id) { lyricsOpen = false }
 
-    var lyricsSyncOffset by rememberSaveable(mediaMetadata.id) {
-        mutableIntStateOf(0)
-    }
+    var lyricsSyncOffset by rememberPersistedLyricsSyncOffset(mediaMetadata.id)
 
     BackHandler(enabled = lyricsOpen || queueOpen) {
         if (queueOpen) {

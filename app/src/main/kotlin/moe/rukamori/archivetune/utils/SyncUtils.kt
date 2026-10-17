@@ -382,19 +382,23 @@ class SyncUtils
                             return@onSuccess
                         }
                         val remoteIds = remoteSongs.map { it.id }.toSet()
-                        val localSongs = database.songsByNameAsc().first()
+                        // "Add to library" is local-only (never pushed to YouTube), so only an authoritative
+                        // sync may clear inLibrary for songs missing remotely, and never for local files.
+                        if (authoritative) {
+                            val localSongs = database.songsByNameAsc().first()
 
-                        if (!isSyncStillEnabled(gen)) return@onSuccess
-                        val staleLibrarySongs =
-                            localSongs
-                                .asSequence()
-                                .filter { !authoritative || !it.song.isLocal }
-                                .filterNot { it.id in remoteIds }
-                                .map { it.song.copy(inLibrary = null) }
-                                .toList()
-                        if (staleLibrarySongs.isNotEmpty()) {
-                            database.withTransaction {
-                                staleLibrarySongs.forEach { update(it) }
+                            if (!isSyncStillEnabled(gen)) return@onSuccess
+                            val staleLibrarySongs =
+                                localSongs
+                                    .asSequence()
+                                    .filterNot { it.song.isLocal }
+                                    .filterNot { it.id in remoteIds }
+                                    .map { it.song.copy(inLibrary = null) }
+                                    .toList()
+                            if (staleLibrarySongs.isNotEmpty()) {
+                                database.withTransaction {
+                                    staleLibrarySongs.forEach { update(it) }
+                                }
                             }
                         }
 
@@ -446,19 +450,22 @@ class SyncUtils
                             return@onSuccess
                         }
                         val remoteIds = remoteAlbums.map { it.id }.toSet()
-                        val localAlbums = database.albumsLikedByNameAsc().first()
+                        // Only an authoritative sync may un-like albums missing remotely; local albums are never touched.
+                        if (authoritative) {
+                            val localAlbums = database.albumsLikedByNameAsc().first()
 
-                        if (!isSyncStillEnabled(gen)) return@onSuccess
-                        val staleAlbums =
-                            localAlbums
-                                .asSequence()
-                                .filter { !authoritative || !it.album.isLocal }
-                                .filterNot { it.id in remoteIds }
-                                .map { it.album.localToggleLike() }
-                                .toList()
-                        if (staleAlbums.isNotEmpty()) {
-                            database.withTransaction {
-                                staleAlbums.forEach { update(it) }
+                            if (!isSyncStillEnabled(gen)) return@onSuccess
+                            val staleAlbums =
+                                localAlbums
+                                    .asSequence()
+                                    .filterNot { it.album.isLocal }
+                                    .filterNot { it.id in remoteIds }
+                                    .map { it.album.localToggleLike() }
+                                    .toList()
+                            if (staleAlbums.isNotEmpty()) {
+                                database.withTransaction {
+                                    staleAlbums.forEach { update(it) }
+                                }
                             }
                         }
 
@@ -518,19 +525,22 @@ class SyncUtils
                         }
                         val now = LocalDateTime.now()
                         val remoteIds = remoteArtists.map { it.id }.toSet()
-                        val localArtists = database.artistsBookmarkedByNameAsc().first()
+                        // Only an authoritative sync may unsubscribe artists missing remotely; local artists are never touched.
+                        if (authoritative) {
+                            val localArtists = database.artistsBookmarkedByNameAsc().first()
 
-                        if (!isSyncStillEnabled(gen)) return@onSuccess
-                        val staleArtists =
-                            localArtists
-                                .asSequence()
-                                .filter { !authoritative || !it.artist.isLocal }
-                                .filterNot { it.id in remoteIds }
-                                .map { it.artist.copy(bookmarkedAt = null, lastUpdateTime = now) }
-                                .toList()
-                        if (staleArtists.isNotEmpty()) {
-                            database.withTransaction {
-                                staleArtists.forEach { update(it) }
+                            if (!isSyncStillEnabled(gen)) return@onSuccess
+                            val staleArtists =
+                                localArtists
+                                    .asSequence()
+                                    .filterNot { it.artist.isLocal }
+                                    .filterNot { it.id in remoteIds }
+                                    .map { it.artist.copy(bookmarkedAt = null, lastUpdateTime = now) }
+                                    .toList()
+                            if (staleArtists.isNotEmpty()) {
+                                database.withTransaction {
+                                    staleArtists.forEach { update(it) }
+                                }
                             }
                         }
 
@@ -629,17 +639,25 @@ class SyncUtils
                         val now = LocalDateTime.now()
                         val remoteLikedIds = remotePlaylists.map { it.id }.toSet()
 
-                        val stalePlaylists =
-                            localPlaylists
-                                .asSequence()
-                                .map { it.playlist }
-                                .filter { it.browseId != null }
-                                .filter { it.browseId !in remoteLikedIds }
-                                .map { it.copy(bookmarkedAt = null, lastUpdateTime = now) }
-                                .toList()
-                        if (stalePlaylists.isNotEmpty()) {
-                            database.withTransaction {
-                                stalePlaylists.forEach { update(it) }
+                        // Only an authoritative sync may un-bookmark playlists missing remotely: sync-created
+                        // playlists can't be told apart from copies made by ImportPlaylistDialog (same browseId,
+                        // no marker column). Local playlists and cross-service imports (synthetic "import:"
+                        // browseId that never exists on YouTube) are always left untouched.
+                        if (authoritative) {
+                            val stalePlaylists =
+                                localPlaylists
+                                    .asSequence()
+                                    .map { it.playlist }
+                                    .filterNot { it.isLocal }
+                                    .filter { it.browseId != null }
+                                    .filterNot { it.browseId?.startsWith(IMPORTED_PLAYLIST_BROWSE_ID_PREFIX) == true }
+                                    .filter { it.browseId !in remoteLikedIds }
+                                    .map { it.copy(bookmarkedAt = null, lastUpdateTime = now) }
+                                    .toList()
+                            if (stalePlaylists.isNotEmpty()) {
+                                database.withTransaction {
+                                    stalePlaylists.forEach { update(it) }
+                                }
                             }
                         }
 
@@ -863,11 +881,13 @@ class SyncUtils
             try {
                 onProgress(0, remoteIds.size)
                 database.withTransaction {
-                    if (!isSyncStillEnabled(gen)) return@withTransaction
+                    // Throw instead of returning so a sync disabled mid-way rolls back rather than
+                    // committing a cleared or half-rebuilt playlist.
+                    if (!isSyncStillEnabled(gen)) throw SyncAbortedException()
                     database.clearPlaylist(playlistId)
                     var completedSongs = 0
                     songs.forEachIndexed { idx, song ->
-                        if (!isSyncStillEnabled(gen)) return@withTransaction
+                        if (!isSyncStillEnabled(gen)) throw SyncAbortedException()
                         val songId = song.id ?: return@forEachIndexed
                         val existingSong = getSongByIdBlocking(songId)
                         if (existingSong == null) {
@@ -888,6 +908,10 @@ class SyncUtils
                     }
                 }
                 Timber.d("syncPlaylist: Successfully synced playlist")
+            } catch (e: SyncAbortedException) {
+                Timber.d("syncPlaylist: Sync disabled during update, rolled back playlist changes")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "syncPlaylist: Error during database transaction")
                 if (propagateFailures) {
@@ -896,6 +920,14 @@ class SyncUtils
             }
         }
     }
+
+// Synthetic browseId prefix used by CrossServiceImportPlaylistDialog ("import:<SOURCE>:<id>");
+// such playlists don't exist on YouTube and must never be sent to or reconciled against it.
+internal const val IMPORTED_PLAYLIST_BROWSE_ID_PREFIX = "import:"
+
+// Thrown inside a Room transaction to roll it back when sync is disabled mid-way.
+// Deliberately not a CancellationException so it is never mistaken for coroutine cancellation.
+private class SyncAbortedException : Exception("Sync disabled during transaction")
 
 internal fun likedSongTimestamp(
     baseTimestamp: LocalDateTime,

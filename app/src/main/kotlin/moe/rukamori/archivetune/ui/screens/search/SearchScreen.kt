@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.ime
@@ -142,6 +143,10 @@ fun SearchScreen(
     historyViewModel: SearchHistoryViewModel = hiltViewModel(),
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    // Back clears what was typed before leaving the search tab.
+    BackHandler(enabled = searchQuery.isNotEmpty()) {
+        searchQuery = ""
+    }
     var searchProvider by rememberEnumPreference(DefaultSearchSourceKey, SearchProvider.YOUTUBE)
 
     var liveSuggestions by remember { mutableStateOf<SearchSuggestions?>(null) }

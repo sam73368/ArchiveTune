@@ -948,7 +948,8 @@ private fun BitChordYtItemShelf(
             contentPadding = PaddingValues(horizontal = BitChordPageGutter),
             horizontalArrangement = Arrangement.spacedBy(BitChordShelfCardSpacing),
         ) {
-            items(items, key = { "yt_${it.id}" }) { item ->
+            // YouTube sometimes repeats an item in a shelf; duplicate keys crash the lazy row.
+            items(items.distinctBy { it.id }, key = { "yt_${it.id}" }) { item ->
                 BitChordShelfCard(
                     artworkUrl = item.thumbnail,
                     title = item.title,
