@@ -9,6 +9,9 @@
 
 package moe.rukamori.archivetune
 
+import moe.rukamori.archivetune.ui.component.TvFocusIndication
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.foundation.LocalIndication
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PictureInPictureParams
@@ -1278,6 +1281,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     val isTvDevice = remember { applicationContext.isTvDevice() }
+                    val tvFocusAccent = MaterialTheme.colorScheme.primary
                     val (tabletModeEnabled) = rememberPreference(TabletModeEnabledKey, defaultValue = false)
                     val useRail =
                         isTvDevice ||
@@ -2415,6 +2419,14 @@ class MainActivity : ComponentActivity() {
                         moe.rukamori.archivetune.ui.player.LocalPlayerSheetOverlayActive provides isPlayerSheetOverlayActive,
                         moe.rukamori.archivetune.ui.player.LocalPlayerSheetOverlayFraction provides playerSheetOverlayFractionState,
                         LocalOverscrollFactory provides effectiveOverscrollFactory,
+                        // Remote control: a clear highlight on the focused item (Material's focus layer is
+                        // almost invisible on a TV).
+                        LocalIndication provides
+                            if (isTvDevice) {
+                                remember(tvFocusAccent) { TvFocusIndication(tvFocusAccent) }
+                            } else {
+                                LocalIndication.current
+                            },
                     ) {
                         Row(
                             modifier =
@@ -3603,10 +3615,13 @@ class MainActivity : ComponentActivity() {
                                         Modifier
                                             .then(
                                                 if (isTvDevice) {
+                                                    // Entering the content from the rail lands on an item
+                                                    // (the last one used, else the first) instead of on the
+                                                    // invisible content container, where the highlight was lost.
                                                     Modifier
+                                                        .focusRestorer()
                                                         .focusRequester(contentAreaFocusRequester)
                                                         .focusGroup()
-                                                        .focusable()
                                                 } else {
                                                     Modifier
                                                 },
