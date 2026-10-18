@@ -9,6 +9,9 @@
 
 package moe.rukamori.archivetune.ui.component
 
+import moe.rukamori.archivetune.ui.tv.tvNonFocusable
+import moe.rukamori.archivetune.ui.tv.tvMenuFocusTrap
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -291,6 +294,7 @@ fun BottomSheetMenu(
                     .fillMaxSize()
                     .graphicsLayer { this.alpha = alpha }
                     .background(Color.Black.copy(alpha = 0.50f))
+                    .tvNonFocusable()
                     .clickable(
                         interactionSource = scrimInteractionSource,
                         indication = null,
@@ -334,6 +338,8 @@ fun BottomSheetMenu(
                         },
                     )
                     .clip(menuShape)
+                    .tvMenuFocusTrap()
+                    .tvNonFocusable()
                     .clickable(
                         interactionSource = popupInteractionSource,
                         indication = null,

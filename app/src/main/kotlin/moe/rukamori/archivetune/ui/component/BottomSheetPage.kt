@@ -7,6 +7,8 @@
 
 package moe.rukamori.archivetune.ui.component
 
+import moe.rukamori.archivetune.ui.tv.tvMenuFocusTrap
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -154,6 +156,7 @@ fun BottomSheetPage(
                     .padding(top = 100.dp)
                     .clip(ShapeDefaults.Large.top())
                     .background(background)
+                    .tvMenuFocusTrap()
                     .pointerInput(Unit) {
                         detectVerticalDragGestures(
                             onDragEnd = {

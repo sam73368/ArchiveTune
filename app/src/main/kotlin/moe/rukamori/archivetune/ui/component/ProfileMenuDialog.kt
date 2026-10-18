@@ -7,6 +7,8 @@
 
 package moe.rukamori.archivetune.ui.component
 
+import moe.rukamori.archivetune.ui.tv.tvNonFocusable
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -73,6 +75,7 @@ fun ProfileMenuDialog(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.55f))
+                    .tvNonFocusable()
                     .clickable(
                         interactionSource = scrimInteraction,
                         indication = null,

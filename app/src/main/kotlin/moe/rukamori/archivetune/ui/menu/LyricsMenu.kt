@@ -7,6 +7,9 @@
 
 package moe.rukamori.archivetune.ui.menu
 
+import moe.rukamori.archivetune.ui.tv.tvNonFocusable
+import moe.rukamori.archivetune.ui.tv.tvMenuFocusTrap
+
 import moe.rukamori.archivetune.ui.component.LocalLiquidGlassTuning
 import androidx.activity.compose.BackHandler
 import android.app.SearchManager
@@ -1581,6 +1584,7 @@ fun AnchoredLyricsOverflowMenu(
                 .fillMaxSize()
                 .onSizeChanged { anchorSpaceHeightPx = it.height }
                 .background(scrimColor.copy(alpha = scrimColor.alpha * alpha))
+                .tvNonFocusable()
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -1642,6 +1646,8 @@ fun AnchoredLyricsOverflowMenu(
 
                     .background(Color.Black.copy(alpha = 0.55f))
                     .clip(RoundedCornerShape(16.dp))
+                    .tvMenuFocusTrap()
+                    .tvNonFocusable()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,

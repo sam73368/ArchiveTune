@@ -9,6 +9,9 @@
 
 package moe.rukamori.archivetune.ui.screens.artist
 
+import moe.rukamori.archivetune.ui.tv.tvNonFocusable
+import moe.rukamori.archivetune.ui.tv.tvMenuFocusTrap
+
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.draw.clipToBounds
 import moe.rukamori.archivetune.ui.theme.BackdropTonePalette
@@ -1975,6 +1978,7 @@ private fun ArtistOverflowDropdown(
                 .fillMaxSize()
                 .onSizeChanged { anchorSpaceWidthPx = it.width }
                 .background(Color.Black.copy(alpha = ArtistOverflowScrimAlpha * alpha))
+                .tvNonFocusable()
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -2037,6 +2041,8 @@ private fun ArtistOverflowDropdown(
                             },
                         shape = menuShape,
                     )
+                    .tvMenuFocusTrap()
+                    .tvNonFocusable()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,

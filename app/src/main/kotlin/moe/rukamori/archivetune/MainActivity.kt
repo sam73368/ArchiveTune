@@ -147,6 +147,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onKeyEvent
+import moe.rukamori.archivetune.ui.tv.tvFocusScope
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.luminance
 import moe.rukamori.archivetune.ui.screens.HomeTopFadeBlur
@@ -2223,6 +2225,20 @@ class MainActivity : ComponentActivity() {
                     }
 
                     var tvRailHasFocus by remember { mutableStateOf(false) }
+                    var tvRootHasFocus by remember { mutableStateOf(false) }
+                    val tvRootView = androidx.compose.ui.platform.LocalView.current
+                    LaunchedEffect(isTvDevice, tvRootHasFocus) {
+                        if (!isTvDevice || tvRootHasFocus) return@LaunchedEffect
+                        delay(300)
+                        if (tvRootHasFocus || playerBottomSheetState.isExpanded) return@LaunchedEffect
+                        runCatching {
+                            if (!active && currentRoute in topLevelScreens) {
+                                tvRailFocusRequester.requestFocus()
+                            } else {
+                                contentAreaFocusRequester.requestFocus()
+                            }
+                        }
+                    }
                     var tvContentHasFocus by remember { mutableStateOf(false) }
                     LaunchedEffect(isTvDevice, navBackStackEntry?.id, active) {
                         if (!isTvDevice || active || currentRoute in topLevelScreens) return@LaunchedEffect
@@ -2472,6 +2488,23 @@ class MainActivity : ComponentActivity() {
                                 LocalIndication.current
                             },
                     ) {
+                      Box(
+                          modifier =
+                              Modifier
+                                  .fillMaxSize()
+                                  .then(
+                                      if (isTvDevice) {
+                                          Modifier
+                                              .onFocusChanged { tvRootHasFocus = it.hasFocus }
+                                              .onKeyEvent { event ->
+                                                  moe.rukamori.archivetune.ui.tv.TvFocusFallback
+                                                      .handleKey(event, tvRootView, focusManager)
+                                              }
+                                      } else {
+                                          Modifier
+                                      },
+                                  ),
+                      ) {
                         Row(
                             modifier =
                                 Modifier.let { base ->
@@ -3684,6 +3717,7 @@ class MainActivity : ComponentActivity() {
                                                     // (the last one used, else the first) instead of on the
                                                     // invisible content container, where the highlight was lost.
                                                     Modifier
+                                                        .tvFocusScope()
                                                         .onFocusChanged { tvContentHasFocus = it.hasFocus }
                                                         .focusRestorer()
                                                         .focusRequester(contentAreaFocusRequester)
@@ -3879,6 +3913,7 @@ class MainActivity : ComponentActivity() {
                                     .zIndex(12f),
                             )
                         }
+                    }
                     }
 
                     pendingBackupRestoreUri?.let { uri ->
