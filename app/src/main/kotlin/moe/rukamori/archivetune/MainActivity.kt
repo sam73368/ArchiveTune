@@ -119,6 +119,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -2295,6 +2296,30 @@ class MainActivity : ComponentActivity() {
                     val tvRootView = androidx.compose.ui.platform.LocalView.current
                     val tvTextEntryState = moe.rukamori.archivetune.ui.tv.rememberTvTextEntryState()
                     moe.rukamori.archivetune.ui.tv.TvTextEntryDialog(tvTextEntryState)
+                    var tvLastInputAt by remember { mutableStateOf(android.os.SystemClock.uptimeMillis()) }
+                    var tvAmbientVisible by remember { mutableStateOf(false) }
+                    var tvSwallowKeyUp by remember { mutableStateOf(false) }
+                    val tvAmbientPlaying by (playerConnection?.isPlaying ?: kotlinx.coroutines.flow.MutableStateFlow(false)).collectAsState()
+                    LaunchedEffect(isTvDevice, tvAmbientPlaying) {
+                        if (!isTvDevice || !tvAmbientPlaying) return@LaunchedEffect
+                        while (true) {
+                            delay(5_000)
+                            val idle = android.os.SystemClock.uptimeMillis() - tvLastInputAt
+                            if (idle >= moe.rukamori.archivetune.ui.tv.TvAmbientIdleMs && tvTextEntryState.target == null) {
+                                tvAmbientVisible = true
+                            }
+                        }
+                    }
+                    if (isTvDevice && tvAmbientVisible) {
+                        androidx.compose.ui.window.Popup(
+                            properties = androidx.compose.ui.window.PopupProperties(focusable = false),
+                        ) {
+                            moe.rukamori.archivetune.ui.tv.TvAmbientOverlay(visible = true)
+                        }
+                    }
+                    val tvShortcutPlaylists by remember(isTvDevice) {
+                        if (isTvDevice) database.playlistsByCustomOrderAsc() else kotlinx.coroutines.flow.flowOf(emptyList<moe.rukamori.archivetune.db.entities.Playlist>())
+                    }.collectAsState(initial = emptyList())
                     LaunchedEffect(isTvDevice, tvRootHasFocus) {
                         if (!isTvDevice || tvRootHasFocus) return@LaunchedEffect
                         delay(300)
@@ -2566,6 +2591,33 @@ class MainActivity : ComponentActivity() {
                                                         .onFocusChanged { tvRootHasFocus = it.hasFocus }
                                               .tvTextEntry(tvTextEntryState)
                                               .onPreviewKeyEvent { event ->
+                                                  tvLastInputAt = android.os.SystemClock.uptimeMillis()
+                                                  val keyDown = event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown
+                                                  if (tvAmbientVisible) {
+                                                      if (keyDown) {
+                                                          tvAmbientVisible = false
+                                                          tvSwallowKeyUp = true
+                                                      }
+                                                      return@onPreviewKeyEvent true
+                                                  }
+                                                  if (tvSwallowKeyUp) {
+                                                      if (!keyDown) tvSwallowKeyUp = false
+                                                      return@onPreviewKeyEvent true
+                                                  }
+                                                  if (moe.rukamori.archivetune.ui.tv.TvRemoteShortcuts.handleMediaKey(event, playerConnection)) {
+                                                      return@onPreviewKeyEvent true
+                                                  }
+                                                  val digitSlot = moe.rukamori.archivetune.ui.tv.TvRemoteShortcuts.digitSlot(event)
+                                                  if (digitSlot != null && !moe.rukamori.archivetune.ui.tv.TvFocusFallback.focusedIsTextField(tvRootView)) {
+                                                      val target = tvShortcutPlaylists.getOrNull(digitSlot)
+                                                      if (target != null) {
+                                                          if (keyDown) {
+                                                              if (playerBottomSheetState.isExpanded) playerBottomSheetState.collapseSoft()
+                                                              navController.navigate("local_playlist/${target.id}")
+                                                          }
+                                                          return@onPreviewKeyEvent true
+                                                      }
+                                                  }
                                                   if (
                                                       event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
                                                       (event.key == Key.Search || event.key == Key.VoiceAssist)

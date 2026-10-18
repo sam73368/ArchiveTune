@@ -87,6 +87,14 @@ import moe.rukamori.archivetune.utils.makeTimeString
 
 private const val TvSeekStepMs = 10_000L
 
+private fun tvSeekStepFor(repeatCount: Int): Long =
+    when {
+        repeatCount < 4 -> TvSeekStepMs
+        repeatCount < 12 -> TvSeekStepMs * 2
+        repeatCount < 24 -> TvSeekStepMs * 4
+        else -> TvSeekStepMs * 6
+    }
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun TvPlayerContent(
@@ -386,9 +394,10 @@ private fun TvSeekBar(
 ) {
     var focused by remember { mutableStateOf(false) }
     var position by remember { mutableLongStateOf(positionProvider()) }
+    var scrubbing by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         while (true) {
-            position = positionProvider()
+            if (!scrubbing) position = positionProvider()
             delay(250)
         }
     }
@@ -407,19 +416,24 @@ private fun TvSeekBar(
                     .onFocusChanged { focused = it.isFocused }
                     .onPreviewKeyEvent { event ->
                         if (!seekable) return@onPreviewKeyEvent false
-                        val delta =
+                        val direction =
                             when (event.key) {
-                                Key.DirectionLeft -> -TvSeekStepMs
-                                Key.DirectionRight -> TvSeekStepMs
+                                Key.DirectionLeft -> -1L
+                                Key.DirectionRight -> 1L
                                 else -> return@onPreviewKeyEvent false
                             }
                         when (event.type) {
                             KeyEventType.KeyDown -> {
-                                val target = (position + delta).coerceIn(0L, duration)
+                                scrubbing = true
+                                val step = tvSeekStepFor(event.nativeKeyEvent.repeatCount)
+                                val target = (position + direction * step).coerceIn(0L, duration)
                                 position = target
                                 onSeek(target)
                             }
-                            KeyEventType.KeyUp -> onSeekFinished()
+                            KeyEventType.KeyUp -> {
+                                scrubbing = false
+                                onSeekFinished()
+                            }
                         }
                         true
                     }.focusable()
