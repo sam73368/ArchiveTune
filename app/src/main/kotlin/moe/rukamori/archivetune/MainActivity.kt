@@ -1416,6 +1416,16 @@ class MainActivity : ComponentActivity() {
                     )
 
                     val searchBarFocusRequester = remember { FocusRequester() }
+                    val tvSearchKeyboardFocusRequester = remember { FocusRequester() }
+                    val focusSearchInput: () -> Unit = {
+                        runCatching {
+                            if (isTvDevice) {
+                                tvSearchKeyboardFocusRequester.requestFocus()
+                            } else {
+                                searchBarFocusRequester.requestFocus()
+                            }
+                        }
+                    }
                     val tvRailFocusRequester = remember { FocusRequester() }
                     val contentAreaFocusRequester = remember { FocusRequester() }
 
@@ -1425,7 +1435,7 @@ class MainActivity : ComponentActivity() {
 
                     val openSearch: () -> Unit = {
                         onActiveChange(true)
-                        searchBarFocusRequester.requestFocus()
+                        focusSearchInput()
                     }
 
                     val onSearch: (String) -> Unit = { rawQuery ->
@@ -2207,7 +2217,7 @@ class MainActivity : ComponentActivity() {
 
                                 else -> {}
                             }
-                            searchBarFocusRequester.requestFocus()
+                            focusSearchInput()
                         }
                     }
 
@@ -2226,6 +2236,7 @@ class MainActivity : ComponentActivity() {
 
                     var tvRailHasFocus by remember { mutableStateOf(false) }
                     var tvRootHasFocus by remember { mutableStateOf(false) }
+                    var tvHideImeJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                     val tvRootView = androidx.compose.ui.platform.LocalView.current
                     LaunchedEffect(isTvDevice, tvRootHasFocus) {
                         if (!isTvDevice || tvRootHasFocus) return@LaunchedEffect
@@ -2498,7 +2509,20 @@ class MainActivity : ComponentActivity() {
                                               .onFocusChanged { tvRootHasFocus = it.hasFocus }
                                               .onKeyEvent { event ->
                                                   moe.rukamori.archivetune.ui.tv.TvFocusFallback
-                                                      .handleKey(event, tvRootView, focusManager)
+                                                      .handleKey(event, tvRootView, focusManager) {
+                                                          tvHideImeJob?.cancel()
+                                                          tvHideImeJob =
+                                                              coroutineScope.launch {
+                                                                  val imm =
+                                                                      tvRootView.context.getSystemService(
+                                                                          android.view.inputmethod.InputMethodManager::class.java,
+                                                                      )
+                                                                  repeat(6) {
+                                                                      imm?.hideSoftInputFromWindow(tvRootView.windowToken, 0)
+                                                                      delay(90)
+                                                                  }
+                                                              }
+                                                      }
                                               }
                                       } else {
                                           Modifier
@@ -2540,7 +2564,7 @@ class MainActivity : ComponentActivity() {
                                             if (active ||
                                                 navBackStackEntry?.destination?.route?.startsWith(OnlineSearchResultRoutePrefix) == true
                                             ) {
-                                                searchBarFocusRequester
+                                                if (active) tvSearchKeyboardFocusRequester else contentAreaFocusRequester
                                             } else {
                                                 contentAreaFocusRequester
                                             },
@@ -3319,6 +3343,7 @@ class MainActivity : ComponentActivity() {
                                           Row(Modifier.fillMaxSize()) {
                                             if (isTvDevice) {
                                                 moe.rukamori.archivetune.ui.tv.TvSearchKeyboard(
+                                                    focusRequester = tvSearchKeyboardFocusRequester,
                                                     query = query.text,
                                                     onQueryChange = { text ->
                                                         onQueryChange(TextFieldValue(text, TextRange(text.length)))
@@ -3925,7 +3950,7 @@ class MainActivity : ComponentActivity() {
                             onActiveChange(true)
                             try {
                                 delay(100)
-                                searchBarFocusRequester.requestFocus()
+                                focusSearchInput()
                             } catch (_: Exception) {
                             }
                             openSearchImmediately = false

@@ -65,13 +65,14 @@ private val TvKeyboardRows =
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun TvSearchKeyboard(
+    focusRequester: FocusRequester,
     query: String,
     onQueryChange: (String) -> Unit,
     onSearch: (String) -> Unit,
     onVoiceSearch: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val firstKey = remember { FocusRequester() }
+    val firstKey = focusRequester
     val keyboardController = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) {
         repeat(6) {

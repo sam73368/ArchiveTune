@@ -81,6 +81,22 @@ object TvFocusFallback {
         event: KeyEvent,
         view: View,
         focusManager: FocusManager,
+        onTextFieldFocused: () -> Unit = {},
+    ): Boolean {
+        val handled = moveWithFallback(event, view, focusManager)
+        if (handled) {
+            val landed = runCatching { snapshot(view) }.getOrNull()?.focused
+            if (landed != null && landed.node.config.getOrNull(SemanticsActions.SetText) != null) {
+                onTextFieldFocused()
+            }
+        }
+        return handled
+    }
+
+    private fun moveWithFallback(
+        event: KeyEvent,
+        view: View,
+        focusManager: FocusManager,
     ): Boolean {
         if (event.type != KeyEventType.KeyDown) return false
         val direction =
