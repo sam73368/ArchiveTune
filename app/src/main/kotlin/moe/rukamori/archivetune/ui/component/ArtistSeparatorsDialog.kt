@@ -73,6 +73,7 @@ fun ArtistSeparatorsDialog(
             onDismissRequest = { showAddSymbolDialog = false },
             title = { Text(stringResource(R.string.add_symbol)) },
             text = {
+                moe.rukamori.archivetune.ui.tv.TvTextEntryHost {
                 OutlinedTextField(
                     value = newSymbolInput,
                     onValueChange = {
@@ -84,6 +85,7 @@ fun ArtistSeparatorsDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                }
             },
             confirmButton = {
                 KeepStatusBarHiddenInDialog()

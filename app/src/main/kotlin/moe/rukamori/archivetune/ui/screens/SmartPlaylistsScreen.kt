@@ -404,6 +404,7 @@ private fun SmartRuleEditor(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.smart_playlist_editor_title)) },
         text = {
+            moe.rukamori.archivetune.ui.tv.TvTextEntryHost {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -494,6 +495,7 @@ private fun SmartRuleEditor(
                         onCheckedChange = { rule = rule.copy(allowExplicit = it) },
                     )
                 }
+            }
             }
         },
         confirmButton = {

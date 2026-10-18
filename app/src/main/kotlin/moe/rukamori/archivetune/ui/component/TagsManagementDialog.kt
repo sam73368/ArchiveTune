@@ -684,6 +684,7 @@ private fun PlaylistTagsDialogScaffold(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        moe.rukamori.archivetune.ui.tv.TvTextEntryHost {
         var entered by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) {
             entered = true
@@ -725,6 +726,7 @@ private fun PlaylistTagsDialogScaffold(
                 tonalElevation = AlertDialogDefaults.TonalElevation,
                 content = content,
             )
+        }
         }
     }
 }

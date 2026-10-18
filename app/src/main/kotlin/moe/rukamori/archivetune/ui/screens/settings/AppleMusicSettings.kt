@@ -218,6 +218,7 @@ private fun TokenSheet(
     val canSave = mediaValid && devValid && mediaToken.trim().isNotBlank()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)) {
+        moe.rukamori.archivetune.ui.tv.TvTextEntryColumnHost {
         Column(
 
             Modifier
@@ -268,6 +269,7 @@ private fun TokenSheet(
                     Text(stringResource(R.string.youtube_session_save))
                 }
             }
+        }
         }
     }
 }

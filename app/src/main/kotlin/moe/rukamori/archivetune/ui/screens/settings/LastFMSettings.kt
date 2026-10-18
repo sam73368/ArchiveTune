@@ -443,6 +443,7 @@ private fun LastFmLoginDialog(
         },
         title = { Text(stringResource(R.string.login)) },
         text = {
+            moe.rukamori.archivetune.ui.tv.TvTextEntryHost {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = dialog.username,
@@ -489,6 +490,7 @@ private fun LastFmLoginDialog(
                         )
                     }
                 }
+            }
             }
         },
         confirmButton = {
@@ -631,6 +633,7 @@ private fun LastFmCustomEndpointDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.lastfm_connect_custom_button)) },
         text = {
+            moe.rukamori.archivetune.ui.tv.TvTextEntryHost {
             Column(
                 modifier = Modifier
                     .heightIn(max = 420.dp)
@@ -669,6 +672,7 @@ private fun LastFmCustomEndpointDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
             }
         },
         confirmButton = {

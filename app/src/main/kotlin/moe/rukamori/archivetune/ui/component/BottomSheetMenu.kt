@@ -25,13 +25,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -185,8 +189,14 @@ fun BottomSheetMenu(
 
     val alpha = enterProgress.value
 
+    val tvSidePanel = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
     val immersive = state.presentation == MenuPresentation.IMMERSIVE
-    val menuShape = if (immersive) ImmersiveMenuShape else FloatingMenuShape
+    val menuShape =
+        when {
+            tvSidePanel -> TvSidePanelMenuShape
+            immersive -> ImmersiveMenuShape
+            else -> FloatingMenuShape
+        }
 
     val menuGlassBackdrop = LocalMenuGlassBackdrop.current
     val liquidGlassBackdrop = menuGlassBackdrop ?: LocalLiquidGlassBackdrop.current
@@ -306,22 +316,34 @@ fun BottomSheetMenu(
         Box(
             modifier =
                 Modifier
-                    .align(Alignment.BottomCenter)
                     .then(
-                        if (immersive) {
+                        if (tvSidePanel) {
                             Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .width(TvSidePanelMenuWidth)
+                                .graphicsLayer {
+                                    this.alpha = alpha
+                                    translationX = with(density) { (1f - alpha) * 64.dp.toPx() }
+                                }
                         } else {
-                            Modifier.padding(start = 16.dp, end = 16.dp, bottom = bottomInset + 12.dp)
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .then(
+                                    if (immersive) {
+                                        Modifier
+                                    } else {
+                                        Modifier.padding(start = 16.dp, end = 16.dp, bottom = bottomInset + 12.dp)
+                                    },
+                                ).widthIn(max = 640.dp)
+                                .heightIn(max = maxPopupHeight)
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    this.alpha = alpha
+                                    translationY = with(density) { (1f - alpha) * 48.dp.toPx() }
+                                }
                         },
                     )
-                    .widthIn(max = 640.dp)
-                    .heightIn(max = maxPopupHeight)
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        this.alpha = alpha
-
-                        translationY = with(density) { (1f - alpha) * 48.dp.toPx() }
-                    }
                     .shadow(
                         elevation = (24f * glassTuning.shadowFactor).dp,
                         shape = menuShape,
@@ -352,7 +374,11 @@ fun BottomSheetMenu(
             val menuContent: @Composable () -> Unit = {
                 Column(
                     modifier =
-                        if (immersive) {
+                        if (tvSidePanel) {
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 28.dp, bottom = 20.dp)
+                        } else if (immersive) {
                             Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
@@ -366,7 +392,9 @@ fun BottomSheetMenu(
             }
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                if (immersive) {
+                if (tvSidePanel) {
+                    Spacer(Modifier.height(0.dp))
+                } else if (immersive) {
                     Box(
                         modifier =
                             Modifier
@@ -415,5 +443,9 @@ fun BottomSheetMenu(
 }
 
 private val FloatingMenuShape = RoundedCornerShape(28.dp)
+
+private val TvSidePanelMenuShape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp)
+
+private val TvSidePanelMenuWidth = 460.dp
 
 private val ImmersiveMenuShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)

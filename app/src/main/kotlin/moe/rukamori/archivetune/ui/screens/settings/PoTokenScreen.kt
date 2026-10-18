@@ -471,6 +471,7 @@ private fun RegenerateTokenSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
+        moe.rukamori.archivetune.ui.tv.TvTextEntryColumnHost {
         KeepStatusBarHiddenInDialog()
         Column(
             modifier =
@@ -511,6 +512,7 @@ private fun RegenerateTokenSheet(
                 Text(stringResource(R.string.regenerate_token))
             }
             Spacer(Modifier.height(8.dp))
+        }
         }
     }
 }

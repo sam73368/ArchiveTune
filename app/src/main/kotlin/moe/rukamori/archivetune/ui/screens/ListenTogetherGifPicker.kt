@@ -314,6 +314,7 @@ internal fun GifPickerSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
+        moe.rukamori.archivetune.ui.tv.TvTextEntryColumnHost {
         var tab by remember { mutableStateOf(0) }
 
         Column(
@@ -354,6 +355,7 @@ internal fun GifPickerSheet(
                 0 -> GiphyCatalogTab(onPickGif)
                 else -> CustomGifTab(onPickGif, onDismiss)
             }
+        }
         }
     }
 }

@@ -1515,6 +1515,7 @@ private fun SaveProfileDialog(
             onDismissRequest = onDismiss,
             title = { Text(text = stringResource(R.string.eq_save_profile)) },
             text = {
+                moe.rukamori.archivetune.ui.tv.TvTextEntryHost {
                 OutlinedTextField(
                     value = name,
                     onValueChange = onNameChange,
@@ -1522,6 +1523,7 @@ private fun SaveProfileDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                }
             },
             confirmButton = {
                 KeepStatusBarHiddenInDialog()

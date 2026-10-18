@@ -1192,6 +1192,7 @@ private fun SearchLyricsInputDialog(
                 .fillMaxWidth(),
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        moe.rukamori.archivetune.ui.tv.TvTextEntryHost {
         Surface(
             shape = MaterialTheme.shapes.extraLarge,
             color = AlertDialogDefaults.containerColor,
@@ -1224,6 +1225,7 @@ private fun SearchLyricsInputDialog(
                     onSearch = onSearch,
                 )
             }
+        }
         }
     }
 }

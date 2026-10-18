@@ -64,6 +64,13 @@ fun Modifier.tvMenuFocusTrap(): Modifier {
         .focusGroup()
 }
 
+class TvTextFieldTarget(
+    val text: String,
+    val masked: Boolean,
+    val setText: (String) -> Boolean,
+    val submit: (() -> Unit)?,
+)
+
 private class FocusCandidate(
     val node: SemanticsNode,
     val rect: Rect,
@@ -100,6 +107,18 @@ object TvFocusFallback {
             ?.node
             ?.config
             ?.getOrNull(SemanticsActions.SetText) != null
+
+    fun focusedTextField(view: View): TvTextFieldTarget? {
+        val node = runCatching { snapshot(view) }.getOrNull()?.focused?.node ?: return null
+        val config = node.config
+        val setText = config.getOrNull(SemanticsActions.SetText)?.action ?: return null
+        return TvTextFieldTarget(
+            text = config.getOrNull(SemanticsProperties.EditableText)?.text.orEmpty(),
+            masked = config.getOrNull(SemanticsProperties.Password) != null,
+            setText = { value -> runCatching { setText(androidx.compose.ui.text.AnnotatedString(value)) }.getOrDefault(false) },
+            submit = config.getOrNull(SemanticsActions.OnImeAction)?.action?.let { action -> { runCatching { action() }; Unit } },
+        )
+    }
 
     private fun moveWithFallback(
         event: KeyEvent,

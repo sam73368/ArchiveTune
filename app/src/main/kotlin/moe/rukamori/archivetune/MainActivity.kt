@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune
 
+import moe.rukamori.archivetune.ui.tv.tvTextEntry
 import moe.rukamori.archivetune.ui.component.TvFocusIndication
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.foundation.LocalIndication
@@ -2292,6 +2293,8 @@ class MainActivity : ComponentActivity() {
                     var tvRootHasFocus by remember { mutableStateOf(false) }
                     var tvHideImeJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                     val tvRootView = androidx.compose.ui.platform.LocalView.current
+                    val tvTextEntryState = moe.rukamori.archivetune.ui.tv.rememberTvTextEntryState()
+                    moe.rukamori.archivetune.ui.tv.TvTextEntryDialog(tvTextEntryState)
                     LaunchedEffect(isTvDevice, tvRootHasFocus) {
                         if (!isTvDevice || tvRootHasFocus) return@LaunchedEffect
                         delay(300)
@@ -2561,6 +2564,7 @@ class MainActivity : ComponentActivity() {
                                       if (isTvDevice) {
                                           Modifier
                                                         .onFocusChanged { tvRootHasFocus = it.hasFocus }
+                                              .tvTextEntry(tvTextEntryState)
                                               .onPreviewKeyEvent { event ->
                                                   if (
                                                       event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&

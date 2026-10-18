@@ -13,7 +13,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
@@ -32,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -89,6 +93,7 @@ fun BottomSheetPage(
     contentWindowInsets: WindowInsets = WindowInsets.navigationBars,
 ) {
     val focusManager = LocalFocusManager.current
+    val tvSidePanel = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
     var dragOffset by remember { mutableFloatStateOf(0f) }
 
     val dispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -129,7 +134,32 @@ fun BottomSheetPage(
         )
     }
 
-    AnimatedVisibility(
+    if (tvSidePanel) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
+            AnimatedVisibility(
+                visible = state.isVisible,
+                enter = slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300)),
+                exit = slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300)),
+            ) {
+                DisposableEffect(Unit) {
+                    state.contentOnScreen = true
+                    onDispose { state.contentOnScreen = false }
+                }
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxHeight()
+                            .width(560.dp)
+                            .clip(RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp))
+                            .background(background)
+                            .tvMenuFocusTrap()
+                            .padding(horizontal = 24.dp, vertical = 28.dp),
+                ) {
+                    state.content(this)
+                }
+            }
+        }
+    } else AnimatedVisibility(
         visible = state.isVisible,
         enter =
             slideInVertically(

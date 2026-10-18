@@ -79,6 +79,7 @@ internal fun ShareSongPickerSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
+        moe.rukamori.archivetune.ui.tv.TvTextEntryColumnHost {
         var query by remember { mutableStateOf("") }
         var results by remember { mutableStateOf<List<SongItem>>(emptyList()) }
         var searching by remember { mutableStateOf(false) }
@@ -228,6 +229,7 @@ internal fun ShareSongPickerSheet(
                     }
                 }
             }
+        }
         }
     }
 }

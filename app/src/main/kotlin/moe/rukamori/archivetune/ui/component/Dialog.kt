@@ -93,8 +93,9 @@ fun UnglassedDialogTheme(content: @Composable () -> Unit) {
     val unglassed = LocalUnglassColorScheme.current
     MaterialTheme(
         colorScheme = unglassed ?: MaterialTheme.colorScheme,
-        content = content,
-    )
+    ) {
+        moe.rukamori.archivetune.ui.tv.TvTextEntryHost(content = content)
+    }
 }
 
 @Composable

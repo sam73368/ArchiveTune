@@ -355,4 +355,6 @@
     <string name="tv_queue_play_next">Play next</string>
     <string name="tv_queue_move">Move</string>
     <string name="tv_queue_remove">Remove</string>
+    <string name="tv_text_entry_title">Type</string>
+    <string name="tv_text_entry_confirm">Done</string>
 </resources>

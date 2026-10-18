@@ -62,6 +62,9 @@ private val TvKeyboardRows =
         "7890ÉÈ",
     )
 
+private const val TvKeyboardExtendedRow = "@_/:#!"
+
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun TvSearchKeyboard(
@@ -71,8 +74,14 @@ fun TvSearchKeyboard(
     onSearch: (String) -> Unit,
     onVoiceSearch: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    title: String? = null,
+    confirmLabel: String? = null,
+    confirmIcon: Int = R.drawable.search,
+    masked: Boolean = false,
+    extendedKeys: Boolean = false,
 ) {
     val firstKey = focusRequester
+    var upperCase by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) {
         repeat(6) {
@@ -95,7 +104,7 @@ fun TvSearchKeyboard(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            text = stringResource(R.string.search).uppercase(),
+            text = (title ?: stringResource(R.string.search)).uppercase(),
             style = TvTokens.Overline,
             color = TvTokens.OnSurfaceMuted,
         )
@@ -111,14 +120,14 @@ fun TvSearchKeyboard(
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
-                text = if (query.isEmpty()) "…" else query + "▏",
+                text = if (query.isEmpty()) "…" else (if (masked) "•".repeat(query.length) else query) + "▏",
                 style = TvTokens.Title,
                 color = if (query.isEmpty()) TvTokens.OnSurfaceFaint else TvTokens.OnSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        TvKeyboardRows.forEachIndexed { rowIndex, row ->
+        (if (extendedKeys) TvKeyboardRows + TvKeyboardExtendedRow else TvKeyboardRows).forEachIndexed { rowIndex, row ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 row.forEachIndexed { index, char ->
                     TvKey(
@@ -126,14 +135,23 @@ fun TvSearchKeyboard(
                             Modifier
                                 .weight(1f)
                                 .then(if (rowIndex == 0 && index == 0) Modifier.focusRequester(firstKey) else Modifier),
-                        onClick = { onQueryChange(query + char.lowercaseChar()) },
+                        onClick = { onQueryChange(query + if (upperCase) char.uppercaseChar() else char.lowercaseChar()) },
                     ) { color ->
-                        Text(char.toString(), style = TvTokens.BodyBold, color = color)
+                        Text(
+                            (if (extendedKeys && !upperCase) char.lowercaseChar() else char).toString(),
+                            style = TvTokens.BodyBold,
+                            color = color,
+                        )
                     }
                 }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (extendedKeys) {
+                TvKey(modifier = Modifier.weight(1f), accent = upperCase, onClick = { upperCase = !upperCase }) { color ->
+                    Text("⇧", style = TvTokens.BodyBold, color = color)
+                }
+            }
             TvKey(modifier = Modifier.weight(2f), onClick = { onQueryChange("$query ") }) { color ->
                 Text(stringResource(R.string.tv_key_space), style = TvTokens.Caption, color = color)
             }
@@ -154,8 +172,8 @@ fun TvSearchKeyboard(
             accent = true,
             onClick = { onSearch(query) },
         ) { color ->
-            Icon(painterResource(R.drawable.search), null, tint = color, modifier = Modifier.size(16.dp))
-            Text(stringResource(R.string.search), style = TvTokens.BodyBold, color = color, modifier = Modifier.padding(start = 6.dp))
+            Icon(painterResource(confirmIcon), null, tint = color, modifier = Modifier.size(16.dp))
+            Text(confirmLabel ?: stringResource(R.string.search), style = TvTokens.BodyBold, color = color, modifier = Modifier.padding(start = 6.dp))
         }
     }
 }

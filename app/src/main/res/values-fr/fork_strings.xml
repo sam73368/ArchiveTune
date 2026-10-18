@@ -144,4 +144,6 @@
     <string name="tv_queue_play_next">Jouer ensuite</string>
     <string name="tv_queue_move">Déplacer</string>
     <string name="tv_queue_remove">Retirer</string>
+    <string name="tv_text_entry_title">Saisie</string>
+    <string name="tv_text_entry_confirm">Valider</string>
 </resources>
