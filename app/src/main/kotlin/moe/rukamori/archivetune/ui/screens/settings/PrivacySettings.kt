@@ -302,6 +302,7 @@ fun PrivacySettings(
                 .calculateBottomPadding()
         val topPadding = innerPadding.calculateTopPadding()
         val scrollState = rememberScrollState()
+        val isTv = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
         val positions = rememberPreferencePositions()
 
         LaunchedEffect(scrollTo) { positions.scrollToKey(scrollTo, scrollState) }
@@ -316,7 +317,7 @@ fun PrivacySettings(
                 .padding(top = topPadding)
                 .padding(bottom = playerAwareBottomPadding + SettingsDimensions.ScreenBottomPadding),
         ) {
-            PreferenceGroup(
+            if (!isTv) PreferenceGroup(
                 modifier = positions.modifierFor("app_lock"),
                 title = stringResource(R.string.app_lock),
             ) {
@@ -417,7 +418,7 @@ fun PrivacySettings(
                 }
             }
 
-            PreferenceGroup(
+            if (!isTv) PreferenceGroup(
                 modifier = positions.modifierFor("overscroll"),
                 title = stringResource(R.string.overscroll_physics),
             ) {
@@ -502,7 +503,7 @@ fun PrivacySettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     SwitchPreference(
                         modifier = positions.modifierFor("force_high_refresh_rate"),
                         title = { Text(stringResource(R.string.force_high_refresh_rate)) },
@@ -512,7 +513,7 @@ fun PrivacySettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.haptics)) },
                         description = stringResource(R.string.haptics_desc),
@@ -522,7 +523,7 @@ fun PrivacySettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.music_haptics)) },
                         description = stringResource(R.string.music_haptics_desc),
@@ -535,7 +536,7 @@ fun PrivacySettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     PreferenceEntry(
                         title = { Text(stringResource(R.string.music_haptics_strength)) },
                         description = stringResource(R.string.music_haptics_strength_value, musicHapticsStrength),
@@ -558,7 +559,7 @@ fun PrivacySettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     SwitchPreference(
                         modifier = positions.modifierFor("disable_screenshot"),
                         title = { Text(stringResource(R.string.disable_screenshot)) },
@@ -569,7 +570,7 @@ fun PrivacySettings(
                     )
                 }
 
-                if (isAndroid12OrLater) {
+                if (isAndroid12OrLater && !isTv) {
                     item {
                         PreferenceEntry(
                             modifier = positions.modifierFor("open_supported_links"),

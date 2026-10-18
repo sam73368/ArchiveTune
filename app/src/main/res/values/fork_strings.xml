@@ -366,7 +366,14 @@
     <string name="tv_artwork_accent">Accent from artwork</string>
     <string name="tv_artwork_accent_desc">Tint the interface with the colors of the song that is playing</string>
     <string name="tv_settings_open_all">Open all settings</string>
-    <string name="tv_settings_hint">▲ ▼ change category · ▶ enter · OK open · Back return</string>
+    <string name="tv_settings_hint">▲ ▼ change category · OK open it · Back return</string>
+    <string name="tv_settings_contains">Inside</string>
+    <string name="tv_player_background">Player background</string>
+    <string name="tv_player_bg_gradient">Gradient</string>
+    <string name="tv_player_bg_aurora">Aurora</string>
+    <string name="tv_player_bg_solid">Solid colour</string>
+    <string name="tv_player_bg_black">Black</string>
+    <string name="tv_player_bg_cover">Blurred cover</string>
     <string name="tv_code_sign_in">Sign in with a code</string>
     <string name="tv_code_sign_in_desc">Enter a short code on your phone, no typing on the TV</string>
     <string name="tv_performance_mode">Performance mode</string>

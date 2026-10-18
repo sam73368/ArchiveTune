@@ -57,6 +57,8 @@ import kotlinx.coroutines.delay
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.tv.TvTokens
 
+private val TvHiddenSettingKeys = setOf("android_auto", "default_links", "discord_experimental")
+
 private sealed interface TvSettingsRow {
     data class Header(
         val title: String,
@@ -79,7 +81,7 @@ fun TvSettingsHome(
             buildList {
                 groups.forEach { group ->
                     if (group.title.isNotBlank()) add(TvSettingsRow.Header(group.title))
-                    group.items.forEach { add(TvSettingsRow.Entry(it)) }
+                    group.items.filterNot { it.key in TvHiddenSettingKeys }.forEach { add(TvSettingsRow.Entry(it)) }
                 }
             }
         }
@@ -259,21 +261,32 @@ private fun TvSettingsDetailPane(
             item.switchControl?.invoke()
         }
         Spacer(Modifier.height(12.dp))
-        TvSettingsDetailRow(
-            title = stringResource(R.string.tv_settings_open_all),
-            accent = true,
-            onClick = item.onClick,
-        )
-        item.children.forEach { child ->
-            TvSettingsDetailRow(
-                title = child.title,
-                accent = false,
-                trailing = child.switchControl,
-                onClick = {
-                    val route = routeFor(item.key, child.scrollKey)
-                    if (route != null) onNavigate(route) else item.onClick()
-                },
+        if (item.children.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.tv_settings_contains).uppercase(),
+                style = TvTokens.Overline,
+                color = TvTokens.OnSurfaceFaint,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
             )
+            item.children.forEach { child ->
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(TvTokens.Surface)
+                            .padding(horizontal = 18.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = child.title,
+                        style = TvTokens.Body,
+                        color = TvTokens.OnSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
         Text(

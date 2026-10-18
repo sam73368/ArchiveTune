@@ -124,6 +124,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.rukamori.archivetune.LocalAnimationsDisabled
+import moe.rukamori.archivetune.utils.TvPerformance
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.player.LocalLyricsScrollListener
@@ -182,6 +183,8 @@ private const val MANUAL_SCROLL_TIMEOUT_MS = 3000L
 private const val MANUAL_SCROLL_DEBOUNCE_MS = 50L
 private const val LYRIC_HOLD_SETTLE_MS = 120L
 private const val LYRICS_POSITION_PUBLISH_MIN_DELTA_MS = 10L
+private const val TV_LYRICS_POSITION_PUBLISH_MIN_DELTA_MS = 80L
+private const val TV_LYRICS_TICK_MS = 80L
 private const val LYRIC_SMOOTH_RETURN_MAX_LINES = 5
 private const val LYRIC_RETURN_FADE_OUT_MS = 110
 private const val LYRIC_RETURN_SETTLE_MS = 500L
@@ -660,9 +663,12 @@ fun LyricsEnhanced(
 
         // Publishing every frame recomposes the whole karaoke view; small steps are skipped, seeks are not.
         var lastPublishedPositionMs = playbackPositionMs.longValue
+        val publishMinDeltaMs =
+            if (TvPerformance.isTelevision) TV_LYRICS_POSITION_PUBLISH_MIN_DELTA_MS else LYRICS_POSITION_PUBLISH_MIN_DELTA_MS
+        val idleTickMs = if (TvPerformance.isTelevision) TV_LYRICS_TICK_MS else 50L
         fun publishPosition(nextPosition: Long) {
             val delta = nextPosition - lastPublishedPositionMs
-            if (delta >= LYRICS_POSITION_PUBLISH_MIN_DELTA_MS || delta < 0) {
+            if (delta >= publishMinDeltaMs || delta < 0) {
                 lastPublishedPositionMs = nextPosition
                 if (playbackPositionMs.longValue != nextPosition) {
                     playbackPositionMs.longValue = nextPosition
@@ -704,7 +710,7 @@ fun LyricsEnhanced(
                         latestLeadMs.value + LYRIC_VISUAL_TUNING_OFFSET_MS)
                         .coerceIn(0L, Int.MAX_VALUE.toLong())
                 if (sliderPosition == null) {
-                    delay(if (player.isPlaying) 50L else 100L)
+                    delay(if (player.isPlaying) idleTickMs else 100L)
                 } else {
                     withFrameNanos { }
                 }

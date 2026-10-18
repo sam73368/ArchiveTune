@@ -171,7 +171,14 @@ object TvFocusFallback {
                 Key.DirectionRight -> FocusDirection.Right
                 else -> return false
             }
-        if (!focusInScope) return focusManager.moveFocus(direction)
+        if (!focusInScope) {
+            if (focusManager.moveFocus(direction)) return true
+            if (direction != FocusDirection.Right || railFocusCount <= 0) return false
+            val fromRail = runCatching { snapshot(view, includeAllContent = true) }.getOrNull() ?: return false
+            val origin = fromRail.focused ?: return false
+            val target = bestCandidate(origin, fromRail.scopeCandidates, direction) ?: return false
+            return requestFocus(target)
+        }
         val vertical = direction == FocusDirection.Up || direction == FocusDirection.Down
         if (!vertical) {
             if (focusManager.moveFocus(direction)) return true
@@ -205,7 +212,10 @@ object TvFocusFallback {
                 ?.invoke() == true
         }.getOrDefault(false)
 
-    private fun snapshot(view: View): FocusSnapshot? {
+    private fun snapshot(
+        view: View,
+        includeAllContent: Boolean = false,
+    ): FocusSnapshot? {
         val owner = (view as? ViewRootForTest)?.semanticsOwner ?: return null
         val rootNode = owner.unmergedRootSemanticsNode
         val rootBounds = rootNode.boundsInRoot
@@ -232,7 +242,7 @@ object TvFocusFallback {
                         focused = candidate
                         focusedInScope = scoped
                         focusedInRail = railed
-                    } else if (scoped) {
+                    } else if (scoped || (includeAllContent && !railed)) {
                         candidates += candidate
                     }
                 }

@@ -155,7 +155,14 @@
     <string name="tv_artwork_accent">Couleur tirée de la pochette</string>
     <string name="tv_artwork_accent_desc">Teinte l\'interface avec les couleurs de la chanson en cours</string>
     <string name="tv_settings_open_all">Ouvrir tous les réglages</string>
-    <string name="tv_settings_hint">▲ ▼ change de catégorie · ▶ entre dedans · OK ouvre · Retour revient</string>
+    <string name="tv_settings_hint">▲ ▼ change de catégorie · OK ouvre la catégorie · Retour revient</string>
+    <string name="tv_settings_contains">Contenu</string>
+    <string name="tv_player_background">Fond du lecteur</string>
+    <string name="tv_player_bg_gradient">Dégradé</string>
+    <string name="tv_player_bg_aurora">Aurore</string>
+    <string name="tv_player_bg_solid">Couleur unie</string>
+    <string name="tv_player_bg_black">Noir</string>
+    <string name="tv_player_bg_cover">Pochette floue</string>
     <string name="tv_code_sign_in">Se connecter avec un code</string>
     <string name="tv_code_sign_in_desc">Entre un code court sur ton téléphone, sans rien taper sur la télé</string>
     <string name="tv_performance_mode">Mode performance</string>

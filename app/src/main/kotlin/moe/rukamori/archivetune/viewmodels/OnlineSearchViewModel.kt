@@ -32,6 +32,7 @@ import moe.rukamori.archivetune.innertube.YouTube.SearchFilter.Companion.FILTER_
 import moe.rukamori.archivetune.innertube.YouTube.SearchFilter.Companion.FILTER_SONG
 import moe.rukamori.archivetune.constants.SearchProvider
 import moe.rukamori.archivetune.innertube.YouTube.SearchFilter.Companion.FILTER_VIDEO
+import moe.rukamori.archivetune.innertube.models.ArtistItem
 import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.YTItem
 import moe.rukamori.archivetune.innertube.models.filterExplicit
@@ -97,6 +98,7 @@ class OnlineSearchViewModel
                 FILTER_COMMUNITY_PLAYLIST,
                 FILTER_FEATURED_PLAYLIST,
             )
+        private var suggestedArtistsCache: List<ArtistItem>? = null
         private var isSummaryLoading = false
         private val loadingFilters = mutableSetOf<String>()
 
@@ -140,11 +142,32 @@ class OnlineSearchViewModel
             }
         }
 
+        private suspend fun suggestedArtists(): List<ArtistItem> {
+            suggestedArtistsCache?.let { return it }
+            val page = YouTube.searchSuggestions(query).getOrNull()
+            val fromSuggestions = page?.recommendedItems?.filterIsInstance<ArtistItem>().orEmpty()
+            val completedQuery =
+                page
+                    ?.queries
+                    ?.firstOrNull()
+                    ?.trim()
+                    ?.takeIf { it.length > query.length && it.startsWith(query, ignoreCase = true) }
+            val fromCompletion =
+                completedQuery
+                    ?.let { YouTube.search(it, FILTER_ARTIST).getOrNull() }
+                    ?.items
+                    ?.filterIsInstance<ArtistItem>()
+                    ?.take(2)
+                    .orEmpty()
+            return (fromSuggestions + fromCompletion).distinctBy { it.id }.take(3).also { suggestedArtistsCache = it }
+        }
+
         private suspend fun loadSummaryIfNeeded() {
             if (summaryPage != null || isSummaryLoading) return
 
             isSummaryLoading = true
             try {
+                val extraArtists = suggestedArtists()
                 YouTube
                     .searchSummary(query)
                     .onSuccess {
@@ -157,12 +180,14 @@ class OnlineSearchViewModel
                         summaryPage =
                             contentFilteredPage.copy(
                                 summaries =
-                                    contentFilteredPage.summaries.mapNotNull { summary ->
+                                    contentFilteredPage.summaries.mapIndexedNotNull { summaryIndex, summary ->
                                         summary
                                             .copy(
                                                 items =
                                                     filterAiContent(
-                                                        summary.items.dropCleanTwins(),
+                                                        (if (summaryIndex == 0) extraArtists + summary.items else summary.items)
+                                                            .distinctBy { item -> item.id }
+                                                            .dropCleanTwins(),
                                                         aiContentFilterPolicy,
                                                     ),
                                             )
@@ -191,6 +216,7 @@ class OnlineSearchViewModel
                     viewStateMap[filterKey] = ItemsPage(emptyList(), null)
                     return
                 }
+                val extraArtists = if (filter == FILTER_ARTIST) suggestedArtists() else emptyList()
                 YouTube
                     .search(query, filter)
                     .onSuccess { result ->
@@ -198,7 +224,7 @@ class OnlineSearchViewModel
                         viewStateMap[filterKey] =
                             ItemsPage(
                                 filterAiContent(
-                                    result.items
+                                    (extraArtists + result.items)
                                         .distinctBy { it.id }
                                         .filterExplicit(
                                             context.dataStore.get(

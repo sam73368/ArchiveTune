@@ -955,6 +955,7 @@ fun BottomSheetPlayer(
                     when {
                         aodModeEnabled -> 500L
                         settledCollapsed -> 500L
+                        moe.rukamori.archivetune.utils.TvPerformance.isTelevision -> 250L
                         else -> 100L
                     },
                 )

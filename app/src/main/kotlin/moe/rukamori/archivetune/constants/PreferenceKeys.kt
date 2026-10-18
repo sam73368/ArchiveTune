@@ -1655,3 +1655,14 @@ val TvTextScaleKey = floatPreferencesKey("tvTextScale")
 val TvArtworkAccentKey = booleanPreferencesKey("tvArtworkAccent")
 
 val TvPerformanceModeKey = booleanPreferencesKey("tvPerformanceMode")
+
+val TvPlayerBackgroundKey = stringPreferencesKey("tvPlayerBackground")
+
+enum class TvPlayerBackground {
+    GRADIENT,
+    AURORA,
+    SOLID,
+    BLACK,
+    COVER,
+}
+

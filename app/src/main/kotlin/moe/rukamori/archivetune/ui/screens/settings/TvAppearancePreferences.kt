@@ -17,10 +17,14 @@ import androidx.compose.ui.res.stringResource
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.TvArtworkAccentKey
 import moe.rukamori.archivetune.constants.TvPerformanceModeKey
+import moe.rukamori.archivetune.constants.TvPlayerBackground
+import moe.rukamori.archivetune.constants.TvPlayerBackgroundKey
 import moe.rukamori.archivetune.constants.TvTextScaleKey
+import moe.rukamori.archivetune.ui.component.EnumListPreference
 import moe.rukamori.archivetune.ui.component.ListPreference
 import moe.rukamori.archivetune.ui.component.PreferenceGroup
 import moe.rukamori.archivetune.ui.component.SwitchPreference
+import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 
 private val TvTextScales = listOf(0.9f, 1f, 1.15f, 1.3f)
@@ -30,6 +34,7 @@ fun TvAppearancePreferences() {
     var textScale by rememberPreference(TvTextScaleKey, defaultValue = 1f)
     var artworkAccent by rememberPreference(TvArtworkAccentKey, defaultValue = false)
     var performanceMode by rememberPreference(TvPerformanceModeKey, defaultValue = true)
+    var playerBackground by rememberEnumPreference(TvPlayerBackgroundKey, TvPlayerBackground.GRADIENT)
     val labels =
         listOf(
             stringResource(R.string.tv_text_size_small),
@@ -45,6 +50,23 @@ fun TvAppearancePreferences() {
                 icon = { Icon(painterResource(R.drawable.speed), null) },
                 checked = performanceMode,
                 onCheckedChange = { performanceMode = it },
+            )
+        }
+        item {
+            EnumListPreference(
+                title = { Text(stringResource(R.string.tv_player_background)) },
+                icon = { Icon(painterResource(R.drawable.palette), null) },
+                selectedValue = playerBackground,
+                onValueSelected = { playerBackground = it },
+                valueText = {
+                    when (it) {
+                        TvPlayerBackground.GRADIENT -> stringResource(R.string.tv_player_bg_gradient)
+                        TvPlayerBackground.AURORA -> stringResource(R.string.tv_player_bg_aurora)
+                        TvPlayerBackground.SOLID -> stringResource(R.string.tv_player_bg_solid)
+                        TvPlayerBackground.BLACK -> stringResource(R.string.tv_player_bg_black)
+                        TvPlayerBackground.COVER -> stringResource(R.string.tv_player_bg_cover)
+                    }
+                },
             )
         }
         item {

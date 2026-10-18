@@ -467,7 +467,7 @@ fun OnlineSearchResult(
                             )
                             Spacer(Modifier.width(10.dp))
                             Text(
-                                text = summary.title,
+                                text = if (summary.title == "Top results") stringResource(R.string.top_results) else summary.title,
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,

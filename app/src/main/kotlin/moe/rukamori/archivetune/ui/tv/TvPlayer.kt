@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -79,6 +80,7 @@ import kotlinx.coroutines.delay
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.utils.resize
+import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.togglePlayPause
 import moe.rukamori.archivetune.extensions.toggleRepeatMode
 import moe.rukamori.archivetune.models.MediaMetadata
@@ -123,6 +125,22 @@ fun TvPlayerContent(
     val playFocus = remember { FocusRequester() }
     var lyricsBrowsing by remember { mutableStateOf(false) }
     val tvPerformance = rememberTvPerformanceMode()
+    val queueWindows by playerConnection.queueWindows.collectAsState()
+    val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
+    val nextMetadata = remember(queueWindows, currentWindowIndex) { queueWindows.getOrNull(currentWindowIndex + 1)?.mediaItem?.metadata }
+    var liveDuration by remember(mediaMetadata.id) { mutableLongStateOf(duration) }
+    LaunchedEffect(mediaMetadata.id, duration) {
+        while (true) {
+            val playerDuration = playerConnection.player.duration
+            liveDuration =
+                when {
+                    playerDuration > 0L && playerDuration != C.TIME_UNSET -> playerDuration
+                    duration > 0L && duration != C.TIME_UNSET -> duration
+                    else -> mediaMetadata.duration.toLong() * 1000L
+                }
+            delay(500)
+        }
+    }
 
     LaunchedEffect(expanded) {
         if (expanded) {
@@ -139,21 +157,7 @@ fun TvPlayerContent(
                 .fillMaxSize()
                 .background(TvTokens.Background),
     ) {
-        TvArtworkBackdrop(
-            artworkUrl = mediaMetadata.thumbnailUrl,
-            alpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || tvPerformance) 0.55f else 0.22f,
-            blurRadius = 80.dp,
-        )
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(Color.Black.copy(alpha = 0.55f), Color.Black.copy(alpha = 0.78f)),
-                        ),
-                    ),
-        )
+        TvPlayerBackdrop(artworkUrl = mediaMetadata.thumbnailUrl)
 
         Row(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -223,8 +227,8 @@ fun TvPlayerContent(
                 }
 
                 TvSeekBar(
-                    positionProvider = { sliderPositionProvider() ?: positionProvider() },
-                    duration = duration,
+                    positionProvider = { sliderPositionProvider() ?: playerConnection.player.currentPosition.coerceAtLeast(0L) },
+                    duration = liveDuration,
                     onSeek = onSeek,
                     onSeekFinished = onSeekFinished,
                     modifier = Modifier.width(320.dp),
@@ -309,6 +313,18 @@ fun TvPlayerContent(
                 }
 
                 Spacer(Modifier.weight(1f))
+                nextMetadata?.let { next ->
+                    Text(
+                        text =
+                            stringResource(R.string.tv_up_next) + " · " + next.title +
+                                next.artists.joinToString { it.name }.takeIf { it.isNotBlank() }?.let { " — $it" }.orEmpty(),
+                        style = TvTokens.Caption,
+                        color = TvTokens.OnSurface.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(320.dp),
+                    )
+                }
                 Text(
                     text = stringResource(R.string.tv_player_hint),
                     style = TvTokens.Caption,
@@ -394,11 +410,12 @@ private fun TvSeekBar(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val latestPositionProvider by rememberUpdatedState(positionProvider)
     var position by remember { mutableLongStateOf(positionProvider()) }
     var scrubbing by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         while (true) {
-            if (!scrubbing) position = positionProvider()
+            if (!scrubbing) position = latestPositionProvider()
             delay(250)
         }
     }

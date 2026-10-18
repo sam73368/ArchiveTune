@@ -39,7 +39,7 @@ fun TvArtworkBackdrop(
     AsyncImage(
         model =
             if (performance) {
-                artworkUrl?.resize(36, 36)
+                artworkUrl?.resize(160, 160)
             } else {
                 artworkUrl?.resize(640, 640, ytimgResizePolicy = YtimgResizePolicy.PreserveOriginal)
             },

@@ -336,6 +336,7 @@ fun PlayerSettings(
                 .calculateBottomPadding()
         val topPadding = innerPadding.calculateTopPadding()
         val scrollState = rememberScrollState()
+        val isTv = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
         val positions = rememberPreferencePositions()
 
         LaunchedEffect(scrollTo) { positions.scrollToKey(scrollTo, scrollState) }
@@ -385,7 +386,7 @@ fun PlayerSettings(
                 PreferenceGroup(
                     title = stringResource(R.string.player_settings_sections),
                 ) {
-                    item {
+                    item(visible = !isTv) {
                         PreferenceEntry(
                             title = { Text(stringResource(R.string.video_playback)) },
                             description = stringResource(R.string.player_section_video_desc),
@@ -428,7 +429,7 @@ fun PlayerSettings(
                 }
             }
 
-            if (activeSection == "video") {
+            if (activeSection == "video" && !isTv) {
             PreferenceGroup(
                 modifier = positions.modifierFor("enable_video_playback"),
                 title = stringResource(R.string.video_playback),
@@ -623,7 +624,7 @@ fun PlayerSettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     Column(modifier = positions.modifierFor("seek_seconds")) {
                         SwitchPreference(
                             modifier = positions.modifierFor("seek_seconds_addup"),
@@ -636,7 +637,7 @@ fun PlayerSettings(
                     }
                 }
 
-                item {
+                item(visible = !isTv) {
                     Column(modifier = positions.modifierFor("pause_mute")) {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.pause_on_device_mute)) },
@@ -648,7 +649,7 @@ fun PlayerSettings(
                     }
                 }
 
-                item(visible = pauseOnDeviceMute) {
+                item(visible = !isTv && (pauseOnDeviceMute)) {
                     val context = LocalContext.current
                     val disabledLabel = stringResource(R.string.device_mute_recovery_volume_disabled)
                     val recoveryVolumeText =
@@ -675,7 +676,7 @@ fun PlayerSettings(
                     }
                 }
 
-                item {
+                item(visible = !isTv) {
                     Column(modifier = positions.modifierFor("bluetooth_auto_start")) {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.auto_start_on_bluetooth)) },
@@ -759,7 +760,7 @@ fun PlayerSettings(
                     }
                 }
 
-                item {
+                item(visible = !isTv) {
                     Column(modifier = positions.modifierFor("swipe_to_song")) {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.swipe_song_to_add)) },
@@ -770,7 +771,7 @@ fun PlayerSettings(
                     }
                 }
 
-                item {
+                item(visible = !isTv) {
                     SwitchPreference(
                         modifier = positions.modifierFor("enable_swipe_thumbnail"),
                         title = { Text(stringResource(R.string.enable_swipe_thumbnail)) },
@@ -780,7 +781,7 @@ fun PlayerSettings(
                     )
                 }
 
-                item(visible = swipeThumbnail) {
+                item(visible = !isTv && (swipeThumbnail)) {
                     var showSensitivityDialog by rememberSaveable { mutableStateOf(false) }
 
                     if (showSensitivityDialog) {

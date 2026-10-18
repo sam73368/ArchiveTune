@@ -490,6 +490,7 @@ fun AppearanceSettings(
                 .calculateBottomPadding()
         val topPadding = innerPadding.calculateTopPadding()
         val scrollState = rememberScrollState()
+        val isTv = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
         val positions = rememberPreferencePositions()
 
         LaunchedEffect(scrollTo) { positions.scrollToKey(scrollTo, scrollState) }
@@ -515,7 +516,7 @@ fun AppearanceSettings(
                             onClick = { navController.navigate("settings/appearance?section=theme") },
                         )
                     }
-                    item {
+                    item(visible = !isTv) {
                         PreferenceEntry(
                             title = { Text(stringResource(R.string.player)) },
                             description = stringResource(R.string.appearance_section_player_desc),
@@ -534,7 +535,7 @@ fun AppearanceSettings(
                 modifier = positions.modifierFor("dynamic_theme", "color_source"),
                 title = stringResource(R.string.theme),
             ) {
-                item {
+                item(visible = !isTv) {
                     Column(modifier = positions.modifierFor("liquid_glass_customisation")) {
                         PreferenceEntry(
                             title = { Text(stringResource(R.string.liquid_glass_settings_title)) },
@@ -576,7 +577,7 @@ fun AppearanceSettings(
                     }
                 }
 
-                item {
+                item(visible = !isTv) {
                     Column(modifier = positions.modifierFor("app_icon")) {
                         PreferenceEntry(
                             title = { Text(stringResource(R.string.app_icon)) },
@@ -626,7 +627,7 @@ fun AppearanceSettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     Column(modifier = positions.modifierFor("hide_status_bar")) {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.hide_status_bar)) },
@@ -666,7 +667,7 @@ fun AppearanceSettings(
                     }
                 }
 
-                item {
+                item(visible = !isTv) {
                     Column(modifier = positions.modifierFor("blur_intensity")) {
                         PreferenceEntry(
                             title = { Text(stringResource(R.string.blur_intensity)) },
@@ -688,7 +689,7 @@ fun AppearanceSettings(
                     }
                 }
 
-                if (playerDesignStyle != PlayerDesignStyle.APPLE_MUSIC && playerDesignStyle != PlayerDesignStyle.APPLE_MUSIC_CLASSIC) {
+                if (!isTv && playerDesignStyle != PlayerDesignStyle.APPLE_MUSIC && playerDesignStyle != PlayerDesignStyle.APPLE_MUSIC_CLASSIC) {
                     item {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.album_backdrop)) },
@@ -770,7 +771,7 @@ fun AppearanceSettings(
             }
             }
 
-            if (activeSection == "player") {
+            if (activeSection == "player" && !isTv) {
             PreferenceGroup(
                 modifier = positions.modifierFor("disable_blur"),
                 title = stringResource(R.string.player),
@@ -1153,7 +1154,7 @@ fun AppearanceSettings(
                 modifier = positions.modifierFor("app_language"),
                 title = stringResource(R.string.misc),
             ) {
-                item {
+                item(visible = !isTv) {
                     SwitchPreference(
                         modifier = positions.modifierFor("tablet_mode"),
                         title = { Text(stringResource(R.string.tablet_mode)) },
@@ -1175,7 +1176,7 @@ fun AppearanceSettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     PreferenceEntry(
                         modifier = positions.modifierFor("navigation_bar_settings"),
                         title = { Text(stringResource(R.string.navigation_bar_settings_title)) },
@@ -1185,7 +1186,7 @@ fun AppearanceSettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     SwitchPreference(
                         modifier = positions.modifierFor("hide_scrollbar"),
                         title = { Text(stringResource(R.string.hide_scrollbar)) },
@@ -1196,7 +1197,7 @@ fun AppearanceSettings(
                     )
                 }
 
-                item {
+                item(visible = !isTv) {
                     Column(modifier = positions.modifierFor("back_animation_style")) {
                         EnumListPreference(
                             title = { Text(stringResource(R.string.back_animation_style)) },
