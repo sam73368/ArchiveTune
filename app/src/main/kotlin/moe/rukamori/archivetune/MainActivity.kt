@@ -1367,10 +1367,12 @@ class MainActivity : ComponentActivity() {
 
                     val (uiScaleRaw) = rememberPreference(UiScaleFactorKey, defaultValue = 1.0f)
                     val uiScale = uiScaleRaw.coerceIn(0.85f, 1.30f)
-                    val scaledDensity = remember(density, uiScale) {
+                    val tvTextScale by rememberPreference(moe.rukamori.archivetune.constants.TvTextScaleKey, defaultValue = 1f)
+                    val effectiveTvTextScale = if (isTvDevice) tvTextScale else 1f
+                    val scaledDensity = remember(density, uiScale, effectiveTvTextScale) {
                         Density(
                             density = density.density,
-                            fontScale = density.fontScale * uiScale,
+                            fontScale = density.fontScale * uiScale * effectiveTvTextScale,
                         )
                     }
 
@@ -2331,7 +2333,6 @@ class MainActivity : ComponentActivity() {
                     var tvRootHasFocus by remember { mutableStateOf(false) }
                     var tvHideImeJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                     val tvRootView = androidx.compose.ui.platform.LocalView.current
-                    val tvTextScale by rememberPreference(moe.rukamori.archivetune.constants.TvTextScaleKey, defaultValue = 1f)
                     val tvTextEntryState = moe.rukamori.archivetune.ui.tv.rememberTvTextEntryState()
                     moe.rukamori.archivetune.ui.tv.TvTextEntryDialog(tvTextEntryState)
                     var tvLastInputAt by remember { mutableStateOf(android.os.SystemClock.uptimeMillis()) }
@@ -2346,13 +2347,6 @@ class MainActivity : ComponentActivity() {
                             if (idle >= moe.rukamori.archivetune.ui.tv.TvAmbientIdleMs && tvTextEntryState.target == null) {
                                 tvAmbientVisible = true
                             }
-                        }
-                    }
-                    if (isTvDevice && tvAmbientVisible) {
-                        androidx.compose.ui.window.Popup(
-                            properties = androidx.compose.ui.window.PopupProperties(focusable = false),
-                        ) {
-                            moe.rukamori.archivetune.ui.tv.TvAmbientOverlay(visible = true)
                         }
                     }
                     val tvShortcutPlaylists by remember(isTvDevice) {
@@ -2612,13 +2606,6 @@ class MainActivity : ComponentActivity() {
                         // Remote control: a clear highlight on the focused item (Material's focus layer is
                         // almost invisible on a TV).
                         moe.rukamori.archivetune.ui.tv.LocalTvLayout provides isTvDevice,
-                        LocalDensity provides
-                            if (isTvDevice) {
-                                val baseDensity = LocalDensity.current
-                                androidx.compose.ui.unit.Density(baseDensity.density, baseDensity.fontScale * tvTextScale)
-                            } else {
-                                LocalDensity.current
-                            },
                         moe.rukamori.archivetune.ui.tv.LocalTvFocusedPreview provides
                             remember(isTvDevice) { if (isTvDevice) moe.rukamori.archivetune.ui.tv.TvFocusedPreview() else null },
                         LocalIndication provides
@@ -2628,6 +2615,13 @@ class MainActivity : ComponentActivity() {
                                 LocalIndication.current
                             },
                     ) {
+                      if (isTvDevice && tvAmbientVisible) {
+                          androidx.compose.ui.window.Popup(
+                              properties = androidx.compose.ui.window.PopupProperties(focusable = false),
+                          ) {
+                              moe.rukamori.archivetune.ui.tv.TvAmbientOverlay(visible = true)
+                          }
+                      }
                       Box(
                           modifier =
                               Modifier
