@@ -2450,6 +2450,7 @@ class MainActivity : ComponentActivity() {
                         LocalOverscrollFactory provides effectiveOverscrollFactory,
                         // Remote control: a clear highlight on the focused item (Material's focus layer is
                         // almost invisible on a TV).
+                        moe.rukamori.archivetune.ui.tv.LocalTvLayout provides isTvDevice,
                         LocalIndication provides
                             if (isTvDevice) {
                                 remember(tvFocusAccent) { TvFocusIndication(tvFocusAccent) }
@@ -2496,6 +2497,13 @@ class MainActivity : ComponentActivity() {
                                             } else {
                                                 contentAreaFocusRequester
                                             },
+                                        settingsSelected = navBackStackEntry?.destination?.route?.startsWith("settings") == true,
+                                        onSettingsClick = {
+                                            if (playerBottomSheetState.isExpanded) {
+                                                playerBottomSheetState.collapse(if (disableAnimations) snap() else spring())
+                                            }
+                                            navController.navigate("settings") { launchSingleTop = true }
+                                        },
                                         onItemClick = { screen ->
                                             val wasPlayerActive = playerBottomSheetState.isExpanded
                                             if (wasPlayerActive) {

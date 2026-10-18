@@ -326,4 +326,9 @@
     <string name="tv_update_all_changes">All changes</string>
     <string name="tv_update_later">Later</string>
     <string name="tv_update_hint">◀ ▶ choose  ·  OK confirm  ·  Back: later</string>
+    <string name="tv_home_resume">Pick up where you left off</string>
+    <string name="tv_home_now_playing">Now playing</string>
+    <string name="tv_resume">Resume</string>
+    <string name="tv_pause">Pause</string>
+    <string name="tv_shuffle">Shuffle</string>
 </resources>

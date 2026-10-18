@@ -346,6 +346,7 @@ private fun HomeContent(
             .takeIf { it.quickPicksMode == QuickPicks.QUICK_PICKS }
             ?.remoteQuickPicks
     val context = androidx.compose.ui.platform.LocalContext.current
+    val isTvLayout = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
     Box(modifier = modifier.fillMaxSize()) {
         val pullState = rememberPullToRefreshState()
         PullToRefreshBox(
@@ -388,10 +389,60 @@ private fun HomeContent(
                         key = "home_greeting_title",
                         contentType = "greeting_title",
                     ) {
-                        HomeWelcomeHeader(
-                            accountName = uiState.accountName,
-                            modifier = Modifier.animateItem(),
-                        )
+                        if (isTvLayout && (mediaMetadata != null || uiState.recentlyPlayed.isNotEmpty())) {
+                            val recentForHero =
+                                remember(uiState.recentlyPlayed) { uiState.recentlyPlayed.distinctBy { it.id } }
+                            val recentTitle = stringResource(R.string.home_recently_played)
+                            val playRecent: (Boolean) -> Unit = { shuffled ->
+                                if (recentForHero.isNotEmpty()) {
+                                    onPlayQueue(
+                                        moe.rukamori.archivetune.playback.queues.ListQueue(
+                                            title = recentTitle,
+                                            items = recentForHero.map { it.toMediaItem() },
+                                            startIndex = if (shuffled) recentForHero.indices.random() else 0,
+                                        ),
+                                    )
+                                }
+                                if (shuffled) playerConnection?.player?.shuffleModeEnabled = true
+                            }
+                            val current = mediaMetadata
+                            val heroSong = recentForHero.firstOrNull()
+                            moe.rukamori.archivetune.ui.tv.TvHomeHero(
+                                artworkUrl = current?.thumbnailUrl ?: heroSong?.thumbnailUrl,
+                                overline =
+                                    stringResource(
+                                        if (current != null && isPlaying) R.string.tv_home_now_playing else R.string.tv_home_resume,
+                                    ),
+                                title = current?.title ?: heroSong?.song?.title.orEmpty(),
+                                subtitle =
+                                    if (current != null) {
+                                        listOfNotNull(
+                                            current.artists.joinToString { it.name }.takeIf { it.isNotBlank() },
+                                            current.album?.title,
+                                        ).joinToString(" · ")
+                                    } else {
+                                        heroSong?.artists?.joinToString { it.name }.orEmpty()
+                                    },
+                                primaryLabel =
+                                    stringResource(if (current != null && isPlaying) R.string.tv_pause else R.string.tv_resume),
+                                secondaryLabel = stringResource(R.string.tv_shuffle),
+                                onPrimary = {
+                                    val player = playerConnection?.player
+                                    if (current != null && player != null) {
+                                        if (player.isPlaying) player.pause() else player.play()
+                                    } else {
+                                        playRecent(false)
+                                    }
+                                },
+                                onSecondary = { playRecent(true) },
+                                modifier = Modifier.animateItem(),
+                            )
+                        } else {
+                            HomeWelcomeHeader(
+                                accountName = uiState.accountName,
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
                     }
 
                     val availableWidth = maxWidth
@@ -406,6 +457,44 @@ private fun HomeContent(
                                 remember(uiState.recentlyPlayed) {
                                     uiState.recentlyPlayed.distinctBy { it.id }
                                 }
+                            if (isTvLayout) {
+                                Column(Modifier.animateItem()) {
+                                    BitChordSectionHeader(title = stringResource(R.string.home_recently_played))
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = BitChordPageGutter),
+                                        horizontalArrangement = Arrangement.spacedBy(BitChordShelfCardSpacing),
+                                    ) {
+                                        items(recentSongs, key = { "tv_recent_${it.id}" }) { song ->
+                                            BitChordShelfCard(
+                                                artworkUrl = song.thumbnailUrl,
+                                                title = song.song.title,
+                                                subtitle = song.artists.joinToString { it.name },
+                                                isCurrent = mediaMetadata?.id == song.id,
+                                                isPlaying = isPlaying,
+                                                onClick = {
+                                                    onPlayQueue(
+                                                        moe.rukamori.archivetune.playback.queues.ListQueue(
+                                                            title = context.getString(R.string.home_recently_played),
+                                                            items = recentSongs.map { it.toMediaItem() },
+                                                            startIndex = recentSongs.indexOf(song),
+                                                        ),
+                                                    )
+                                                },
+                                                onLongClick = {
+                                                    menuState.show {
+                                                        moe.rukamori.archivetune.ui.menu.SongMenu(
+                                                            originalSong = song,
+                                                            navController = navController,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                },
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(BitChordShelfBottomSpacing))
+                                }
+                            } else {
                             Column(Modifier.animateItem()) {
                                 BitChordRecentsShelf(
                                     songs = recentSongs,
@@ -431,6 +520,7 @@ private fun HomeContent(
                                         }
                                     },
                                 )
+                            }
                             }
                         }
                     }

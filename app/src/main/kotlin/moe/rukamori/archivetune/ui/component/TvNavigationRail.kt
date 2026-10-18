@@ -20,6 +20,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
@@ -28,15 +30,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -48,9 +51,10 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.screens.Screens
+import moe.rukamori.archivetune.ui.tv.TvTokens
 import androidx.compose.runtime.getValue
 
 @Composable
@@ -60,96 +64,130 @@ fun TvNavigationRail(
     modifier: Modifier = Modifier,
     firstItemFocusRequester: FocusRequester? = null,
     contentFocusRequester: FocusRequester? = null,
+    settingsSelected: Boolean = false,
+    onSettingsClick: (() -> Unit)? = null,
     onItemClick: (Screens) -> Unit,
 ) {
     LaunchedEffect(firstItemFocusRequester) {
         firstItemFocusRequester?.requestFocus()
     }
+    val accent = MaterialTheme.colorScheme.primary
+    val rightToContent =
+        if (contentFocusRequester != null) {
+            Modifier.focusProperties { right = contentFocusRequester }
+        } else {
+            Modifier
+        }
 
-    Surface(
-        modifier = modifier.fillMaxHeight(),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        contentColor = MaterialTheme.colorScheme.onSurface,
+    Column(
+        modifier =
+            modifier
+                .fillMaxHeight()
+                .width(TvTokens.RailWidth)
+                .background(TvTokens.RailBackground)
+                .drawBehind {
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.06f),
+                        start = Offset(size.width, 0f),
+                        end = Offset(size.width, size.height),
+                        strokeWidth = 1f,
+                    )
+                }.padding(vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
+        Box(
             modifier =
                 Modifier
-                    .fillMaxHeight()
-                    .padding(horizontal = 16.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(accent),
+            contentAlignment = Alignment.Center,
         ) {
-            items.forEachIndexed { index, screen ->
-                TvNavigationRailItem(
-                    screen = screen,
-                    selected = selectedItemRoute == screen.route,
-                    modifier =
-                        Modifier
-                            .then(
-                                if (index == 0 && firstItemFocusRequester != null) {
-                                    Modifier.focusRequester(firstItemFocusRequester)
-                                } else {
-                                    Modifier
-                                },
-                            ).then(
-                                if (contentFocusRequester != null) {
-                                    Modifier.focusProperties {
-                                        right = contentFocusRequester
-                                    }
-                                } else {
-                                    Modifier
-                                },
-                            ),
-                    onClick = { onItemClick(screen) },
-                )
-            }
+            Icon(
+                painter = painterResource(R.drawable.music_note),
+                contentDescription = null,
+                tint = TvTokens.Background,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        items.forEachIndexed { index, screen ->
+            val selected = selectedItemRoute == screen.route
+            TvNavigationRailItem(
+                iconRes = if (selected) screen.iconIdActive else screen.iconIdInactive,
+                label = stringResource(screen.titleId),
+                selected = selected,
+                modifier =
+                    Modifier
+                        .then(
+                            if (index == 0 && firstItemFocusRequester != null) {
+                                Modifier.focusRequester(firstItemFocusRequester)
+                            } else {
+                                Modifier
+                            },
+                        ).then(rightToContent),
+                onClick = { onItemClick(screen) },
+            )
+        }
+        if (onSettingsClick != null) {
+            Spacer(Modifier.weight(1f))
+            TvNavigationRailItem(
+                iconRes = R.drawable.settings,
+                label = stringResource(R.string.settings),
+                selected = settingsSelected,
+                modifier = rightToContent,
+                onClick = onSettingsClick,
+            )
         }
     }
 }
 
 @Composable
 private fun TvNavigationRailItem(
-    screen: Screens,
+    iconRes: Int,
+    label: String,
     selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val accent = MaterialTheme.colorScheme.primary
     val interactionSource = remember { MutableInteractionSource() }
     val focused = interactionSource.collectIsFocusedAsState().value
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.04f else 1f,
+        targetValue = if (focused) 1.1f else 1f,
         animationSpec =
             spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
+                dampingRatio = Spring.DampingRatioLowBouncy,
                 stiffness = Spring.StiffnessMediumLow,
             ),
-        label = "",
+        label = "tvRailScale",
     )
     val containerColor by animateColorAsState(
         targetValue =
             when {
-                focused -> MaterialTheme.colorScheme.secondaryContainer
-                selected -> MaterialTheme.colorScheme.surfaceContainerHighest
-                else -> MaterialTheme.colorScheme.surfaceContainerLow
+                focused -> TvTokens.OnSurface
+                selected -> accent.copy(alpha = 0.16f)
+                else -> Color.Transparent
             },
-        label = "",
+        label = "tvRailBg",
     )
     val contentColor by animateColorAsState(
         targetValue =
             when {
-                focused -> MaterialTheme.colorScheme.onSecondaryContainer
-                selected -> MaterialTheme.colorScheme.onSurface
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                focused -> TvTokens.Background
+                selected -> accent
+                else -> TvTokens.OnSurfaceMuted
             },
-        label = "",
+        label = "tvRailFg",
     )
 
-    Column(
+    Box(
         modifier =
             modifier
                 .scale(scale)
-                .width(104.dp)
-                .clip(RoundedCornerShape(28.dp))
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(containerColor)
                 .onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
@@ -171,28 +209,14 @@ private fun TvNavigationRailItem(
                     indication = null,
                     role = Role.Tab,
                     onClick = onClick,
-                ).padding(horizontal = 12.dp, vertical = 14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+                ),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier.size(28.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter =
-                    painterResource(
-                        if (selected || focused) screen.iconIdActive else screen.iconIdInactive,
-                    ),
-                contentDescription = stringResource(screen.titleId),
-                tint = contentColor,
-            )
-        }
-        Text(
-            text = stringResource(screen.titleId),
-            color = contentColor,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected || focused) FontWeight.SemiBold else FontWeight.Medium,
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = label,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp),
         )
     }
 }

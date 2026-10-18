@@ -115,4 +115,9 @@
     <string name="tv_update_all_changes">Toutes les nouveautés</string>
     <string name="tv_update_later">Plus tard</string>
     <string name="tv_update_hint">◀ ▶ choisir  ·  OK valider  ·  Retour : plus tard</string>
+    <string name="tv_home_resume">Reprendre l\'écoute</string>
+    <string name="tv_home_now_playing">En cours de lecture</string>
+    <string name="tv_resume">Reprendre</string>
+    <string name="tv_pause">Pause</string>
+    <string name="tv_shuffle">Aléatoire</string>
 </resources>

@@ -18,6 +18,12 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import androidx.compose.foundation.LocalIndication
+import moe.rukamori.archivetune.ui.tv.LocalTvLayout
+import moe.rukamori.archivetune.ui.tv.rememberTvFocusState
+import moe.rukamori.archivetune.ui.tv.tvFocusRing
+import moe.rukamori.archivetune.ui.tv.tvFocusScale
+import moe.rukamori.archivetune.ui.tv.tvFocusTracker
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -90,6 +96,7 @@ val BitChordFontFamily =
 
 val BitChordPageGutter = 16.dp
 val BitChordShelfCardWidth = 150.dp
+val BitChordTvShelfCardWidth = 124.dp
 val BitChordShelfCardCorner = 12.dp
 val BitChordShelfCardSpacing = 14.dp
 val BitChordShelfBottomSpacing = 26.dp
@@ -127,7 +134,7 @@ fun BitChordSectionHeader(
     ) {
         Text(
             text = title,
-            fontSize = 22.sp,
+            fontSize = if (LocalTvLayout.current) 17.sp else 22.sp,
             fontWeight = FontWeight.W700,
             fontFamily = BitChordFontFamily,
             letterSpacing = (-0.4).sp,
@@ -206,14 +213,28 @@ fun BitChordHeroCard(
     onLongClick: () -> Unit,
 ) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val tv = LocalTvLayout.current
+    val tvFocus = rememberTvFocusState()
     Box(
         modifier =
             modifier
-                .aspectRatio(BitChordHeroCardRatio)
+                .then(
+                    if (tv) {
+                        Modifier
+                            .padding(vertical = 12.dp)
+                            .tvFocusScale(tvFocus, 1.04f)
+                            .tvFocusRing(tvFocus, BitChordHeroCardCorner)
+                    } else {
+                        Modifier
+                    },
+                ).aspectRatio(BitChordHeroCardRatio)
                 .clip(RoundedCornerShape(BitChordHeroCardCorner))
                 .bitChordThumbnailBorder(RoundedCornerShape(BitChordHeroCardCorner))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .then(if (tv) Modifier.tvFocusTracker(tvFocus) else Modifier)
                 .combinedClickable(
+                    interactionSource = null,
+                    indication = if (tv) null else LocalIndication.current,
                     onClick = onClick,
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -282,11 +303,25 @@ fun BitChordShelfCard(
     onLongClick: () -> Unit,
 ) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val tv = LocalTvLayout.current
+    val tvFocus = rememberTvFocusState()
+    val cardWidth = if (tv) BitChordTvShelfCardWidth else BitChordShelfCardWidth
     Column(
         modifier =
             modifier
-                .width(BitChordShelfCardWidth)
+                .then(
+                    if (tv) {
+                        Modifier
+                            .padding(top = 12.dp, bottom = 6.dp)
+                            .tvFocusScale(tvFocus, 1.08f)
+                    } else {
+                        Modifier
+                    },
+                ).width(cardWidth)
+                .then(if (tv) Modifier.tvFocusTracker(tvFocus) else Modifier)
                 .combinedClickable(
+                    interactionSource = null,
+                    indication = if (tv) null else LocalIndication.current,
                     onClick = onClick,
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -297,7 +332,8 @@ fun BitChordShelfCard(
         Box(
             modifier =
                 Modifier
-                    .size(BitChordShelfCardWidth)
+                    .size(cardWidth)
+                    .then(if (tv) Modifier.tvFocusRing(tvFocus, BitChordShelfCardCorner) else Modifier)
                     .clip(RoundedCornerShape(BitChordShelfCardCorner))
                     .bitChordThumbnailBorder(RoundedCornerShape(BitChordShelfCardCorner))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -317,11 +353,11 @@ fun BitChordShelfCard(
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(if (tv) 8.dp else 10.dp))
         Text(
             text = title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.W600,
+            fontSize = if (tv) 13.sp else 16.sp,
+            fontWeight = if (tv) FontWeight.W700 else FontWeight.W600,
             fontFamily = BitChordFontFamily,
             letterSpacing = (-0.2).sp,
             color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
@@ -330,7 +366,7 @@ fun BitChordShelfCard(
         )
         Text(
             text = subtitle,
-            fontSize = 14.sp,
+            fontSize = if (tv) 11.sp else 14.sp,
             fontWeight = FontWeight.W400,
             fontFamily = BitChordFontFamily,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
