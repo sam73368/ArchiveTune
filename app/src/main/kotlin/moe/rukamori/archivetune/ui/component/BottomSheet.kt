@@ -8,6 +8,9 @@
 package moe.rukamori.archivetune.ui.component
 
 import moe.rukamori.archivetune.ui.tv.tvFocusScope
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
@@ -182,6 +185,9 @@ fun BottomSheet(
                     Modifier
                         .fillMaxSize()
                         .zIndex(fullContentZIndex)
+                        .focusProperties {
+                            enter = { if (state.isCollapsed) FocusRequester.Cancel else FocusRequester.Default }
+                        }.focusGroup()
                         .graphicsLayer {
                             if (morphMode) {
                                 val p = state.progress.coerceIn(0f, 1f)
@@ -199,6 +205,9 @@ fun BottomSheet(
                     Modifier
                         .fillMaxSize()
                         .zIndex(fullContentZIndex)
+                        .focusProperties {
+                            enter = { if (state.isCollapsed) FocusRequester.Cancel else FocusRequester.Default }
+                        }.focusGroup()
                         .graphicsLayer {
                             if (morphMode) {
                                 val p = state.progress.coerceIn(0f, 1f)
