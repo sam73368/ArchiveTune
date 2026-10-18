@@ -39,6 +39,10 @@ val TvFocusScopeKey = SemanticsPropertyKey<Boolean>("TvFocusScope")
 
 fun Modifier.tvFocusScope(): Modifier = semantics { this[TvFocusScopeKey] = true }
 
+val TvFocusRailKey = SemanticsPropertyKey<Boolean>("TvFocusRail")
+
+fun Modifier.tvFocusRail(): Modifier = semantics { this[TvFocusRailKey] = true }
+
 fun Modifier.tvNonFocusable(): Modifier = focusProperties { canFocus = false }
 
 @Composable
@@ -68,6 +72,7 @@ private class FocusCandidate(
 private class FocusSnapshot(
     val focused: FocusCandidate?,
     val focusedInScope: Boolean,
+    val focusedInRail: Boolean,
     val scopeCandidates: List<FocusCandidate>,
 )
 
@@ -94,9 +99,9 @@ object TvFocusFallback {
         if (moved) {
             if (!vertical) return true
             val after = runCatching { snapshot(view) }.getOrNull() ?: return true
-            if (after.focused == null || after.focusedInScope) return true
-            val alternative = bestCandidate(start, after.scopeCandidates, direction) ?: return true
-            requestFocus(alternative)
+            if (after.focused == null || after.focusedInScope || !after.focusedInRail) return true
+            val alternative = bestCandidate(start, after.scopeCandidates, direction)
+            requestFocus(alternative ?: start)
             return true
         }
         val alternative = bestCandidate(start, before.scopeCandidates, direction) ?: return false
@@ -115,13 +120,16 @@ object TvFocusFallback {
         val owner = (view as? ViewRootForTest)?.semanticsOwner ?: return null
         var focused: FocusCandidate? = null
         var focusedInScope = false
+        var focusedInRail = false
         val candidates = ArrayList<FocusCandidate>()
 
         fun walk(
             node: SemanticsNode,
             inScope: Boolean,
+            inRail: Boolean,
         ) {
             val scoped = inScope || node.config.getOrNull(TvFocusScopeKey) == true
+            val railed = inRail || node.config.getOrNull(TvFocusRailKey) == true
             val config = node.config
             if (config.getOrNull(SemanticsActions.RequestFocus) != null &&
                 config.getOrNull(SemanticsProperties.Disabled) == null
@@ -132,15 +140,16 @@ object TvFocusFallback {
                     if (config.getOrNull(SemanticsProperties.Focused) == true) {
                         focused = candidate
                         focusedInScope = scoped
+                        focusedInRail = railed
                     } else if (scoped) {
                         candidates += candidate
                     }
                 }
             }
-            node.children.forEach { walk(it, scoped) }
+            node.children.forEach { walk(it, scoped, railed) }
         }
-        walk(owner.unmergedRootSemanticsNode, false)
-        return FocusSnapshot(focused, focusedInScope, candidates)
+        walk(owner.unmergedRootSemanticsNode, false, false)
+        return FocusSnapshot(focused, focusedInScope, focusedInRail, candidates)
     }
 
     private fun bestCandidate(

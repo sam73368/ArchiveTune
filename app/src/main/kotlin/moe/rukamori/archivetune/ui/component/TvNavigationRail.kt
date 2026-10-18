@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.screens.Screens
 import moe.rukamori.archivetune.ui.tv.TvTokens
+import moe.rukamori.archivetune.ui.tv.tvFocusRail
 import androidx.compose.runtime.getValue
 
 @Composable
@@ -82,6 +83,7 @@ fun TvNavigationRail(
     Column(
         modifier =
             modifier
+                .tvFocusRail()
                 .fillMaxHeight()
                 .width(TvTokens.RailWidth)
                 .background(TvTokens.RailBackground)

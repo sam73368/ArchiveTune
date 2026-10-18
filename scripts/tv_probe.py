@@ -137,25 +137,44 @@ key("KEYCODE_BACK", 3)
 key("KEYCODE_BACK", 3)
 snap("back_home")
 
-# Home content -> find an album card
+# Home content -> find the "New releases" shelf
+def node_bounds(xml, text):
+    root = parse(xml)
+    if root is None:
+        return None
+    for el in root.iter("node"):
+        if el.get("text") == text:
+            return [int(v) for v in re.findall(r"\d+", el.get("bounds"))]
+    return None
+
+
+def under_header(xml, header):
+    hb = node_bounds(xml, header)
+    fb, _ = focused_info(xml)
+    if hb is None or fb is None:
+        return False
+    f = [int(v) for v in re.findall(r"\d+", fb)]
+    return 0 <= f[1] - hb[3] <= 160
+
+
 key("KEYCODE_DPAD_RIGHT")
-snap("home_content")
-xml = dump()
-found = False
-for i in range(14):
-    if focus_contains(xml, ["Album", "EP", "Single"]):
-        found = True
+xml = snap("home_content")
+for i in range(18):
+    if under_header(xml, "New releases"):
         break
-    key("KEYCODE_DPAD_DOWN" if i % 3 != 2 else "KEYCODE_DPAD_RIGHT", 1.0)
+    key("KEYCODE_DPAD_DOWN", 1.0)
     xml = snap(f"home_scan_{i}")
 snap("home_card_choice")
-key("KEYCODE_DPAD_CENTER", 7)
-snap("detail_open")
+key("KEYCODE_DPAD_CENTER", 8)
+snap("album_open")
 for i in range(8):
     key("KEYCODE_DPAD_DOWN", 1.0)
-    snap(f"detail_down_{i}")
-key("KEYCODE_DPAD_CENTER", 4)
-snap("detail_play")
+    snap(f"album_down_{i}")
+for i in range(3):
+    key("KEYCODE_DPAD_UP", 1.0)
+    snap(f"album_up_{i}")
+key("KEYCODE_DPAD_CENTER", 5)
+snap("album_play")
 key("KEYCODE_DPAD_CENTER", 2, longpress=True)
 snap("longpress_menu")
 for i in range(3):
@@ -163,10 +182,31 @@ for i in range(3):
     snap(f"menu_down_{i}")
 key("KEYCODE_BACK", 2)
 snap("menu_closed")
-key("KEYCODE_DPAD_UP", 1.0)
-snap("after_menu_up")
+key("KEYCODE_DPAD_DOWN", 1.0)
+snap("after_menu_down")
+for i in range(12):
+    key("KEYCODE_DPAD_UP", 0.8)
+xml = snap("album_top")
+for i in range(4):
+    key("KEYCODE_DPAD_RIGHT", 0.8)
+    snap(f"album_top_right_{i}")
 key("KEYCODE_BACK", 3)
-snap("detail_back")
+snap("album_back")
+for i in range(10):
+    key("KEYCODE_DPAD_DOWN", 0.8)
+xml = snap("bottom_reach")
+for i in range(3):
+    key("KEYCODE_DPAD_DOWN", 0.8)
+    snap(f"bottom_more_{i}")
+key("KEYCODE_DPAD_CENTER", 4)
+snap("bottom_center")
+for i in range(4):
+    key("KEYCODE_DPAD_DOWN", 0.8)
+    snap(f"player_down_{i}")
+key("KEYCODE_DPAD_RIGHT", 0.8)
+snap("player_right")
+key("KEYCODE_BACK", 3)
+snap("player_back")
 
 subprocess.run(f"adb logcat -d -t 4000 > {OUT}/logcat.txt", shell=True)
 report.close()
