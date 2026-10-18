@@ -10,6 +10,15 @@
 package moe.rukamori.archivetune.ui.screens.onboarding
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.delay
+import moe.rukamori.archivetune.ui.component.TvFocusIndication
+import moe.rukamori.archivetune.utils.isTelevision
 import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -267,6 +276,8 @@ private fun OnboardingSuccessContent(
         )
 
     BackHandler(enabled = uiState.currentPage > 0, onBack = onBack)
+    val onboardingContext = LocalContext.current
+    val isTelevisionUi = remember(onboardingContext) { onboardingContext.isTelevision() }
 
     LaunchedEffect(uiState.currentPage, uiState.pages.size) {
         val targetPage = uiState.currentPage.coerceIn(0, uiState.pages.lastIndex)
@@ -283,6 +294,19 @@ private fun OnboardingSuccessContent(
                 .fillMaxSize()
                 .padding(contentPadding),
     ) { pageIndex ->
+        if (isTelevisionUi) {
+            TvOnboardingPage(
+                uiState = uiState,
+                pageIndex = pageIndex,
+                isCurrent = pagerState.currentPage == pageIndex,
+                onBack = onBack,
+                onNext = onNext,
+                onLogin = onLogin,
+                onPermissionAction = onPermissionAction,
+                onCommunityAction = onCommunityAction,
+            )
+            return@HorizontalPager
+        }
         when (uiState.pages[pageIndex].id) {
             OnboardingPageId.WELCOME -> {
                 WelcomePage(
@@ -1129,6 +1153,246 @@ private fun OnboardingNextButton(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun TvOnboardingPage(
+    uiState: OnboardingUiState,
+    pageIndex: Int,
+    isCurrent: Boolean,
+    onBack: () -> Unit,
+    onNext: () -> Unit,
+    onLogin: () -> Unit,
+    onPermissionAction: (OnboardingPermissionAction) -> Unit,
+    onCommunityAction: (OnboardingCommunityActionUiModel) -> Unit,
+) {
+    val page = uiState.pages[pageIndex]
+    val accent = MaterialTheme.colorScheme.primary
+    val primaryFocus = remember { FocusRequester() }
+    val isLastPage = pageIndex >= uiState.pages.lastIndex
+
+    LaunchedEffect(isCurrent) {
+        if (isCurrent) {
+            repeat(8) {
+                delay(120)
+                if (runCatching { primaryFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            }
+        }
+    }
+
+    CompositionLocalProvider(
+        LocalIndication provides remember(accent) { TvFocusIndication(accent) },
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 48.dp, vertical = 32.dp),
+            horizontalArrangement = Arrangement.spacedBy(40.dp),
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .width(340.dp)
+                        .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Surface(
+                    modifier = Modifier.size(56.dp),
+                    shape = MaterialShapes.Sunny.toShape(0),
+                    color = accent,
+                    contentColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            painter = painterResource(page.iconResId),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.tv_onboarding_step, pageIndex + 1, uiState.pages.size).uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = accent,
+                )
+                Text(
+                    text = stringResource(page.titleResId),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(page.subtitleResId),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 6,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (page.id == OnboardingPageId.WELCOME) {
+                    OnboardingMetadataPills(uiState = uiState)
+                }
+                if (page.id == OnboardingPageId.LOGIN) {
+                    Text(
+                        text = stringResource(R.string.onboarding_login_optional),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                if (page.id == OnboardingPageId.LOGIN) {
+                    Button(
+                        onClick = onLogin,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = OnboardingActionButtonPadding,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.login),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text(
+                            text = stringResource(R.string.login),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (pageIndex > 0) {
+                        OutlinedButton(
+                            onClick = onBack,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = OnboardingActionButtonPadding,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.back_button_desc),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = onNext,
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .focusRequester(primaryFocus),
+                        contentPadding = OnboardingActionButtonPadding,
+                    ) {
+                        Text(
+                            text =
+                                stringResource(
+                                    when {
+                                        page.id == OnboardingPageId.LOGIN -> R.string.onboarding_login_skip
+                                        isLastPage -> R.string.onboarding_finish
+                                        else -> R.string.next
+                                    },
+                                ),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                contentAlignment = Alignment.Center,
+            ) {
+                when (page.id) {
+                    OnboardingPageId.WELCOME -> {
+                        SunnyIdentityPanel(
+                            iconResId = page.iconResId,
+                            modifier = Modifier.widthIn(max = 320.dp),
+                        )
+                    }
+
+                    OnboardingPageId.PERMISSIONS -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap, Alignment.CenterVertically),
+                        ) {
+                            itemsIndexed(
+                                items = uiState.permissions,
+                                key = { _, item -> item.id.name },
+                            ) { index, item ->
+                                PermissionRow(
+                                    permission = item,
+                                    index = index,
+                                    count = uiState.permissions.size,
+                                    onPermissionAction = onPermissionAction,
+                                )
+                            }
+                        }
+                    }
+
+                    OnboardingPageId.LOGIN -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap, Alignment.CenterVertically),
+                        ) {
+                            item(key = "tv-login-benefits-title") {
+                                Text(
+                                    text = stringResource(R.string.onboarding_login_benefits_title),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.padding(bottom = 8.dp),
+                                )
+                            }
+                            itemsIndexed(
+                                items = uiState.loginBenefits,
+                                key = { _, item -> item.id },
+                            ) { index, benefit ->
+                                LoginBenefitRow(
+                                    benefit = benefit,
+                                    index = index,
+                                    count = uiState.loginBenefits.size,
+                                    onLogin = onLogin,
+                                )
+                            }
+                        }
+                    }
+
+                    OnboardingPageId.COMMUNITY -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap, Alignment.CenterVertically),
+                        ) {
+                            itemsIndexed(
+                                items = uiState.communityActions,
+                                key = { _, item -> item.id },
+                            ) { index, item ->
+                                CommunityRow(
+                                    action = item,
+                                    index = index,
+                                    count = uiState.communityActions.size,
+                                    onCommunityAction = onCommunityAction,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
