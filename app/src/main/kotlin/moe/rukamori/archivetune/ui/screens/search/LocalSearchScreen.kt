@@ -138,7 +138,6 @@ fun LocalSearchScreen(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .focusable()
                                     .clickable { viewModel.filter.value = filter }
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                         ) {

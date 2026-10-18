@@ -193,7 +193,6 @@ fun PreferenceEntry(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = PreferenceEntryMinHeight)
-                    .then(if (isEnabled && onClick != null) Modifier.focusable() else Modifier)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = LocalIndication.current,

@@ -395,6 +395,7 @@ fun ArtistScreen(
 
     val artistName = artistPage?.artist?.title ?: libraryArtist?.artist?.name
     val unknownArtist = stringResource(R.string.unknown_artist)
+    val isTvLayout = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
 
     var artistOverflowMenuOpen by remember { mutableStateOf(false) }
     var artistOverflowIconBounds by remember { mutableStateOf(Rect.Zero) }
@@ -681,16 +682,78 @@ fun ArtistScreen(
                         ),
             )
 
+            if (isTvLayout) {
+                val tvSongsLabel = stringResource(R.string.songs)
+                val tvAlbumsLabel = stringResource(R.string.albums)
+                val tvMonthlyListenersLabel = stringResource(R.string.monthly_listeners)
+                val tvSubscribersLabel = stringResource(R.string.subscribers)
+                val tvStats =
+                    remember(showLocal, artistPage, librarySongs.size, libraryAlbums.size) {
+                        buildArtistStats(
+                            showLocal = showLocal,
+                            artistPage = artistPage,
+                            librarySongCount = librarySongs.size,
+                            libraryAlbumCount = libraryAlbums.size,
+                            songsLabel = tvSongsLabel,
+                            albumsLabel = tvAlbumsLabel,
+                            monthlyListenersLabel = tvMonthlyListenersLabel,
+                            subscribersLabel = tvSubscribersLabel,
+                        )
+                    }
+                moe.rukamori.archivetune.ui.tv.TvArtistSidePane(
+                    thumbnailUrl = thumbnail,
+                    name = artistName ?: unknownArtist,
+                    audience = tvStats.audience,
+                    catalog = tvStats.catalog,
+                    isSubscribed = libraryArtist?.artist?.bookmarkedAt != null,
+                    canPlay = if (showLocal) librarySongs.isNotEmpty() else artistPage?.artist?.playEndpoint != null,
+                    canShuffle = artistOverflowCanShuffle(),
+                    canRadio = artistOverflowCanRadio(),
+                    topPadding = systemBarsTopPadding + AppBarHeight,
+                    onPlay = {
+                        if (showLocal) {
+                            if (librarySongs.isNotEmpty()) {
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = artistName ?: unknownArtist,
+                                        items = librarySongs.map { it.toMediaItem() },
+                                    ),
+                                )
+                            }
+                        } else {
+                            artistPage?.artist?.playEndpoint?.let { endpoint ->
+                                playerConnection.playQueue(YouTubeQueue(endpoint))
+                            }
+                        }
+                    },
+                    onShuffle = artistOverflowShuffleAction(),
+                    onRadio = artistOverflowRadioAction(),
+                    onToggleSubscribe = toggleArtistSubscription,
+                    onShare = { viewModel.onAction(ArtistAction.Share) },
+                    onMore = showArtistOverflowMenu,
+                )
+            }
+
             ExpressivePullToRefreshBox(
                 isRefreshing = isManuallyRefreshing,
                 onRefresh = viewModel::manualRefresh,
-                modifier = Modifier.fillMaxSize(),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (isTvLayout) {
+                                Modifier.padding(start = moe.rukamori.archivetune.ui.tv.TvArtistPaneWidth)
+                            } else {
+                                Modifier
+                            },
+                        ),
             ) {
         LazyColumn(
             modifier = Modifier,
             state = lazyListState,
             contentPadding =
                 PaddingValues(
+                    top = if (isTvLayout) systemBarsTopPadding + AppBarHeight else 0.dp,
                     bottom = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding(),
                 ),
         ) {
@@ -734,7 +797,7 @@ fun ArtistScreen(
                     }
                 }
             } else {
-                item(key = "header") {
+                if (!isTvLayout) item(key = "header") {
                     val songsLabel = stringResource(R.string.songs)
                     val albumsLabel = stringResource(R.string.albums)
                     val monthlyListenersLabel = stringResource(R.string.monthly_listeners)

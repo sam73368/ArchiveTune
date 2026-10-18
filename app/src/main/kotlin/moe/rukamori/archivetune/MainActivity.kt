@@ -146,6 +146,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.luminance
 import moe.rukamori.archivetune.ui.screens.HomeTopFadeBlur
@@ -2221,6 +2222,19 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    var tvRailHasFocus by remember { mutableStateOf(false) }
+                    var tvContentHasFocus by remember { mutableStateOf(false) }
+                    LaunchedEffect(isTvDevice, navBackStackEntry?.id, active) {
+                        if (!isTvDevice || active || currentRoute in topLevelScreens) return@LaunchedEffect
+                        repeat(16) {
+                            delay(150)
+                            if (tvRailHasFocus) return@LaunchedEffect
+                            if (!tvContentHasFocus && !playerBottomSheetState.isExpanded) {
+                                runCatching { contentAreaFocusRequester.requestFocus() }
+                            }
+                        }
+                    }
+
                     var restoredMiniPlayerAnchor by remember(playerConnection) { mutableStateOf(false) }
 
                     LaunchedEffect(playerConnection, savedMiniPlayerAnchor, isYearInMusicScreen) {
@@ -2487,7 +2501,7 @@ class MainActivity : ComponentActivity() {
                                             } else {
                                                 currentRoute
                                             },
-                                        modifier = Modifier,
+                                        modifier = Modifier.onFocusChanged { tvRailHasFocus = it.hasFocus },
                                         firstItemFocusRequester = tvRailFocusRequester,
                                         contentFocusRequester =
                                             if (active ||
@@ -3670,6 +3684,7 @@ class MainActivity : ComponentActivity() {
                                                     // (the last one used, else the first) instead of on the
                                                     // invisible content container, where the highlight was lost.
                                                     Modifier
+                                                        .onFocusChanged { tvContentHasFocus = it.hasFocus }
                                                         .focusRestorer()
                                                         .focusRequester(contentAreaFocusRequester)
                                                         .focusGroup()

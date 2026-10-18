@@ -42,6 +42,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
+import moe.rukamori.archivetune.ui.tv.tvFocusableScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.ButtonGroupDefaults
@@ -272,11 +273,13 @@ fun ChangelogScreen(
                     }
 
                     else -> {
+                        val changelogScrollState = rememberScrollState()
                         Column(
                             modifier =
                                 Modifier
                                     .fillMaxSize()
-                                    .verticalScroll(rememberScrollState()),
+                                    .tvFocusableScroll(changelogScrollState)
+                                    .verticalScroll(changelogScrollState),
                         ) {
                             currentRelease?.let { release ->
                                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {

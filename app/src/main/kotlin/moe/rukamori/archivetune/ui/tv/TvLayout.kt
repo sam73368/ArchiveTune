@@ -8,6 +8,17 @@
 package moe.rukamori.archivetune.ui.tv
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,6 +38,30 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 val LocalTvLayout = staticCompositionLocalOf { false }
+
+@Composable
+fun Modifier.tvFocusableScroll(state: ScrollState): Modifier {
+    if (!LocalTvLayout.current) return this
+    val scope = rememberCoroutineScope()
+    val step = with(LocalDensity.current) { 140.dp.toPx() }
+    val focus = rememberTvFocusState()
+    return this
+        .tvFocusRing(focus, 12.dp, 2.dp)
+        .tvFocusTracker(focus)
+        .onKeyEvent { event ->
+            if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+            val direction =
+                when (event.key) {
+                    Key.DirectionDown -> 1f
+                    Key.DirectionUp -> -1f
+                    else -> return@onKeyEvent false
+                }
+            val canMove = if (direction > 0f) state.canScrollForward else state.canScrollBackward
+            if (!canMove) return@onKeyEvent false
+            scope.launch { state.animateScrollBy(direction * step) }
+            true
+        }.focusable()
+}
 
 class TvFocusState {
     var focused by mutableStateOf(false)

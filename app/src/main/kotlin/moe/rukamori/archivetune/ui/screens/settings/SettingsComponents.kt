@@ -159,7 +159,6 @@ fun SettingsUpdateBanner(
             modifier
                 .fillMaxWidth()
                 .scale(scale)
-                .focusable()
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
