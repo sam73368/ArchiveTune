@@ -3269,6 +3269,28 @@ class MainActivity : ComponentActivity() {
                                                     )
                                                 },
                                         ) {
+                                          Row(Modifier.fillMaxSize()) {
+                                            if (isTvDevice) {
+                                                moe.rukamori.archivetune.ui.tv.TvSearchKeyboard(
+                                                    query = query.text,
+                                                    onQueryChange = { text ->
+                                                        onQueryChange(TextFieldValue(text, TextRange(text.length)))
+                                                    },
+                                                    onSearch = onSearch,
+                                                    onVoiceSearch = {
+                                                        if (ContextCompat.checkSelfPermission(
+                                                                this@MainActivity,
+                                                                Manifest.permission.RECORD_AUDIO,
+                                                            ) == PackageManager.PERMISSION_GRANTED
+                                                        ) {
+                                                            voiceSearchController.startListening(this@MainActivity)
+                                                        } else {
+                                                            micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                                        }
+                                                    },
+                                                )
+                                            }
+                                          Box(Modifier.weight(1f).fillMaxHeight()) {
                                             Crossfade(
                                                 targetState = searchSource to searchProvider,
                                                 animationSpec = tween(durationMillis = if (disableAnimations) 0 else 300),
@@ -3310,6 +3332,8 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 }
                                             }
+                                          }
+                                          }
                                         }
                                     }
                                 },

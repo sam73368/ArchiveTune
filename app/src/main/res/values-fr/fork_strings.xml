@@ -125,4 +125,7 @@
     <string name="tv_lyrics">Paroles</string>
     <string name="tv_more">Plus</string>
     <string name="tv_player_hint">◀ ▶ sur la barre : −10 s / +10 s  ·  Retour : réduire le lecteur</string>
+    <string name="tv_key_space">Espace</string>
+    <string name="tv_key_delete">Effacer</string>
+    <string name="tv_key_clear">Tout effacer</string>
 </resources>

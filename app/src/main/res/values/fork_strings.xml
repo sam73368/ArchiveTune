@@ -336,4 +336,7 @@
     <string name="tv_lyrics">Lyrics</string>
     <string name="tv_more">More</string>
     <string name="tv_player_hint">◀ ▶ on the bar: −10 s / +10 s  ·  Back: minimize the player</string>
+    <string name="tv_key_space">Space</string>
+    <string name="tv_key_delete">Delete</string>
+    <string name="tv_key_clear">Clear</string>
 </resources>
