@@ -120,4 +120,9 @@
     <string name="tv_resume">Reprendre</string>
     <string name="tv_pause">Pause</string>
     <string name="tv_shuffle">Aléatoire</string>
+    <string name="tv_like">J\'aime</string>
+    <string name="tv_queue">File d\'attente</string>
+    <string name="tv_lyrics">Paroles</string>
+    <string name="tv_more">Plus</string>
+    <string name="tv_player_hint">◀ ▶ sur la barre : −10 s / +10 s  ·  Retour : réduire le lecteur</string>
 </resources>

@@ -331,4 +331,9 @@
     <string name="tv_resume">Resume</string>
     <string name="tv_pause">Pause</string>
     <string name="tv_shuffle">Shuffle</string>
+    <string name="tv_like">Like</string>
+    <string name="tv_queue">Queue</string>
+    <string name="tv_lyrics">Lyrics</string>
+    <string name="tv_more">More</string>
+    <string name="tv_player_hint">◀ ▶ on the bar: −10 s / +10 s  ·  Back: minimize the player</string>
 </resources>

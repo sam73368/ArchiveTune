@@ -1760,7 +1760,42 @@ fun BottomSheetPlayer(
             orientationRefreshEpoch += 1
         }
 
-        when (LocalConfiguration.current.orientation) {
+        if (isTelevision) {
+            enrichedMetadata?.let { metadata ->
+                moe.rukamori.archivetune.ui.tv.TvPlayerContent(
+                    mediaMetadata = metadata,
+                    isPlaying = isPlaying,
+                    isLoading = isLoading,
+                    canSkipPrevious = canSkipPrevious,
+                    canSkipNext = canSkipNext,
+                    positionProvider = positionProvider,
+                    sliderPositionProvider = { sliderPosition },
+                    duration = duration,
+                    liked = currentSongLiked,
+                    lyricsSyncOffset = lyricsSyncOffset,
+                    expanded = state.isExpanded,
+                    onSeek = onSliderValueChange,
+                    onSeekFinished = onSliderValueChangeFinished,
+                    onQueue = openQueue,
+                    onMore = {
+                        menuState.showImmersive {
+                            PlayerMenu(
+                                mediaMetadata = metadata,
+                                navController = navController,
+                                playerBottomSheetState = state,
+                                onShowDetailsDialog = {
+                                    bottomSheetPageState.show {
+                                        ShowMediaInfo(metadata.id)
+                                    }
+                                },
+                                onDismiss = menuState::dismiss,
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        } else when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 if (playerDesignStyle == PlayerDesignStyle.BITCHORD) {
                     enrichedMetadata?.let { metadata ->
