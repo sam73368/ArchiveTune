@@ -233,36 +233,44 @@ for i in range(18):
 snap("home_card_choice")
 key("KEYCODE_DPAD_CENTER", 8)
 snap("album_open")
-for i in range(5):
+for i in range(3):
     key("KEYCODE_DPAD_DOWN", 1.0)
     snap(f"album_down_{i}")
-key("KEYCODE_DPAD_CENTER", 2, longpress=True)
-snap("song_longpress_menu")
-for i in range(4):
-    key("KEYCODE_DPAD_DOWN", 0.9)
-    snap(f"menu_down_{i}")
-key("KEYCODE_BACK", 2)
-snap("menu_closed")
-key("KEYCODE_DPAD_UP", 1.0)
-snap("after_menu_up")
-for i in range(3):
+for i in range(2):
     key("KEYCODE_DPAD_UP", 1.0)
     snap(f"album_up_{i}")
-key("KEYCODE_DPAD_CENTER", 6)
-snap("album_link_or_button")
+key("KEYCODE_DPAD_UP", 1.0)
+snap("album_link")
+key("KEYCODE_DPAD_CENTER", 7)
+snap("artist_open")
 for i in range(3):
-    key("KEYCODE_DPAD_RIGHT", 1.0)
-    snap(f"page_right_{i}")
-walk_until("KEYCODE_DPAD_DOWN", ["Top songs", "Songs", "Top Songs"], 12, "to_top_songs")
+    key("KEYCODE_DPAD_DOWN", 0.9)
+    snap(f"artist_pane_down_{i}")
+key("KEYCODE_DPAD_RIGHT", 1.0)
+snap("artist_list_enter")
+walk_until("KEYCODE_DPAD_DOWN", ["Top songs", "Songs", "Top Songs", "Popular"], 10, "to_top_songs")
 key("KEYCODE_DPAD_CENTER", 6)
 snap("top_songs_open")
 for i in range(6):
     key("KEYCODE_DPAD_DOWN", 1.0)
     snap(f"top_songs_down_{i}")
+key("KEYCODE_DPAD_CENTER", 6)
+snap("song_play")
+for k in ["KEYCODE_DPAD_DOWN", "KEYCODE_DPAD_RIGHT", "KEYCODE_DPAD_RIGHT"]:
+    key(k, 1.0)
+    snap("dialog_" + k[-5:].lower())
+key("KEYCODE_BACK", 2)
+snap("dialog_back")
+for i in range(6):
+    key("KEYCODE_DPAD_DOWN", 0.9)
+    snap(f"to_miniplayer_{i}")
+key("KEYCODE_DPAD_CENTER", 4)
+snap("miniplayer_center")
+for k in ["KEYCODE_DPAD_DOWN", "KEYCODE_DPAD_DOWN", "KEYCODE_DPAD_RIGHT", "KEYCODE_DPAD_UP"]:
+    key(k, 1.0)
+    snap("player_" + k[-5:].lower())
 key("KEYCODE_BACK", 3)
-snap("page_back")
-key("KEYCODE_BACK", 3)
-snap("page_back2")
+snap("player_back")
 
 subprocess.run(f"adb logcat -d -t 4000 > {OUT}/logcat.txt", shell=True)
 report.close()
