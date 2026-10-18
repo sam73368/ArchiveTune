@@ -211,7 +211,7 @@ fun LibraryPlaylistsScreen(
         }
     val mutablePlaylists = remember { mutableStateListOf<Playlist>() }
 
-    @Suppress("UnusedVariable") val isGridView = false
+    val isGridView = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
     var showCreatePlaylistDialog by rememberSaveable { mutableStateOf(false) }
     var showAiPlaylistDialog by rememberSaveable { mutableStateOf(false) }
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
@@ -522,7 +522,7 @@ fun LibraryPlaylistsScreen(
 
             if (isGridView) {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
+                    columns = GridCells.Fixed(if (moe.rukamori.archivetune.ui.tv.LocalTvLayout.current) 6 else 2),
                     contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = playerAwareBottomPadding),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),

@@ -372,13 +372,13 @@ fun LibraryAlbumsScreen(
 
             if (isGridView) {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
+                    columns = GridCells.Fixed(if (moe.rukamori.archivetune.ui.tv.LocalTvLayout.current) 6 else 4),
                     contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = playerAwareBottomPadding),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    item(span = { GridItemSpan(4) }, key = "featured_album_card") {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "featured_album_card") {
                         featuredAlbum?.let { album ->
                             Box(
                                 modifier =

@@ -14,6 +14,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -97,6 +99,118 @@ public fun MediaDetailHero(
     useBlurredPlayButton: Boolean = false,
     ambientScrimColor: Color? = null,
 ) {
+    if (moe.rukamori.archivetune.ui.tv.LocalTvLayout.current) {
+        val tvMenuState = LocalMenuState.current
+        val tvToggleAdd =
+            remember(isAdded, tvMenuState, onToggleAdd, removeContentDescription, title) {
+                onToggleAdd?.let { toggleAdd ->
+                    if (isAdded) {
+                        {
+                            tvMenuState.showDialog {
+                                MediaDetailRemovalConfirmationDialog(
+                                    title = title,
+                                    removeContentDescription = removeContentDescription,
+                                    onDismiss = tvMenuState::dismissDialog,
+                                    onConfirm = {
+                                        tvMenuState.dismissDialog()
+                                        toggleAdd()
+                                    },
+                                )
+                            }
+                        }
+                    } else {
+                        toggleAdd
+                    }
+                }
+            }
+        Row(
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, end = 32.dp, top = systemBarsTopPadding + 24.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(200.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (thumbnailUrl != null) {
+                    AsyncImage(
+                        model = thumbnailUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize(),
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(fallbackIcon),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(72.dp),
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = moe.rukamori.archivetune.ui.tv.TvTokens.Display,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                subtitle?.let {
+                    Text(
+                        text = it,
+                        style = moe.rukamori.archivetune.ui.tv.TvTokens.Body,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+                description?.takeIf(String::isNotBlank)?.let {
+                    Text(
+                        text = it,
+                        style = moe.rukamori.archivetune.ui.tv.TvTokens.Caption,
+                        color = Color.White.copy(alpha = 0.7f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+                metadata?.takeIf(String::isNotBlank)?.let {
+                    Text(
+                        text = it,
+                        style = moe.rukamori.archivetune.ui.tv.TvTokens.Caption,
+                        color = Color.White.copy(alpha = 0.66f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                MediaDetailPrimaryActions(
+                    isAdded = isAdded,
+                    contentColor = Color.White,
+                    contrastingColor = Color.Black,
+                    addContentDescription = addContentDescription,
+                    removeContentDescription = removeContentDescription,
+                    onShuffle = onShuffle,
+                    onPlay = onPlay,
+                    onToggleAdd = tvToggleAdd,
+                    additionalActions = additionalPrimaryActions,
+                    modifier = Modifier.padding(top = 14.dp),
+                    thumbnailUrl = thumbnailUrl,
+                    allowHorizontalScroll = false,
+                )
+            }
+        }
+        return
+    }
     if (rememberAppleMusicExperience()) {
         AppleMusicPlaylistHero(
             sectionLabel = null,
