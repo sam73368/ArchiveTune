@@ -365,4 +365,6 @@
     <string name="tv_text_size_huge">Very large</string>
     <string name="tv_artwork_accent">Accent from artwork</string>
     <string name="tv_artwork_accent_desc">Tint the interface with the colors of the song that is playing</string>
+    <string name="tv_settings_open_all">Open all settings</string>
+    <string name="tv_settings_hint">▲ ▼ change category · ▶ enter · OK open · Back return</string>
 </resources>

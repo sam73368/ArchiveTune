@@ -154,4 +154,6 @@
     <string name="tv_text_size_huge">Très grand</string>
     <string name="tv_artwork_accent">Couleur tirée de la pochette</string>
     <string name="tv_artwork_accent_desc">Teinte l\'interface avec les couleurs de la chanson en cours</string>
+    <string name="tv_settings_open_all">Ouvrir tous les réglages</string>
+    <string name="tv_settings_hint">▲ ▼ change de catégorie · ▶ entre dedans · OK ouvre · Retour revient</string>
 </resources>

@@ -331,6 +331,14 @@ fun SettingsScreen(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
         ) { _ ->
             Box(modifier = Modifier.fillMaxSize()) {
+                if (moe.rukamori.archivetune.ui.tv.LocalTvLayout.current) {
+                    TvSettingsHome(
+                        groups = filteredGroups,
+                        routeFor = ::searchableSettingsRoute,
+                        onNavigate = { route -> navController.navigate(route) },
+                    )
+                    return@Box
+                }
                 val playerAwareBottomPadding =
                     LocalPlayerAwareWindowInsets.current
                         .only(WindowInsetsSides.Bottom)
