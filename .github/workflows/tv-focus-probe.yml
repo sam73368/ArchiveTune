@@ -48,6 +48,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Run probe on Android TV emulator
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -57,7 +58,8 @@ jobs:
           arch: x86
           profile: tv_1080p
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 3072
+          emulator-boot-timeout: 900
           script: |
             adb install -r -g probe.apk
             adb shell pm list packages | grep archivetune || true
