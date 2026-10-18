@@ -7,6 +7,8 @@
 
 package moe.rukamori.archivetune.ui.component
 
+import moe.rukamori.archivetune.ui.tv.tvFocusScope
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.AnimationVector1D
@@ -224,9 +226,15 @@ fun BottomSheet(
                                 } else {
                                     1f - (state.progress * 4).coerceAtMost(1f)
                                 }
-                        }.clickable(
+                        }.tvFocusScope()
+                        .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
+                            indication =
+                                if (moe.rukamori.archivetune.ui.tv.LocalTvLayout.current) {
+                                    androidx.compose.foundation.LocalIndication.current
+                                } else {
+                                    null
+                                },
                             onClick = onCollapsedContentClick ?: state::expandSoft,
                         ).fillMaxWidth()
                         .height(state.collapsedBound),

@@ -248,7 +248,7 @@ for i in range(3):
     snap(f"artist_pane_down_{i}")
 key("KEYCODE_DPAD_RIGHT", 1.0)
 snap("artist_list_enter")
-walk_until("KEYCODE_DPAD_DOWN", ["Top songs", "Songs", "Top Songs", "Popular"], 10, "to_top_songs")
+walk_until("KEYCODE_DPAD_UP", ["Top songs", "Songs", "Top Songs", "Popular"], 4, "to_top_songs")
 key("KEYCODE_DPAD_CENTER", 6)
 snap("top_songs_open")
 for i in range(6):
