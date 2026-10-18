@@ -317,7 +317,7 @@ fun AlbumScreen(
                                         val linkStyles =
                                             TextLinkStyles(
                                                 style = SpanStyle(textDecoration = TextDecoration.None),
-                                                focusedStyle = SpanStyle(textDecoration = TextDecoration.None),
+                                                focusedStyle = SpanStyle(textDecoration = TextDecoration.Underline, background = Color.White.copy(alpha = 0.28f)),
                                                 hoveredStyle = SpanStyle(textDecoration = TextDecoration.None),
                                                 pressedStyle = SpanStyle(textDecoration = TextDecoration.None),
                                             )
