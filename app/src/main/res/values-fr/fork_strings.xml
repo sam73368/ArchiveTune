@@ -110,4 +110,9 @@
     <string name="lyrics_hold_scroll">Garder ma position de défilement</string>
     <string name="lyrics_hold_scroll_summary">Quand tu parcours les paroles à la main, elles restent où tu es jusqu\'à ce que tu appuies sur Resynchroniser (ou que tu touches une ligne, ou que la chanson change).</string>
     <string name="player_design_apple_music_classic">Apple Music (classique)</string>
+    <string name="tv_update_subtitle">%1$s · installée par-dessus, vos réglages sont gardés</string>
+    <string name="tv_update_install_now">Installer maintenant</string>
+    <string name="tv_update_all_changes">Toutes les nouveautés</string>
+    <string name="tv_update_later">Plus tard</string>
+    <string name="tv_update_hint">◀ ▶ choisir  ·  OK valider  ·  Retour : plus tard</string>
 </resources>

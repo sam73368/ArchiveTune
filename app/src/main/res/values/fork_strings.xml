@@ -321,4 +321,9 @@
     <string name="lyrics_hold_scroll">Keep my scroll position</string>
     <string name="lyrics_hold_scroll_summary">When you browse the lyrics by hand, stay where you are until you press Resync (or tap a line, or the song changes).</string>
     <string name="player_design_apple_music_classic">Apple Music (classic)</string>
+    <string name="tv_update_subtitle">%1$s · installed over this version, your settings are kept</string>
+    <string name="tv_update_install_now">Install now</string>
+    <string name="tv_update_all_changes">All changes</string>
+    <string name="tv_update_later">Later</string>
+    <string name="tv_update_hint">◀ ▶ choose  ·  OK confirm  ·  Back: later</string>
 </resources>

@@ -866,6 +866,38 @@ class MainActivity : ComponentActivity() {
             val (neverShowUpdatePopupMarker, onNeverShowUpdatePopupMarkerChange) =
                 rememberPreference(NeverShowUpdatePopupKey, defaultValue = "")
             val neverShowUpdatePopup = neverShowUpdatePopupMarker == currentVersionMarker
+            val isTvUpdateUi = remember { applicationContext.isTvDevice() }
+            val tvUpdatePromptVisible = remember { mutableStateOf(false) }
+            val installLatestUpdate: () -> Unit = {
+                val downloadUrl =
+                    when (latestUpdateChannel) {
+                        UpdateChannel.CANARY -> Updater.getLatestCanaryDownloadUrl()
+                        UpdateChannel.STABLE -> Updater.getLatestDownloadUrl()
+                    }
+                val started =
+                    AppUpdateService.isSupported() &&
+                        downloadUrl.isNotBlank() &&
+                        runCatching {
+                            AppUpdateService
+                                .startPendingIntent(
+                                    this@MainActivity,
+                                    downloadUrl,
+                                    latestVersionName,
+                                ).send()
+                        }.isSuccess
+                if (!started) {
+                    this@MainActivity.navController.navigate("settings/update") {
+                        launchSingleTop = true
+                    }
+                }
+            }
+            val openLatestChangelog: () -> Unit = {
+                this@MainActivity.navController.navigate(
+                    "settings/changelog?channel=$latestUpdateChannel",
+                ) {
+                    launchSingleTop = true
+                }
+            }
             val updateSheetContent: @Composable ColumnScope.() -> Unit = {
                 Text(
                     text = stringResource(R.string.new_update_available),
@@ -920,29 +952,7 @@ class MainActivity : ComponentActivity() {
                 androidx.compose.material3.Button(
                     onClick = {
                         bottomSheetPageState.dismiss()
-                        val downloadUrl =
-                            when (latestUpdateChannel) {
-                                UpdateChannel.CANARY -> Updater.getLatestCanaryDownloadUrl()
-                                UpdateChannel.STABLE -> Updater.getLatestDownloadUrl()
-                            }
-                        // One tap: download in the background service, then hand the APK to the
-                        // system installer. Falls back to the update screen when that isn't possible.
-                        val started =
-                            AppUpdateService.isSupported() &&
-                                downloadUrl.isNotBlank() &&
-                                runCatching {
-                                    AppUpdateService
-                                        .startPendingIntent(
-                                            this@MainActivity,
-                                            downloadUrl,
-                                            latestVersionName,
-                                        ).send()
-                                }.isSuccess
-                        if (!started) {
-                            this@MainActivity.navController.navigate("settings/update") {
-                                launchSingleTop = true
-                            }
-                        }
+                        installLatestUpdate()
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shapes = ButtonDefaults.shapes(),
@@ -953,11 +963,7 @@ class MainActivity : ComponentActivity() {
                 androidx.compose.material3.TextButton(
                     onClick = {
                         bottomSheetPageState.dismiss()
-                        this@MainActivity.navController.navigate(
-                            "settings/changelog?channel=$latestUpdateChannel",
-                        ) {
-                            launchSingleTop = true
-                        }
+                        openLatestChangelog()
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -1007,7 +1013,11 @@ class MainActivity : ComponentActivity() {
                             releaseNotesState.value = null
                         }
 
-                    bottomSheetPageState.show(updateSheetContent)
+                    if (isTvUpdateUi) {
+                        tvUpdatePromptVisible.value = true
+                    } else {
+                        bottomSheetPageState.show(updateSheetContent)
+                    }
                 }
             }
 
@@ -1282,6 +1292,25 @@ class MainActivity : ComponentActivity() {
 
                     val isTvDevice = remember { applicationContext.isTvDevice() }
                     val tvFocusAccent = MaterialTheme.colorScheme.primary
+                    if (isTvDevice && tvUpdatePromptVisible.value) {
+                        moe.rukamori.archivetune.ui.tv.TvUpdateDialog(
+                            versionName = latestVersionName,
+                            releaseNotes = releaseNotesState.value,
+                            onInstall = {
+                                tvUpdatePromptVisible.value = false
+                                installLatestUpdate()
+                            },
+                            onChangelog = {
+                                tvUpdatePromptVisible.value = false
+                                openLatestChangelog()
+                            },
+                            onLater = { tvUpdatePromptVisible.value = false },
+                            onNeverShow = {
+                                onNeverShowUpdatePopupMarkerChange(currentVersionMarker)
+                                tvUpdatePromptVisible.value = false
+                            },
+                        )
+                    }
                     val (tabletModeEnabled) = rememberPreference(TabletModeEnabledKey, defaultValue = false)
                     val useRail =
                         isTvDevice ||
