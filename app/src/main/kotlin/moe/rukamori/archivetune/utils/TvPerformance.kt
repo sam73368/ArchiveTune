@@ -24,16 +24,16 @@ object TvPerformance {
     var isTelevision: Boolean = false
 
     private val forcedValues: Map<Preferences.Key<*>, Any> =
-        mapOf(
-            DisableBlurKey to true,
-            LiquidGlassEnabledKey to false,
-            LiquidGlassNavBarEnabledKey to false,
-            SukisuLiquidGlassNavBarKey to false,
-            AlbumCanvasEnabledKey to false,
-            ArchiveTuneCanvasKey to false,
-            SpotifyCanvasKey to false,
-            ProceduralArtworkEnabledKey to false,
-            LyricsLineBlurKey to false,
+        mapOf<Preferences.Key<*>, Any>(
+            Pair(DisableBlurKey, true),
+            Pair(LiquidGlassEnabledKey, false),
+            Pair(LiquidGlassNavBarEnabledKey, false),
+            Pair(SukisuLiquidGlassNavBarKey, false),
+            Pair(AlbumCanvasEnabledKey, false),
+            Pair(ArchiveTuneCanvasKey, false),
+            Pair(SpotifyCanvasKey, false),
+            Pair(ProceduralArtworkEnabledKey, false),
+            Pair(LyricsLineBlurKey, false),
         )
 
     fun isActive(preferences: Preferences?): Boolean {
