@@ -146,4 +146,12 @@
     <string name="tv_queue_remove">Retirer</string>
     <string name="tv_text_entry_title">Saisie</string>
     <string name="tv_text_entry_confirm">Valider</string>
+    <string name="tv_settings_group">Télé</string>
+    <string name="tv_text_size">Taille du texte</string>
+    <string name="tv_text_size_small">Petit</string>
+    <string name="tv_text_size_normal">Normal</string>
+    <string name="tv_text_size_large">Grand</string>
+    <string name="tv_text_size_huge">Très grand</string>
+    <string name="tv_artwork_accent">Couleur tirée de la pochette</string>
+    <string name="tv_artwork_accent_desc">Teinte l\'interface avec les couleurs de la chanson en cours</string>
 </resources>

@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.TvHomeBackdrop
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
@@ -357,6 +358,10 @@ private fun HomeContent(
             modifier = Modifier.fillMaxSize(),
         ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val tvFocusedPreview = moe.rukamori.archivetune.ui.tv.LocalTvFocusedPreview.current
+                if (isTvLayout && tvFocusedPreview != null) {
+                    TvHomeBackdrop(tvFocusedPreview, mediaMetadata?.thumbnailUrl)
+                }
                 val allRemoteSections = uiState.homePage?.sections.orEmpty()
                 val (livePerformanceSections, otherRemoteSections) =
                     remember(allRemoteSections) {

@@ -18,6 +18,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvPreviewOnFocus
 import androidx.compose.foundation.LocalIndication
 import moe.rukamori.archivetune.ui.tv.LocalTvLayout
 import moe.rukamori.archivetune.ui.utils.resize
@@ -232,7 +233,7 @@ fun BitChordHeroCard(
                 .clip(RoundedCornerShape(BitChordHeroCardCorner))
                 .bitChordThumbnailBorder(RoundedCornerShape(BitChordHeroCardCorner))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .then(if (tv) Modifier.tvFocusTracker(tvFocus) else Modifier)
+                .then(if (tv) Modifier.tvPreviewOnFocus(artworkUrl).tvFocusTracker(tvFocus) else Modifier)
                 .combinedClickable(
                     interactionSource = null,
                     indication = if (tv) null else LocalIndication.current,
@@ -319,7 +320,7 @@ fun BitChordShelfCard(
                         Modifier
                     },
                 ).width(cardWidth)
-                .then(if (tv) Modifier.tvFocusTracker(tvFocus) else Modifier)
+                .then(if (tv) Modifier.tvPreviewOnFocus(artworkUrl).tvFocusTracker(tvFocus) else Modifier)
                 .combinedClickable(
                     interactionSource = null,
                     indication = if (tv) null else LocalIndication.current,

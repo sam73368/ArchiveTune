@@ -357,4 +357,12 @@
     <string name="tv_queue_remove">Remove</string>
     <string name="tv_text_entry_title">Type</string>
     <string name="tv_text_entry_confirm">Done</string>
+    <string name="tv_settings_group">TV</string>
+    <string name="tv_text_size">Text size</string>
+    <string name="tv_text_size_small">Small</string>
+    <string name="tv_text_size_normal">Normal</string>
+    <string name="tv_text_size_large">Large</string>
+    <string name="tv_text_size_huge">Very large</string>
+    <string name="tv_artwork_accent">Accent from artwork</string>
+    <string name="tv_artwork_accent_desc">Tint the interface with the colors of the song that is playing</string>
 </resources>

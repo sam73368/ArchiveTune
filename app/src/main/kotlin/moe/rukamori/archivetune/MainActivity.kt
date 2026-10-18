@@ -9,6 +9,9 @@
 
 package moe.rukamori.archivetune
 
+import coil3.request.allowHardware
+import coil3.toBitmap
+import moe.rukamori.archivetune.ui.theme.extractThemeColor
 import moe.rukamori.archivetune.ui.tv.tvTextEntry
 import moe.rukamori.archivetune.ui.component.TvFocusIndication
 import androidx.compose.ui.focus.focusRestorer
@@ -1197,7 +1200,41 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-            val themeColor = customThemeColor
+            val tvThemeDevice = remember { applicationContext.isTvDevice() }
+            val tvArtworkAccentEnabled by rememberPreference(moe.rukamori.archivetune.constants.TvArtworkAccentKey, defaultValue = false)
+            val tvAccentArtworkUrl =
+                (playerConnection?.mediaMetadata ?: kotlinx.coroutines.flow.MutableStateFlow(null))
+                    .collectAsState()
+                    .value
+                    ?.thumbnailUrl
+            var tvArtworkColor by remember { mutableStateOf<Color?>(null) }
+            LaunchedEffect(tvThemeDevice, tvArtworkAccentEnabled, tvAccentArtworkUrl) {
+                if (!tvThemeDevice || !tvArtworkAccentEnabled || tvAccentArtworkUrl == null) {
+                    tvArtworkColor = null
+                    return@LaunchedEffect
+                }
+                val bitmap =
+                    runCatching {
+                        coil3.SingletonImageLoader
+                            .get(this@MainActivity)
+                            .execute(
+                                ImageRequest
+                                    .Builder(this@MainActivity)
+                                    .data(tvAccentArtworkUrl)
+                                    .size(128, 128)
+                                    .allowHardware(false)
+                                    .build(),
+                            ).image
+                            ?.toBitmap()
+                    }.getOrNull()
+                if (bitmap != null) {
+                    tvArtworkColor =
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                            bitmap.extractThemeColor()
+                        }
+                }
+            }
+            val themeColor = if (tvThemeDevice && tvArtworkAccentEnabled) tvArtworkColor ?: customThemeColor else customThemeColor
 
             LaunchedEffect(legacyUseSystemFont) {
                 if (!legacyUseSystemFont) return@LaunchedEffect
@@ -1211,7 +1248,7 @@ class MainActivity : ComponentActivity() {
                 darkTheme = useDarkTheme,
                 pureBlack = pureBlack,
                 themeColor = themeColor,
-                seedPalette = customThemeSeedPalette,
+                seedPalette = if (tvThemeDevice && tvArtworkAccentEnabled && tvArtworkColor != null) null else customThemeSeedPalette,
                 disableAnimations = disableAnimations,
                 fontPreference = fontPreference,
                 customFontUri = customFontUri,
@@ -2294,6 +2331,7 @@ class MainActivity : ComponentActivity() {
                     var tvRootHasFocus by remember { mutableStateOf(false) }
                     var tvHideImeJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                     val tvRootView = androidx.compose.ui.platform.LocalView.current
+                    val tvTextScale by rememberPreference(moe.rukamori.archivetune.constants.TvTextScaleKey, defaultValue = 1f)
                     val tvTextEntryState = moe.rukamori.archivetune.ui.tv.rememberTvTextEntryState()
                     moe.rukamori.archivetune.ui.tv.TvTextEntryDialog(tvTextEntryState)
                     var tvLastInputAt by remember { mutableStateOf(android.os.SystemClock.uptimeMillis()) }
@@ -2574,6 +2612,15 @@ class MainActivity : ComponentActivity() {
                         // Remote control: a clear highlight on the focused item (Material's focus layer is
                         // almost invisible on a TV).
                         moe.rukamori.archivetune.ui.tv.LocalTvLayout provides isTvDevice,
+                        LocalDensity provides
+                            if (isTvDevice) {
+                                val baseDensity = LocalDensity.current
+                                androidx.compose.ui.unit.Density(baseDensity.density, baseDensity.fontScale * tvTextScale)
+                            } else {
+                                LocalDensity.current
+                            },
+                        moe.rukamori.archivetune.ui.tv.LocalTvFocusedPreview provides
+                            remember(isTvDevice) { if (isTvDevice) moe.rukamori.archivetune.ui.tv.TvFocusedPreview() else null },
                         LocalIndication provides
                             if (isTvDevice) {
                                 remember(tvFocusAccent) { TvFocusIndication(tvFocusAccent) }

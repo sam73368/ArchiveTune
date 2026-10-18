@@ -527,6 +527,9 @@ fun AppearanceSettings(
             }
 
             if (activeSection == "theme") {
+            if (moe.rukamori.archivetune.ui.tv.LocalTvLayout.current) {
+                TvAppearancePreferences()
+            }
             PreferenceGroup(
                 modifier = positions.modifierFor("dynamic_theme", "color_source"),
                 title = stringResource(R.string.theme),

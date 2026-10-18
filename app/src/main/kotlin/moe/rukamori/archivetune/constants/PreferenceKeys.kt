@@ -1649,3 +1649,7 @@ val VideoAspectRatioKey = stringPreferencesKey("videoAspectRatio")
 val RecommendationsEnabledKey = booleanPreferencesKey("recommendationsEnabled")
 
 val RecommendationRecencyWeightKey = floatPreferencesKey("recommendationRecencyWeight")
+
+val TvTextScaleKey = floatPreferencesKey("tvTextScale")
+
+val TvArtworkAccentKey = booleanPreferencesKey("tvArtworkAccent")
