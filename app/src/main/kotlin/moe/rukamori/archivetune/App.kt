@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune
 
+import moe.rukamori.archivetune.utils.isTelevision
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.Application
@@ -116,6 +117,7 @@ class App :
     override fun onCreate() {
         super.onCreate()
         instance = this
+        moe.rukamori.archivetune.utils.TvPerformance.isTelevision = isTelevision()
         if (currentProcessName()?.endsWith(":crash") == true) {
             Timber.plant(Timber.DebugTree())
             return

@@ -90,16 +90,7 @@ private fun TvAmbientContent() {
     val artwork = current.thumbnailUrl?.resize(720, 720, ytimgResizePolicy = YtimgResizePolicy.PreserveOriginal)
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        AsyncImage(
-            model = artwork,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = 0.45f }
-                    .blur(60.dp),
-        )
+        TvArtworkBackdrop(artworkUrl = current.thumbnailUrl, alpha = 0.45f, blurRadius = 60.dp)
         Box(
             modifier =
                 Modifier

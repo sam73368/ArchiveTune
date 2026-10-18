@@ -155,7 +155,10 @@ fun BottomSheetPage(
                             .tvMenuFocusTrap()
                             .padding(horizontal = 24.dp, vertical = 28.dp),
                 ) {
-                    state.content(this)
+                    val pageScope = this
+                    moe.rukamori.archivetune.ui.tv.TvTextEntryColumnHost {
+                        state.content(pageScope)
+                    }
                 }
             }
         }

@@ -164,7 +164,7 @@ object PreferenceStore {
 
 operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? {
     val snapshot = PreferenceStore.snapshot
-    if (snapshot != null) return snapshot[key]
+    if (snapshot != null) return TvPerformance.forced(key, snapshot) ?: snapshot[key]
 
     val loaded =
         runCatching {
@@ -178,7 +178,7 @@ operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? {
                 }
             }
         }.getOrNull()
-    return loaded?.get(key)
+    return TvPerformance.forced(key, loaded) ?: loaded?.get(key)
 }
 
 fun <T> DataStore<Preferences>.get(
@@ -212,12 +212,12 @@ fun <T> rememberPreference(
 ): MutableState<T> {
     val context = LocalContext.current
 
-    val initial = remember { PreferenceStore.get(key) ?: defaultValue }
+    val initial = remember { TvPerformance.forced(key, PreferenceStore.snapshot) ?: PreferenceStore.get(key) ?: defaultValue }
 
     val state =
         remember {
             context.dataStore.data
-                .map { it[key] ?: defaultValue }
+                .map { TvPerformance.forced(key, it) ?: it[key] ?: defaultValue }
                 .distinctUntilChanged()
         }.collectAsStateWithLifecycle(initialValue = initial)
 

@@ -165,9 +165,8 @@ fun SearchScreen(
         delay(250)
         if (searchQuery.trim() != query) return@LaunchedEffect
 
-        YouTube
-            .searchSuggestions(query)
-            .onSuccess { page ->
+        val suggestionPage = YouTube.searchSuggestions(query).getOrNull()
+        suggestionPage?.let { page ->
                 if (searchQuery.trim() == query) {
                     liveSuggestions =
                         SearchSuggestions(
@@ -180,7 +179,25 @@ fun SearchScreen(
                 }
             }
         if (searchProvider == SearchProvider.YOUTUBE) {
-            val topArtists =
+            val suggestedArtists =
+                suggestionPage
+                    ?.recommendedItems
+                    ?.filterIsInstance<ArtistItem>()
+                    .orEmpty()
+            val completedQuery =
+                suggestionPage
+                    ?.queries
+                    ?.firstOrNull()
+                    ?.trim()
+                    ?.takeIf { it.length > query.length && it.startsWith(query, ignoreCase = true) }
+            val completedArtists =
+                completedQuery
+                    ?.let { YouTube.search(it, YouTube.SearchFilter.FILTER_ARTIST).getOrNull() }
+                    ?.items
+                    ?.filterIsInstance<ArtistItem>()
+                    ?.take(2)
+                    .orEmpty()
+            val exactArtists =
                 YouTube
                     .search(query, YouTube.SearchFilter.FILTER_ARTIST)
                     .getOrNull()
@@ -188,6 +205,7 @@ fun SearchScreen(
                     ?.filterIsInstance<ArtistItem>()
                     ?.take(3)
                     .orEmpty()
+            val topArtists = (suggestedArtists + completedArtists + exactArtists).distinctBy { it.id }.take(4)
             YouTube
                 .searchSummary(query)
                 .onSuccess { page ->
@@ -304,14 +322,14 @@ fun SearchScreen(
                             ),
                         ),
             ) {
-                val recentsMaxHeight = maxHeight * RecentsHeightFraction
+                val recentsMaxHeight = if (isTvLayout) maxHeight - 40.dp else maxHeight * RecentsHeightFraction
 
                 Column(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 10.dp),
+                            .align(if (isTvLayout) Alignment.TopCenter else Alignment.BottomCenter)
+                            .padding(top = if (isTvLayout) 24.dp else 0.dp, bottom = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     if (searchQuery.isNotBlank()) {
@@ -336,6 +354,7 @@ fun SearchScreen(
                         )
                     }
 
+                    if (!isTvLayout) {
                     Spacer(Modifier.height(10.dp))
 
                     SearchTabBottomChrome(
@@ -352,6 +371,7 @@ fun SearchScreen(
                         searchProvider = searchProvider,
                         onSourceSelection = onSearchSourceSelection,
                     )
+                    }
                 }
             }
     }
@@ -502,7 +522,7 @@ private fun LiveSearchSuggestionsPanel(
                 summarySections.forEach { section ->
                     item(key = "summary_header_${section.title}") {
                         Text(
-                            text = section.title,
+                            text = if (section.title == "Top results") stringResource(R.string.top_results) else section.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,

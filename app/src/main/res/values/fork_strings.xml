@@ -369,4 +369,6 @@
     <string name="tv_settings_hint">▲ ▼ change category · ▶ enter · OK open · Back return</string>
     <string name="tv_code_sign_in">Sign in with a code</string>
     <string name="tv_code_sign_in_desc">Enter a short code on your phone, no typing on the TV</string>
+    <string name="tv_performance_mode">Performance mode</string>
+    <string name="tv_performance_mode_desc">Turns off blur, liquid glass and animated canvas videos so the remote stays smooth</string>
 </resources>

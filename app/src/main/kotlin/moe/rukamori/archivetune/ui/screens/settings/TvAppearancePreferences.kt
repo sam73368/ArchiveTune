@@ -16,6 +16,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.TvArtworkAccentKey
+import moe.rukamori.archivetune.constants.TvPerformanceModeKey
 import moe.rukamori.archivetune.constants.TvTextScaleKey
 import moe.rukamori.archivetune.ui.component.ListPreference
 import moe.rukamori.archivetune.ui.component.PreferenceGroup
@@ -28,6 +29,7 @@ private val TvTextScales = listOf(0.9f, 1f, 1.15f, 1.3f)
 fun TvAppearancePreferences() {
     var textScale by rememberPreference(TvTextScaleKey, defaultValue = 1f)
     var artworkAccent by rememberPreference(TvArtworkAccentKey, defaultValue = false)
+    var performanceMode by rememberPreference(TvPerformanceModeKey, defaultValue = true)
     val labels =
         listOf(
             stringResource(R.string.tv_text_size_small),
@@ -36,6 +38,15 @@ fun TvAppearancePreferences() {
             stringResource(R.string.tv_text_size_huge),
         )
     PreferenceGroup(title = stringResource(R.string.tv_settings_group)) {
+        item {
+            SwitchPreference(
+                title = { Text(stringResource(R.string.tv_performance_mode)) },
+                description = stringResource(R.string.tv_performance_mode_desc),
+                icon = { Icon(painterResource(R.drawable.speed), null) },
+                checked = performanceMode,
+                onCheckedChange = { performanceMode = it },
+            )
+        }
         item {
             ListPreference(
                 title = { Text(stringResource(R.string.tv_text_size)) },

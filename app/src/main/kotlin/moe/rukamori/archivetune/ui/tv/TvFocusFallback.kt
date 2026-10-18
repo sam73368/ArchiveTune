@@ -10,6 +10,7 @@ package moe.rukamori.archivetune.ui.tv
 import android.view.View
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -18,6 +19,7 @@ import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -37,11 +39,47 @@ import moe.rukamori.archivetune.utils.isTelevision
 
 val TvFocusScopeKey = SemanticsPropertyKey<Boolean>("TvFocusScope")
 
-fun Modifier.tvFocusScope(): Modifier = semantics { this[TvFocusScopeKey] = true }
+@Composable
+fun Modifier.tvFocusScope(): Modifier {
+    val holder = remember { booleanArrayOf(false) }
+    DisposableEffect(holder) {
+        onDispose {
+            if (holder[0]) {
+                holder[0] = false
+                TvFocusFallback.scopeFocusCount--
+            }
+        }
+    }
+    return semantics { this[TvFocusScopeKey] = true }
+        .onFocusChanged { state ->
+            if (state.hasFocus != holder[0]) {
+                holder[0] = state.hasFocus
+                TvFocusFallback.scopeFocusCount += if (state.hasFocus) 1 else -1
+            }
+        }
+}
 
 val TvFocusRailKey = SemanticsPropertyKey<Boolean>("TvFocusRail")
 
-fun Modifier.tvFocusRail(): Modifier = semantics { this[TvFocusRailKey] = true }
+@Composable
+fun Modifier.tvFocusRail(): Modifier {
+    val holder = remember { booleanArrayOf(false) }
+    DisposableEffect(holder) {
+        onDispose {
+            if (holder[0]) {
+                holder[0] = false
+                TvFocusFallback.railFocusCount--
+            }
+        }
+    }
+    return semantics { this[TvFocusRailKey] = true }
+        .onFocusChanged { state ->
+            if (state.hasFocus != holder[0]) {
+                holder[0] = state.hasFocus
+                TvFocusFallback.railFocusCount += if (state.hasFocus) 1 else -1
+            }
+        }
+}
 
 fun Modifier.tvNonFocusable(): Modifier = focusProperties { canFocus = false }
 
@@ -84,20 +122,19 @@ private class FocusSnapshot(
 )
 
 object TvFocusFallback {
+    var scopeFocusCount: Int = 0
+
+    var railFocusCount: Int = 0
+
+    val focusInScope: Boolean
+        get() = scopeFocusCount > 0
+
     fun handleKey(
         event: KeyEvent,
         view: View,
         focusManager: FocusManager,
-        onTextFieldFocused: () -> Unit = {},
     ): Boolean {
-        val handled = moveWithFallback(event, view, focusManager)
-        if (handled) {
-            val landed = runCatching { snapshot(view) }.getOrNull()?.focused
-            if (landed != null && landed.node.config.getOrNull(SemanticsActions.SetText) != null) {
-                onTextFieldFocused()
-            }
-        }
-        return handled
+        return moveWithFallback(event, view, focusManager)
     }
 
     fun focusedIsTextField(view: View): Boolean =
@@ -134,13 +171,22 @@ object TvFocusFallback {
                 Key.DirectionRight -> FocusDirection.Right
                 else -> return false
             }
+        if (!focusInScope) return focusManager.moveFocus(direction)
+        val vertical = direction == FocusDirection.Up || direction == FocusDirection.Down
+        if (!vertical) {
+            if (focusManager.moveFocus(direction)) return true
+            val stuck = runCatching { snapshot(view) }.getOrNull() ?: return false
+            if (!stuck.focusedInScope) return false
+            val from = stuck.focused ?: return false
+            val alternative = bestCandidate(from, stuck.scopeCandidates, direction) ?: return false
+            return requestFocus(alternative)
+        }
         val before = runCatching { snapshot(view) }.getOrNull()
         val moved = focusManager.moveFocus(direction)
         if (before == null || !before.focusedInScope) return moved
         val start = before.focused ?: return moved
-        val vertical = direction == FocusDirection.Up || direction == FocusDirection.Down
         if (moved) {
-            if (!vertical) return true
+            if (railFocusCount <= 0) return true
             val after = runCatching { snapshot(view) }.getOrNull() ?: return true
             if (after.focused == null || after.focusedInScope || !after.focusedInRail) return true
             val alternative = bestCandidate(start, after.scopeCandidates, direction)
@@ -161,6 +207,8 @@ object TvFocusFallback {
 
     private fun snapshot(view: View): FocusSnapshot? {
         val owner = (view as? ViewRootForTest)?.semanticsOwner ?: return null
+        val rootNode = owner.unmergedRootSemanticsNode
+        val rootBounds = rootNode.boundsInRoot
         var focused: FocusCandidate? = null
         var focusedInScope = false
         var focusedInRail = false
@@ -189,9 +237,11 @@ object TvFocusFallback {
                     }
                 }
             }
+            val nodeBounds = node.boundsInRoot
+            if (node !== rootNode && !nodeBounds.overlaps(rootBounds)) return
             node.children.forEach { walk(it, scoped, railed) }
         }
-        walk(owner.unmergedRootSemanticsNode, false, false)
+        walk(rootNode, false, false)
         return FocusSnapshot(focused, focusedInScope, focusedInRail, candidates)
     }
 

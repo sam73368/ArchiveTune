@@ -122,6 +122,7 @@ fun TvPlayerContent(
     var lyricsVisible by rememberSaveable { mutableStateOf(true) }
     val playFocus = remember { FocusRequester() }
     var lyricsBrowsing by remember { mutableStateOf(false) }
+    val tvPerformance = rememberTvPerformanceMode()
 
     LaunchedEffect(expanded) {
         if (expanded) {
@@ -138,15 +139,10 @@ fun TvPlayerContent(
                 .fillMaxSize()
                 .background(TvTokens.Background),
     ) {
-        AsyncImage(
-            model = mediaMetadata.thumbnailUrl?.resize(640, 640, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.55f else 0.22f }
-                    .blur(80.dp),
+        TvArtworkBackdrop(
+            artworkUrl = mediaMetadata.thumbnailUrl,
+            alpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || tvPerformance) 0.55f else 0.22f,
+            blurRadius = 80.dp,
         )
         Box(
             modifier =
@@ -370,13 +366,18 @@ fun TvPlayerContent(
                                 )
                             }
                         }
-                        LyricsEnhanced(
-                            sliderPositionProvider = sliderPositionProvider,
-                            lyricsSyncOffset = lyricsSyncOffset,
-                            textColorOverride = Color.White,
-                            browseMode = lyricsBrowsing,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                        androidx.compose.runtime.CompositionLocalProvider(
+                            moe.rukamori.archivetune.LocalAnimationsDisabled provides
+                                (tvPerformance || moe.rukamori.archivetune.LocalAnimationsDisabled.current),
+                        ) {
+                            LyricsEnhanced(
+                                sliderPositionProvider = sliderPositionProvider,
+                                lyricsSyncOffset = lyricsSyncOffset,
+                                textColorOverride = Color.White,
+                                browseMode = lyricsBrowsing,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                 }
             }

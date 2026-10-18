@@ -45,12 +45,16 @@ class TvTextEntryState {
 fun rememberTvTextEntryState(): TvTextEntryState = remember { TvTextEntryState() }
 
 @Composable
-fun Modifier.tvTextEntry(state: TvTextEntryState): Modifier {
+fun Modifier.tvTextEntry(
+    state: TvTextEntryState,
+    onlyInFocusScope: Boolean = false,
+): Modifier {
     if (!LocalTvLayout.current) return this
     val view = LocalView.current
     return onPreviewKeyEvent { event ->
         val confirmKey = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
         if (!confirmKey || state.target != null) return@onPreviewKeyEvent false
+        if (onlyInFocusScope && !TvFocusFallback.focusInScope) return@onPreviewKeyEvent false
         val field = TvFocusFallback.focusedTextField(view) ?: return@onPreviewKeyEvent false
         if (event.type == KeyEventType.KeyUp) state.target = field
         true

@@ -1187,7 +1187,7 @@ fun BottomSheetPlayer(
     val chosenClips by UserChosenClips.ids.collectAsStateWithLifecycle()
     val videoMediaId =
         mediaMetadata
-            ?.takeIf { enableVideoPlayback && (!hideMusicVideos || it.id in chosenClips) && it.isMusicVideo == true && !it.id.isLocalMediaId() }
+            ?.takeIf { !isTelevision && enableVideoPlayback && (!hideMusicVideos || it.id in chosenClips) && it.isMusicVideo == true && !it.id.isLocalMediaId() }
             ?.id
 
     var videoQualityStored by rememberPreference(VideoQualityPreferredHeightKey, VideoQualityPreference.HIGH_QUALITY)
@@ -1433,7 +1433,7 @@ fun BottomSheetPlayer(
             playerConnection.service.stopAndClearPlayback(clearPersistentState = true)
         },
         backHandlerEnabled = !aodModeEnabled && !isInlineLyricsOpen && !anyStylePageOverlayOpen,
-        keepContentAlive = true,
+        keepContentAlive = !isTelevision,
         morphMode = playerDesignStyle == PlayerDesignStyle.SPATIALFLOW,
         navbarHiddenOffset = navbarHiddenOffset,
         predictiveBackState = predictiveBackState,
@@ -1735,7 +1735,8 @@ fun BottomSheetPlayer(
                 Modifier
                     .fillMaxSize(),
         ) {
-        if (!state.isCollapsed &&
+        if (!isTelevision &&
+            !state.isCollapsed &&
             !aodModeEnabled &&
             playerDesignStyle != PlayerDesignStyle.V5 &&
             playerDesignStyle != PlayerDesignStyle.V7 &&

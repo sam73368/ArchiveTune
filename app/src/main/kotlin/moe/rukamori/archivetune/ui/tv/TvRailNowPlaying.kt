@@ -8,7 +8,7 @@
 package moe.rukamori.archivetune.ui.tv
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -88,15 +89,7 @@ fun TvRailNowPlaying(
                 .width(72.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color.White.copy(alpha = 0.06f))
-                .padding(vertical = 8.dp, horizontal = 6.dp)
-                .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
-                        queueOpen = true
-                        true
-                    } else {
-                        false
-                    }
-                },
+                .padding(vertical = 8.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -105,6 +98,7 @@ fun TvRailNowPlaying(
             corner = 10.dp,
             contentDescription = stringResource(R.string.tv_open_player),
             onClick = onOpenPlayer,
+            onLongClick = { queueOpen = true },
         ) {
             AsyncImage(
                 model = current.thumbnailUrl?.resize(160, 160, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
@@ -131,9 +125,9 @@ fun TvRailNowPlaying(
             Box(
                 modifier =
                     Modifier
-                        .fillMaxWidth(progress)
+                        .fillMaxWidth()
                         .height(3.dp)
-                        .background(accent),
+                        .drawBehind { drawRect(accent, size = size.copy(width = size.width * progress)) },
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -161,12 +155,14 @@ fun TvRailNowPlaying(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun TvRailNowPlayingButton(
     size: androidx.compose.ui.unit.Dp,
     corner: androidx.compose.ui.unit.Dp,
     contentDescription: String?,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable (Color) -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -183,11 +179,12 @@ private fun TvRailNowPlayingButton(
                 .clip(RoundedCornerShape(corner))
                 .background(if (focused) TvTokens.OnSurface else TvTokens.OnSurface.copy(alpha = 0.1f))
                 .onFocusChanged { focused = it.isFocused }
-                .clickable(
+                .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClickLabel = contentDescription,
                     onClick = onClick,
+                    onLongClick = onLongClick,
                 ),
         contentAlignment = Alignment.Center,
     ) {

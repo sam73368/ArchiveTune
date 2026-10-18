@@ -158,4 +158,6 @@
     <string name="tv_settings_hint">▲ ▼ change de catégorie · ▶ entre dedans · OK ouvre · Retour revient</string>
     <string name="tv_code_sign_in">Se connecter avec un code</string>
     <string name="tv_code_sign_in_desc">Entre un code court sur ton téléphone, sans rien taper sur la télé</string>
+    <string name="tv_performance_mode">Mode performance</string>
+    <string name="tv_performance_mode_desc">Coupe le flou, le verre liquide et les vidéos canvas animées pour que la télécommande reste fluide</string>
 </resources>

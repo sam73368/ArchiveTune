@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune
 
+import androidx.compose.foundation.layout.ime
 import coil3.request.allowHardware
 import coil3.toBitmap
 import moe.rukamori.archivetune.ui.theme.extractThemeColor
@@ -2331,8 +2332,19 @@ class MainActivity : ComponentActivity() {
 
                     var tvRailHasFocus by remember { mutableStateOf(false) }
                     var tvRootHasFocus by remember { mutableStateOf(false) }
-                    var tvHideImeJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                     val tvRootView = androidx.compose.ui.platform.LocalView.current
+                    var tvLastConfirmAt by remember { mutableStateOf(0L) }
+                    val tvImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+                    LaunchedEffect(isTvDevice, tvImeVisible) {
+                        if (!isTvDevice || !tvImeVisible) return@LaunchedEffect
+                        if (android.os.SystemClock.uptimeMillis() - tvLastConfirmAt < 800L) return@LaunchedEffect
+                        val imm =
+                            tvRootView.context.getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+                        repeat(4) {
+                            imm?.hideSoftInputFromWindow(tvRootView.windowToken, 0)
+                            delay(90)
+                        }
+                    }
                     val tvTextEntryState = moe.rukamori.archivetune.ui.tv.rememberTvTextEntryState()
                     moe.rukamori.archivetune.ui.tv.TvTextEntryDialog(tvTextEntryState)
                     var tvLastInputAt by remember { mutableStateOf(android.os.SystemClock.uptimeMillis()) }
@@ -2630,9 +2642,12 @@ class MainActivity : ComponentActivity() {
                                       if (isTvDevice) {
                                           Modifier
                                                         .onFocusChanged { tvRootHasFocus = it.hasFocus }
-                                              .tvTextEntry(tvTextEntryState)
+                                              .tvTextEntry(tvTextEntryState, onlyInFocusScope = true)
                                               .onPreviewKeyEvent { event ->
                                                   tvLastInputAt = android.os.SystemClock.uptimeMillis()
+                                                  if (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter) {
+                                                      tvLastConfirmAt = tvLastInputAt
+                                                  }
                                                   val keyDown = event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown
                                                   if (tvAmbientVisible) {
                                                       if (keyDown) {
@@ -2649,7 +2664,7 @@ class MainActivity : ComponentActivity() {
                                                       return@onPreviewKeyEvent true
                                                   }
                                                   val digitSlot = moe.rukamori.archivetune.ui.tv.TvRemoteShortcuts.digitSlot(event)
-                                                  if (digitSlot != null && !moe.rukamori.archivetune.ui.tv.TvFocusFallback.focusedIsTextField(tvRootView)) {
+                                                  if (digitSlot != null && !(moe.rukamori.archivetune.ui.tv.TvFocusFallback.focusInScope && moe.rukamori.archivetune.ui.tv.TvFocusFallback.focusedIsTextField(tvRootView))) {
                                                       val target = tvShortcutPlaylists.getOrNull(digitSlot)
                                                       if (target != null) {
                                                           if (keyDown) {
@@ -2668,6 +2683,7 @@ class MainActivity : ComponentActivity() {
                                                   }
                                                   if (
                                                       (event.key == Key.DirectionUp || event.key == Key.DirectionDown) &&
+                                                      moe.rukamori.archivetune.ui.tv.TvFocusFallback.focusInScope &&
                                                       moe.rukamori.archivetune.ui.tv.TvFocusFallback.focusedIsTextField(tvRootView)
                                                   ) {
                                                       moe.rukamori.archivetune.ui.tv.TvFocusFallback
@@ -2678,20 +2694,7 @@ class MainActivity : ComponentActivity() {
                                               }
                                               .onKeyEvent { event ->
                                                   moe.rukamori.archivetune.ui.tv.TvFocusFallback
-                                                      .handleKey(event, tvRootView, focusManager) {
-                                                          tvHideImeJob?.cancel()
-                                                          tvHideImeJob =
-                                                              coroutineScope.launch {
-                                                                  val imm =
-                                                                      tvRootView.context.getSystemService(
-                                                                          android.view.inputmethod.InputMethodManager::class.java,
-                                                                      )
-                                                                  repeat(6) {
-                                                                      imm?.hideSoftInputFromWindow(tvRootView.windowToken, 0)
-                                                                      delay(90)
-                                                                  }
-                                                              }
-                                                      }
+                                                      .handleKey(event, tvRootView, focusManager)
                                               }
                                       } else {
                                           Modifier

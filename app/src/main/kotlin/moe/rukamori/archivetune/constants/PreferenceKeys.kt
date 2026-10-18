@@ -1653,3 +1653,5 @@ val RecommendationRecencyWeightKey = floatPreferencesKey("recommendationRecencyW
 val TvTextScaleKey = floatPreferencesKey("tvTextScale")
 
 val TvArtworkAccentKey = booleanPreferencesKey("tvArtworkAccent")
+
+val TvPerformanceModeKey = booleanPreferencesKey("tvPerformanceMode")
