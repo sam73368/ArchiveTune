@@ -363,16 +363,27 @@ fun AccountSettings(
 
                 item {
                     val browserRowVisible = !isLoggedIn
-                    val rowCount = (if (browserRowVisible) 1 else 0) + (if (hasOAuthSession) 1 else 0)
+                    val tvCodeRowVisible = !isLoggedIn && !hasOAuthSession && moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
+                    val rowCount = (if (tvCodeRowVisible) 1 else 0) + (if (browserRowVisible) 1 else 0) + (if (hasOAuthSession) 1 else 0)
                     if (rowCount > 0) {
                         ExpressiveSectionCard(title = loginLabel) {
+                            if (tvCodeRowVisible) {
+                                ExpressiveActionRow(
+                                    icon = painterResource(R.drawable.token),
+                                    title = stringResource(R.string.tv_code_sign_in),
+                                    subtitle = stringResource(R.string.tv_code_sign_in_desc),
+                                    onClick = { navController.navigate(YOUTUBE_OAUTH_ROUTE) },
+                                    index = 0,
+                                    count = rowCount,
+                                )
+                            }
                             if (browserRowVisible) {
                                 ExpressiveActionRow(
                                     icon = painterResource(R.drawable.login),
                                     title = stringResource(R.string.yt_browser_sign_in),
                                     subtitle = stringResource(R.string.yt_browser_sign_in_desc),
                                     onClick = { navController.navigate(buildLoginRoute()) },
-                                    index = 0,
+                                    index = if (tvCodeRowVisible) 1 else 0,
                                     count = rowCount,
                                 )
                             }

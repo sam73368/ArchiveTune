@@ -156,4 +156,6 @@
     <string name="tv_artwork_accent_desc">Teinte l\'interface avec les couleurs de la chanson en cours</string>
     <string name="tv_settings_open_all">Ouvrir tous les réglages</string>
     <string name="tv_settings_hint">▲ ▼ change de catégorie · ▶ entre dedans · OK ouvre · Retour revient</string>
+    <string name="tv_code_sign_in">Se connecter avec un code</string>
+    <string name="tv_code_sign_in_desc">Entre un code court sur ton téléphone, sans rien taper sur la télé</string>
 </resources>

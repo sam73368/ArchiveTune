@@ -367,4 +367,6 @@
     <string name="tv_artwork_accent_desc">Tint the interface with the colors of the song that is playing</string>
     <string name="tv_settings_open_all">Open all settings</string>
     <string name="tv_settings_hint">▲ ▼ change category · ▶ enter · OK open · Back return</string>
+    <string name="tv_code_sign_in">Sign in with a code</string>
+    <string name="tv_code_sign_in_desc">Enter a short code on your phone, no typing on the TV</string>
 </resources>
