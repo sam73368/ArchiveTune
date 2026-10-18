@@ -244,6 +244,7 @@ fun LyricsEnhanced(
     singleActiveLine: Boolean = false,
     translationVisibleOverride: Boolean? = null,
     phoneticVisibleOverride: Boolean? = null,
+    browseMode: Boolean = false,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val player = playerConnection.player
@@ -825,6 +826,13 @@ fun LyricsEnhanced(
         }
     }
 
+    LaunchedEffect(browseMode, isManualScrolling) {
+        if (browseMode && !isManualScrolling) {
+            isManualScrolling = true
+            lastManualScrollTime = System.currentTimeMillis()
+        }
+    }
+
     val onLyricsScroll = LocalLyricsScrollListener.current
     LaunchedEffect(isManualScrolling) {
         onLyricsScroll(isManualScrolling)
@@ -863,6 +871,12 @@ fun LyricsEnhanced(
     }
 
     var resyncRequests by remember { mutableIntStateOf(0) }
+    LaunchedEffect(browseMode) {
+        if (!browseMode && isManualScrolling) {
+            isManualScrolling = false
+            resyncRequests++
+        }
+    }
     // Line to bring back to the anchor (a tapped line); -1 = the sung line.
     var resyncTarget by remember { mutableIntStateOf(-1) }
     val resyncHandled = remember { intArrayOf(0) }

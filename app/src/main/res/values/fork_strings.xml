@@ -343,4 +343,16 @@
     <string name="tv_voice_listening">Listening… speak now</string>
     <string name="tv_voice_starting">Starting the microphone…</string>
     <string name="tv_voice_hint">Back: cancel</string>
+    <string name="tv_open_player">Open the player</string>
+    <string name="tv_up_next">Up next</string>
+    <string name="tv_up_next_empty">Nothing queued after this song</string>
+    <string name="tv_lyrics_browse_hint">OK: jump to this line · ◀ or Back: follow the song again</string>
+    <string name="tv_queue_count">%1$d songs</string>
+    <string name="tv_queue_autoplay">Autoplay</string>
+    <string name="tv_queue_hint">OK: play · hold OK: play next, move, remove · Back: close</string>
+    <string name="tv_queue_move_hint">▲ ▼ move the song · OK or Back: done</string>
+    <string name="tv_queue_move_shuffle">Turn shuffle off to reorder the queue</string>
+    <string name="tv_queue_play_next">Play next</string>
+    <string name="tv_queue_move">Move</string>
+    <string name="tv_queue_remove">Remove</string>
 </resources>

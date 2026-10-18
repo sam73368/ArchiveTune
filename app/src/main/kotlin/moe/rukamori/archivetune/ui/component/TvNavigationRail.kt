@@ -67,6 +67,7 @@ fun TvNavigationRail(
     contentFocusRequester: FocusRequester? = null,
     settingsSelected: Boolean = false,
     onSettingsClick: (() -> Unit)? = null,
+    nowPlaying: (@Composable () -> Unit)? = null,
     onItemClick: (Screens) -> Unit,
 ) {
     LaunchedEffect(firstItemFocusRequester) {
@@ -134,8 +135,11 @@ fun TvNavigationRail(
                 onClick = { onItemClick(screen) },
             )
         }
+        Spacer(Modifier.weight(1f))
+        if (nowPlaying != null) {
+            nowPlaying()
+        }
         if (onSettingsClick != null) {
-            Spacer(Modifier.weight(1f))
             TvNavigationRailItem(
                 iconRes = R.drawable.settings,
                 label = stringResource(R.string.settings),

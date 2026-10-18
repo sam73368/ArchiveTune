@@ -113,6 +113,7 @@ fun TvPlayerContent(
     val repeatMode by playerConnection.repeatMode.collectAsState()
     var lyricsVisible by rememberSaveable { mutableStateOf(true) }
     val playFocus = remember { FocusRequester() }
+    var lyricsBrowsing by remember { mutableStateOf(false) }
 
     LaunchedEffect(expanded) {
         if (expanded) {
@@ -318,15 +319,57 @@ fun TvPlayerContent(
                             .weight(1f)
                             .fillMaxHeight()
                             .padding(top = 24.dp, end = 48.dp)
-                            .focusProperties { enter = { FocusRequester.Cancel } }
-                            .focusGroup(),
+                            .onPreviewKeyEvent { event ->
+                                if (event.key != Key.Back || !lyricsBrowsing) return@onPreviewKeyEvent false
+                                if (event.type == KeyEventType.KeyUp) {
+                                    lyricsBrowsing = false
+                                    runCatching { playFocus.requestFocus() }
+                                }
+                                true
+                            }.focusProperties {
+                                enter = {
+                                    lyricsBrowsing = true
+                                    FocusRequester.Default
+                                }
+                                exit = {
+                                    lyricsBrowsing = false
+                                    FocusRequester.Default
+                                }
+                            }.focusGroup(),
                 ) {
-                    LyricsEnhanced(
-                        sliderPositionProvider = sliderPositionProvider,
-                        lyricsSyncOffset = lyricsSyncOffset,
-                        textColorOverride = Color.White,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        if (lyricsBrowsing) {
+                            Row(
+                                modifier = Modifier.padding(bottom = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                TvPillButton(
+                                    onClick = {
+                                        lyricsBrowsing = false
+                                        runCatching { playFocus.requestFocus() }
+                                    },
+                                    style = TvPillStyle.Primary,
+                                    height = 30.dp,
+                                    horizontalPadding = 14.dp,
+                                ) { color ->
+                                    Text(stringResource(R.string.lyrics_resync), style = TvTokens.Caption, color = color, maxLines = 1)
+                                }
+                                Text(
+                                    text = stringResource(R.string.tv_lyrics_browse_hint),
+                                    style = TvTokens.Caption,
+                                    color = TvTokens.OnSurfaceMuted,
+                                )
+                            }
+                        }
+                        LyricsEnhanced(
+                            sliderPositionProvider = sliderPositionProvider,
+                            lyricsSyncOffset = lyricsSyncOffset,
+                            textColorOverride = Color.White,
+                            browseMode = lyricsBrowsing,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }

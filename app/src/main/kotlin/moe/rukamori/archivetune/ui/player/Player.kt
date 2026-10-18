@@ -1464,7 +1464,9 @@ fun BottomSheetPlayer(
             } else {
                 null
             },
-        collapsedContent = {
+        collapsedFocusable = !isTelevision,
+        collapsedContent = collapsedPlayer@{
+            if (isTelevision) return@collapsedPlayer
             MiniPlayer(
                 positionProvider = positionProvider,
                 durationProvider = durationProvider,
@@ -1768,6 +1770,9 @@ fun BottomSheetPlayer(
 
         if (isTelevision) {
             enrichedMetadata?.let { metadata ->
+              var tvQueueOpen by remember { mutableStateOf(false) }
+              LaunchedEffect(state.isExpanded) { if (!state.isExpanded) tvQueueOpen = false }
+              Box(modifier = Modifier.fillMaxSize()) {
                 moe.rukamori.archivetune.ui.tv.TvPlayerContent(
                     mediaMetadata = metadata,
                     isPlaying = isPlaying,
@@ -1782,7 +1787,7 @@ fun BottomSheetPlayer(
                     expanded = state.isExpanded,
                     onSeek = onSliderValueChange,
                     onSeekFinished = onSliderValueChangeFinished,
-                    onQueue = openQueue,
+                    onQueue = { tvQueueOpen = true },
                     onMore = {
                         menuState.showImmersive {
                             PlayerMenu(
@@ -1800,6 +1805,31 @@ fun BottomSheetPlayer(
                     },
                     modifier = Modifier.fillMaxSize(),
                 )
+                if (tvQueueOpen) {
+                    moe.rukamori.archivetune.ui.tv.TvQueuePanel(
+                        onClose = {
+                            tvQueueOpen = false
+                            runCatching { focusRequester.requestFocus() }
+                        },
+                        onMoreOptions = { meta ->
+                            menuState.showImmersive {
+                                PlayerMenu(
+                                    mediaMetadata = meta,
+                                    navController = navController,
+                                    playerBottomSheetState = state,
+                                    onShowDetailsDialog = {
+                                        bottomSheetPageState.show {
+                                            ShowMediaInfo(meta.id)
+                                        }
+                                    },
+                                    onDismiss = menuState::dismiss,
+                                )
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                    )
+                }
+              }
             }
         } else when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {

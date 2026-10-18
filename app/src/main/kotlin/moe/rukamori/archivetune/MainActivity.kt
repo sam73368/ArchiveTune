@@ -1823,12 +1823,15 @@ class MainActivity : ComponentActivity() {
                         rememberBottomSheetState(
                             dismissedBound = 0.dp,
                             collapsedBound =
-                                bottomInset +
-
-                                    (if (!useRail) floatingBarsBottomPadding else 0.dp) +
-                                    getBottomNavPadding() +
-                                    MiniPlayerBottomSpacing +
-                                    MiniPlayerHeight,
+                                if (isTvDevice) {
+                                    1.dp
+                                } else {
+                                    bottomInset +
+                                        (if (!useRail) floatingBarsBottomPadding else 0.dp) +
+                                        getBottomNavPadding() +
+                                        MiniPlayerBottomSpacing +
+                                        MiniPlayerHeight
+                                },
                             expandedBound = maxHeight,
                         )
 
@@ -2103,7 +2106,7 @@ class MainActivity : ComponentActivity() {
                                             compactStack,
                                             quantizedCompactFraction,
                                         )
-                                } else {
+                                } else if (!isTvDevice) {
                                     bottom += MiniPlayerHeight + MiniPlayerBottomSpacing
                                 }
                             } else if (shouldShowNavigationBar && !useRail) {
@@ -2638,6 +2641,11 @@ class MainActivity : ComponentActivity() {
                                                 contentAreaFocusRequester
                                             },
                                         settingsSelected = navBackStackEntry?.destination?.route?.startsWith("settings") == true,
+                                        nowPlaying = {
+                                            moe.rukamori.archivetune.ui.tv.TvRailNowPlaying(
+                                                onOpenPlayer = { playerBottomSheetState.expandSoft() },
+                                            )
+                                        },
                                         onSettingsClick = {
                                             if (playerBottomSheetState.isExpanded) {
                                                 playerBottomSheetState.collapse(if (disableAnimations) snap() else spring())

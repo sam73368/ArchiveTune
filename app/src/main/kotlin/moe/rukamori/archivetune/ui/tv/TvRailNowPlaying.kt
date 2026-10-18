@@ -1,0 +1,294 @@
+/*
+ * ArchiveTune (2026)
+ * © Rukamori — github.com/rukamori
+ * GPL-3.0 License | Contributors: see git history
+ * Do not remove or alter this notice. - Per GPL-3.0 Section 4 & Section 5
+ */
+
+package moe.rukamori.archivetune.ui.tv
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import coil3.compose.AsyncImage
+import kotlinx.coroutines.delay
+import moe.rukamori.archivetune.LocalPlayerConnection
+import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.extensions.metadata
+import moe.rukamori.archivetune.extensions.togglePlayPause
+import moe.rukamori.archivetune.ui.utils.resize
+
+@Composable
+fun TvRailNowPlaying(
+    onOpenPlayer: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val metadata by playerConnection.mediaMetadata.collectAsState()
+    val isPlaying by playerConnection.isPlaying.collectAsState()
+    val current = metadata ?: return
+    val accent = MaterialTheme.colorScheme.primary
+    var progress by remember { mutableFloatStateOf(0f) }
+    var queueOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(current.id) {
+        while (true) {
+            val player = playerConnection.player
+            val duration = player.duration
+            progress = if (duration > 0) (player.currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f
+            delay(500)
+        }
+    }
+
+    Column(
+        modifier =
+            modifier
+                .width(72.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White.copy(alpha = 0.06f))
+                .padding(vertical = 8.dp, horizontal = 6.dp)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
+                        queueOpen = true
+                        true
+                    } else {
+                        false
+                    }
+                },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        TvRailNowPlayingButton(
+            size = 52.dp,
+            corner = 10.dp,
+            contentDescription = stringResource(R.string.tv_open_player),
+            onClick = onOpenPlayer,
+        ) {
+            AsyncImage(
+                model = current.thumbnailUrl?.resize(160, 160, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(52.dp),
+            )
+        }
+        Text(
+            text = current.title,
+            style = TvTokens.Caption,
+            color = TvTokens.OnSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(TvTokens.OnSurface.copy(alpha = 0.16f)),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(progress)
+                        .height(3.dp)
+                        .background(accent),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            TvRailNowPlayingButton(
+                size = 28.dp,
+                corner = 14.dp,
+                contentDescription = stringResource(if (isPlaying) R.string.tv_pause else R.string.tv_resume),
+                onClick = { playerConnection.player.togglePlayPause() },
+            ) { tint ->
+                Icon(painterResource(if (isPlaying) R.drawable.pause else R.drawable.play), null, tint = tint, modifier = Modifier.size(16.dp))
+            }
+            TvRailNowPlayingButton(
+                size = 28.dp,
+                corner = 14.dp,
+                contentDescription = null,
+                onClick = { playerConnection.seekToNext() },
+            ) { tint ->
+                Icon(painterResource(R.drawable.skip_next), null, tint = tint, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+
+    if (queueOpen) {
+        TvRailUpNextPopup(onDismiss = { queueOpen = false })
+    }
+}
+
+@Composable
+private fun TvRailNowPlayingButton(
+    size: androidx.compose.ui.unit.Dp,
+    corner: androidx.compose.ui.unit.Dp,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    content: @Composable (Color) -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val tint = if (focused) TvTokens.Background else TvTokens.OnSurface
+    Box(
+        modifier =
+            Modifier
+                .graphicsLayer {
+                    val s = if (focused) 1.12f else 1f
+                    scaleX = s
+                    scaleY = s
+                }.size(size)
+                .tvFocusRingSimple(focused, corner)
+                .clip(RoundedCornerShape(corner))
+                .background(if (focused) TvTokens.OnSurface else TvTokens.OnSurface.copy(alpha = 0.1f))
+                .onFocusChanged { focused = it.isFocused }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClickLabel = contentDescription,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        content(tint)
+    }
+}
+
+@Composable
+private fun TvRailUpNextPopup(onDismiss: () -> Unit) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val windows by playerConnection.queueWindows.collectAsState()
+    val currentIndex by playerConnection.currentWindowIndex.collectAsState()
+    val upNext = remember(windows, currentIndex) { windows.drop(currentIndex + 1).take(5) }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(upNext.isNotEmpty()) {
+        repeat(6) {
+            delay(60)
+            if (runCatching { firstFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+        }
+    }
+    Popup(
+        alignment = Alignment.BottomStart,
+        offset = IntOffset(170, -40),
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .width(320.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(TvTokens.Surface)
+                    .padding(12.dp)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft) {
+                            onDismiss()
+                            true
+                        } else {
+                            false
+                        }
+                    },
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(stringResource(R.string.tv_up_next), style = TvTokens.Overline, color = TvTokens.OnSurfaceMuted)
+            if (upNext.isEmpty()) {
+                Text(stringResource(R.string.tv_up_next_empty), style = TvTokens.Body, color = TvTokens.OnSurfaceMuted)
+            }
+            upNext.forEachIndexed { index, window ->
+                val item = window.mediaItem.metadata
+                var focused by remember { mutableStateOf(false) }
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .then(if (index == 0) Modifier.focusRequester(firstFocus) else Modifier)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (focused) TvTokens.OnSurface else Color.Transparent)
+                            .onFocusChanged { focused = it.isFocused }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                playerConnection.player.seekToDefaultPosition(window.firstPeriodIndex)
+                                playerConnection.player.play()
+                                onDismiss()
+                            }.padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    AsyncImage(
+                        model = item?.thumbnailUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(6.dp)),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item?.title.orEmpty(),
+                            style = TvTokens.BodyBold,
+                            color = if (focused) TvTokens.Background else TvTokens.OnSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = item?.artists?.joinToString { it.name }.orEmpty(),
+                            style = TvTokens.Caption,
+                            color = if (focused) TvTokens.Background.copy(alpha = 0.7f) else TvTokens.OnSurfaceMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun Modifier.tvFocusRingSimple(
+    focused: Boolean,
+    corner: androidx.compose.ui.unit.Dp,
+): Modifier {
+    val state = TvFocusState().also { it.focused = focused }
+    return tvFocusRing(state, corner, 2.dp)
+}
