@@ -201,7 +201,10 @@ fun SearchScreen(
 
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val isTvLayout = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
+    val tvKeyboardFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) {
+        if (isTvLayout) return@LaunchedEffect
         var attempt = 0
         while (attempt < 3) {
             delay(if (attempt == 0) 120L else 220L)
@@ -214,9 +217,20 @@ fun SearchScreen(
 
     val barState = rememberSearchResultsBarState()
 
+    androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxSize()) {
+    if (isTvLayout) {
+        moe.rukamori.archivetune.ui.tv.TvSearchKeyboard(
+            focusRequester = tvKeyboardFocus,
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            onSearch = { text -> if (text.isNotBlank()) onSearchQuery(text.trim()) },
+            onVoiceSearch = onVoiceSearch,
+        )
+    }
     Box(
         modifier =
             Modifier
+                .weight(1f)
                 .fillMaxSize()
                 .let { m -> if (searchHazeState != null) m.hazeSource(searchHazeState) else m }
                 .then(
@@ -298,6 +312,7 @@ fun SearchScreen(
                     )
                 }
             }
+    }
     }
 }
 
