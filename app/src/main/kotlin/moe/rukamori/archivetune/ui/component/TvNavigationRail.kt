@@ -123,7 +123,9 @@ fun TvNavigationRail(
                 modifier =
                     Modifier
                         .then(
-                            if (index == 0 && firstItemFocusRequester != null) {
+                            if (firstItemFocusRequester != null &&
+                                (selected || (index == 0 && items.none { it.route == selectedItemRoute }))
+                            ) {
                                 Modifier.focusRequester(firstItemFocusRequester)
                             } else {
                                 Modifier

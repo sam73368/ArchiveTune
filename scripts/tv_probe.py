@@ -14,10 +14,11 @@ def adb(*args):
 
 
 def key(code, wait=1.2, longpress=False):
+    source = "dpad" if "DPAD" in code else "keyboard"
     if longpress:
-        adb("shell", "input", "keyevent", "--longpress", code)
+        adb("shell", "input", source, "keyevent", "--longpress", code)
     else:
-        adb("shell", "input", "keyevent", code)
+        adb("shell", "input", source, "keyevent", code)
     time.sleep(wait)
 
 

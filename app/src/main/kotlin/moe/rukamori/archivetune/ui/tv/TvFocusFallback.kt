@@ -93,6 +93,14 @@ object TvFocusFallback {
         return handled
     }
 
+    fun focusedIsTextField(view: View): Boolean =
+        runCatching { snapshot(view) }
+            .getOrNull()
+            ?.focused
+            ?.node
+            ?.config
+            ?.getOrNull(SemanticsActions.SetText) != null
+
     private fun moveWithFallback(
         event: KeyEvent,
         view: View,

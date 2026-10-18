@@ -148,6 +148,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
 import moe.rukamori.archivetune.ui.tv.tvFocusScope
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.luminance
@@ -2227,10 +2230,11 @@ class MainActivity : ComponentActivity() {
                             useRail &&
                             shouldShowNavigationBar &&
                             !active &&
-                            currentRoute in topLevelScreens
+                            currentRoute in topLevelScreens &&
+                            currentRoute != Screens.Search.route
                         ) {
                             delay(100)
-                            tvRailFocusRequester.requestFocus()
+                            runCatching { tvRailFocusRequester.requestFocus() }
                         }
                     }
 
@@ -2506,7 +2510,18 @@ class MainActivity : ComponentActivity() {
                                   .then(
                                       if (isTvDevice) {
                                           Modifier
-                                              .onFocusChanged { tvRootHasFocus = it.hasFocus }
+                                                        .onFocusChanged { tvRootHasFocus = it.hasFocus }
+                                              .onPreviewKeyEvent { event ->
+                                                  if (
+                                                      (event.key == Key.DirectionUp || event.key == Key.DirectionDown) &&
+                                                      moe.rukamori.archivetune.ui.tv.TvFocusFallback.focusedIsTextField(tvRootView)
+                                                  ) {
+                                                      moe.rukamori.archivetune.ui.tv.TvFocusFallback
+                                                          .handleKey(event, tvRootView, focusManager)
+                                                  } else {
+                                                      false
+                                                  }
+                                              }
                                               .onKeyEvent { event ->
                                                   moe.rukamori.archivetune.ui.tv.TvFocusFallback
                                                       .handleKey(event, tvRootView, focusManager) {
