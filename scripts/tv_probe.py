@@ -112,96 +112,99 @@ if has_any(xml, ["Install now"]):
     key("KEYCODE_BACK", 2)
     snap("home_after_update")
 
-# Settings: rail -> settings -> Appearance -> scroll down
-for i in range(3):
+if os.environ.get("PROBE_FOCUS") != "player":
+    # Settings: rail -> settings -> Appearance -> scroll down
+    for i in range(3):
+        key("KEYCODE_DPAD_DOWN")
+    key("KEYCODE_DPAD_CENTER", 4)
+    snap("settings_open")
+    key("KEYCODE_DPAD_RIGHT")
+    snap("settings_right")
+    walk_until("KEYCODE_DPAD_DOWN", ["Appearance"], 8, "to_appearance")
+    key("KEYCODE_DPAD_CENTER", 4)
+    snap("appearance_open")
+    for i in range(10):
+        key("KEYCODE_DPAD_DOWN", 0.9)
+        snap(f"appearance_down_{i}")
+    for i in range(4):
+        key("KEYCODE_DPAD_UP", 0.9)
+        snap(f"appearance_up_{i}")
+    key("KEYCODE_BACK", 3)
+    snap("back_to_settings")
+    walk_until("KEYCODE_DPAD_DOWN", ["Lyrics"], 12, "to_lyrics")
+    key("KEYCODE_DPAD_CENTER", 4)
+    snap("lyrics_open")
+    for i in range(6):
+        key("KEYCODE_DPAD_DOWN", 0.9)
+        snap(f"lyrics_down_{i}")
+    key("KEYCODE_BACK", 3)
+    key("KEYCODE_BACK", 3)
+    snap("back_home")
+
+    # Library
     key("KEYCODE_DPAD_DOWN")
-key("KEYCODE_DPAD_CENTER", 4)
-snap("settings_open")
-key("KEYCODE_DPAD_RIGHT")
-snap("settings_right")
-walk_until("KEYCODE_DPAD_DOWN", ["Appearance"], 8, "to_appearance")
-key("KEYCODE_DPAD_CENTER", 4)
-snap("appearance_open")
-for i in range(10):
-    key("KEYCODE_DPAD_DOWN", 0.9)
-    snap(f"appearance_down_{i}")
-for i in range(4):
-    key("KEYCODE_DPAD_UP", 0.9)
-    snap(f"appearance_up_{i}")
-key("KEYCODE_BACK", 3)
-snap("back_to_settings")
-walk_until("KEYCODE_DPAD_DOWN", ["Lyrics"], 12, "to_lyrics")
-key("KEYCODE_DPAD_CENTER", 4)
-snap("lyrics_open")
-for i in range(6):
-    key("KEYCODE_DPAD_DOWN", 0.9)
-    snap(f"lyrics_down_{i}")
-key("KEYCODE_BACK", 3)
-key("KEYCODE_BACK", 3)
-snap("back_home")
+    key("KEYCODE_DPAD_DOWN")
+    key("KEYCODE_DPAD_CENTER", 4)
+    snap("library_open")
+    key("KEYCODE_DPAD_RIGHT")
+    snap("library_right")
+    for i in range(6):
+        key("KEYCODE_DPAD_DOWN", 0.9)
+        snap(f"library_down_{i}")
+    for i in range(3):
+        key("KEYCODE_DPAD_RIGHT", 0.9)
+        snap(f"library_right_{i}")
 
-# Library
-key("KEYCODE_DPAD_DOWN")
-key("KEYCODE_DPAD_DOWN")
-key("KEYCODE_DPAD_CENTER", 4)
-snap("library_open")
-key("KEYCODE_DPAD_RIGHT")
-snap("library_right")
-for i in range(6):
-    key("KEYCODE_DPAD_DOWN", 0.9)
-    snap(f"library_down_{i}")
-for i in range(3):
+    # Search with the on-screen keyboard
+    for i in range(8):
+        key("KEYCODE_DPAD_LEFT", 0.6)
+    for i in range(4):
+        key("KEYCODE_DPAD_UP", 0.6)
+    xml = snap("rail_reset")
+    key("KEYCODE_DPAD_DOWN")
+    key("KEYCODE_DPAD_CENTER", 4)
+    snap("search_open")
+    rows = ["ABCDEF", "GHIJKL", "MNOPQR", "STUVWX", "YZ'-&.", "123456", "7890ÉÈ"]
+    pos = [0, 0]
+
+
+    def type_char(ch):
+        for r, row in enumerate(rows):
+            if ch in row:
+                c = row.index(ch)
+                break
+        while pos[0] < r:
+            key("KEYCODE_DPAD_DOWN", 0.5); pos[0] += 1
+        while pos[0] > r:
+            key("KEYCODE_DPAD_UP", 0.5); pos[0] -= 1
+        while pos[1] < c:
+            key("KEYCODE_DPAD_RIGHT", 0.5); pos[1] += 1
+        while pos[1] > c:
+            key("KEYCODE_DPAD_LEFT", 0.5); pos[1] -= 1
+        key("KEYCODE_DPAD_CENTER", 0.7)
+
+
+    for ch in "EMINEM":
+        type_char(ch)
+    snap("search_typed")
+    xml = walk_until("KEYCODE_DPAD_DOWN", ["Search"], 6, "to_search_key")
+    key("KEYCODE_DPAD_CENTER", 8)
+    snap("search_results")
+    for i in range(6):
+        key("KEYCODE_DPAD_DOWN", 0.9)
+        snap(f"results_down_{i}")
     key("KEYCODE_DPAD_RIGHT", 0.9)
-    snap(f"library_right_{i}")
-
-# Search with the on-screen keyboard
-for i in range(8):
-    key("KEYCODE_DPAD_LEFT", 0.6)
-for i in range(4):
-    key("KEYCODE_DPAD_UP", 0.6)
-xml = snap("rail_reset")
-key("KEYCODE_DPAD_DOWN")
-key("KEYCODE_DPAD_CENTER", 4)
-snap("search_open")
-rows = ["ABCDEF", "GHIJKL", "MNOPQR", "STUVWX", "YZ'-&.", "123456", "7890ÉÈ"]
-pos = [0, 0]
+    snap("results_right")
+    key("KEYCODE_BACK", 3)
+    key("KEYCODE_BACK", 3)
+    for i in range(8):
+        key("KEYCODE_DPAD_LEFT", 0.6)
+    for i in range(4):
+        key("KEYCODE_DPAD_UP", 0.6)
+    snap("rail_home_again")
+    key("KEYCODE_DPAD_CENTER", 3)
 
 
-def type_char(ch):
-    for r, row in enumerate(rows):
-        if ch in row:
-            c = row.index(ch)
-            break
-    while pos[0] < r:
-        key("KEYCODE_DPAD_DOWN", 0.5); pos[0] += 1
-    while pos[0] > r:
-        key("KEYCODE_DPAD_UP", 0.5); pos[0] -= 1
-    while pos[1] < c:
-        key("KEYCODE_DPAD_RIGHT", 0.5); pos[1] += 1
-    while pos[1] > c:
-        key("KEYCODE_DPAD_LEFT", 0.5); pos[1] -= 1
-    key("KEYCODE_DPAD_CENTER", 0.7)
-
-
-for ch in "EMINEM":
-    type_char(ch)
-snap("search_typed")
-xml = walk_until("KEYCODE_DPAD_DOWN", ["Search"], 6, "to_search_key")
-key("KEYCODE_DPAD_CENTER", 8)
-snap("search_results")
-for i in range(6):
-    key("KEYCODE_DPAD_DOWN", 0.9)
-    snap(f"results_down_{i}")
-key("KEYCODE_DPAD_RIGHT", 0.9)
-snap("results_right")
-key("KEYCODE_BACK", 3)
-key("KEYCODE_BACK", 3)
-for i in range(8):
-    key("KEYCODE_DPAD_LEFT", 0.6)
-for i in range(4):
-    key("KEYCODE_DPAD_UP", 0.6)
-snap("rail_home_again")
-key("KEYCODE_DPAD_CENTER", 3)
 
 # Home content -> find the "New releases" shelf
 def node_bounds(xml, text):
@@ -233,44 +236,28 @@ for i in range(18):
 snap("home_card_choice")
 key("KEYCODE_DPAD_CENTER", 8)
 snap("album_open")
+key("KEYCODE_DPAD_DOWN", 1.0)
+snap("album_first_song")
+key("KEYCODE_DPAD_CENTER", 8)
+snap("play_attempt")
 for i in range(3):
-    key("KEYCODE_DPAD_DOWN", 1.0)
-    snap(f"album_down_{i}")
-for i in range(2):
-    key("KEYCODE_DPAD_UP", 1.0)
-    snap(f"album_up_{i}")
-key("KEYCODE_DPAD_UP", 1.0)
-snap("album_link")
-key("KEYCODE_DPAD_CENTER", 7)
-snap("artist_open")
-for i in range(3):
-    key("KEYCODE_DPAD_DOWN", 0.9)
-    snap(f"artist_pane_down_{i}")
-key("KEYCODE_DPAD_RIGHT", 1.0)
-snap("artist_list_enter")
-walk_until("KEYCODE_DPAD_UP", ["Top songs", "Songs", "Top Songs", "Popular"], 4, "to_top_songs")
-key("KEYCODE_DPAD_CENTER", 6)
-snap("top_songs_open")
-for i in range(6):
-    key("KEYCODE_DPAD_DOWN", 1.0)
-    snap(f"top_songs_down_{i}")
-key("KEYCODE_DPAD_CENTER", 6)
-snap("song_play")
-for k in ["KEYCODE_DPAD_DOWN", "KEYCODE_DPAD_RIGHT", "KEYCODE_DPAD_RIGHT"]:
-    key(k, 1.0)
-    snap("dialog_" + k[-5:].lower())
-key("KEYCODE_BACK", 2)
-snap("dialog_back")
-for i in range(6):
+    key("KEYCODE_DPAD_LEFT", 0.8)
+    snap(f"dialog_left_{i}")
+key("KEYCODE_DPAD_CENTER", 3)
+snap("dialog_closed")
+for i in range(5):
     key("KEYCODE_DPAD_DOWN", 0.9)
     snap(f"to_miniplayer_{i}")
-key("KEYCODE_DPAD_CENTER", 4)
+key("KEYCODE_DPAD_CENTER", 5)
 snap("miniplayer_center")
-for k in ["KEYCODE_DPAD_DOWN", "KEYCODE_DPAD_DOWN", "KEYCODE_DPAD_RIGHT", "KEYCODE_DPAD_UP"]:
+for k in ["KEYCODE_DPAD_DOWN", "KEYCODE_DPAD_DOWN", "KEYCODE_DPAD_RIGHT", "KEYCODE_DPAD_RIGHT", "KEYCODE_DPAD_UP", "KEYCODE_DPAD_LEFT"]:
     key(k, 1.0)
-    snap("player_" + k[-5:].lower())
+    snap("player_" + k.split("_")[-1].lower())
 key("KEYCODE_BACK", 3)
 snap("player_back")
+for i in range(3):
+    key("KEYCODE_DPAD_UP", 0.9)
+    snap(f"after_player_up_{i}")
 
 subprocess.run(f"adb logcat -d -t 4000 > {OUT}/logcat.txt", shell=True)
 report.close()

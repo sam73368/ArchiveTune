@@ -72,7 +72,7 @@ jobs:
           script: |
             adb install -r -g probe.apk
             adb shell pm list packages | grep archivetune || true
-            python3 scripts/tv_probe.py || true
+            PROBE_FOCUS=player python3 scripts/tv_probe.py || true
             bash scripts/tv_probe_publish.sh probe-out || true
 
       - name: Publish probe results
