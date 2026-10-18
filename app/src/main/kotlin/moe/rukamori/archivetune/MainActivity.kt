@@ -3277,17 +3277,7 @@ class MainActivity : ComponentActivity() {
                                                         onQueryChange(TextFieldValue(text, TextRange(text.length)))
                                                     },
                                                     onSearch = onSearch,
-                                                    onVoiceSearch = {
-                                                        if (ContextCompat.checkSelfPermission(
-                                                                this@MainActivity,
-                                                                Manifest.permission.RECORD_AUDIO,
-                                                            ) == PackageManager.PERMISSION_GRANTED
-                                                        ) {
-                                                            voiceSearchController.startListening(this@MainActivity)
-                                                        } else {
-                                                            micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                                        }
-                                                    },
+                                                    onVoiceSearch = launchVoiceSearch,
                                                 )
                                             }
                                           Box(Modifier.weight(1f).fillMaxHeight()) {

@@ -447,7 +447,7 @@ private fun TvRoundButton(
                         val ring = 3.dp.toPx()
                         drawCircle(
                             color = TvTokens.OnSurface.copy(alpha = 0.35f),
-                            radius = size.minDimension / 2 + ring,
+                            radius = this.size.minDimension / 2 + ring,
                             style = androidx.compose.ui.graphics.drawscope.Stroke(ring * 2),
                         )
                     }
