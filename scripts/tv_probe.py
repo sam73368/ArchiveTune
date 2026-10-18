@@ -63,6 +63,8 @@ def snap(name):
     print(line)
     report.write(line + "\n")
     report.flush()
+    if step[0] % 12 == 0:
+        subprocess.run(["bash", "scripts/tv_probe_publish.sh", OUT])
     return xml
 
 
@@ -263,3 +265,4 @@ snap("page_back2")
 
 subprocess.run(f"adb logcat -d -t 4000 > {OUT}/logcat.txt", shell=True)
 report.close()
+subprocess.run(["bash", "scripts/tv_probe_publish.sh", OUT])

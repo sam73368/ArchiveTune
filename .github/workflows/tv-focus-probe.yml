@@ -49,6 +49,8 @@ jobs:
 
       - name: Run probe on Android TV emulator
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           api-level: 30
           target: android-tv
@@ -60,6 +62,7 @@ jobs:
             adb install -r -g probe.apk
             adb shell pm list packages | grep archivetune || true
             python3 scripts/tv_probe.py || true
+            bash scripts/tv_probe_publish.sh probe-out || true
 
       - name: Publish probe results
         if: always()
