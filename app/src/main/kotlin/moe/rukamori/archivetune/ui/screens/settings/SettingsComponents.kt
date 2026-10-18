@@ -161,7 +161,7 @@ fun SettingsUpdateBanner(
                 .scale(scale)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = onClick,
                 ),
         shape = RoundedCornerShape(SettingsDimensions.BannerCardCornerRadius),

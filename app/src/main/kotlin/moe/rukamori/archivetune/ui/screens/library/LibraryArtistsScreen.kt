@@ -532,7 +532,7 @@ fun ArtistListCard(
                     scaleY = scale
                 }.combinedClickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = onClick,
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)

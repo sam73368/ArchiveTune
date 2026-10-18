@@ -995,7 +995,7 @@ fun PlaylistListCard(
                     alpha = hiddenAlpha
                 }.clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = onClick,
                 ),
     )
@@ -1037,7 +1037,7 @@ fun PlaylistGridCard(
                 .background(cardBgColor)
                 .combinedClickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = onClick,
                     onLongClick = onLongClick,
                 ).padding(12.dp),

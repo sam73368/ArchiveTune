@@ -118,7 +118,7 @@ fun SpotifyLibraryPlaylistListItem(
                     scaleY = scale
                 }.clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = openPlaylist,
                 ).focusable(),
     )
@@ -172,7 +172,7 @@ fun SpotifyLikedSongsListItem(
                     scaleY = scale
                 }.clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = { navController.navigate("spotify_playlist/$SPOTIFY_LIKED_SONGS_ID") },
                 ).focusable(),
     )

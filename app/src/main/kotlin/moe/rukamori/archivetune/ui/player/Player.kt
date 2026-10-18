@@ -1167,6 +1167,12 @@ fun BottomSheetPlayer(
     // On a TV the arrows of the remote move between the player's buttons; the keyboard shortcuts
     // below (arrows = seek / volume) swallowed them, so most controls could not be reached.
     val isTelevision = remember(context) { context.isTelevision() }
+    LaunchedEffect(isTelevision, queueSheetState.isCollapsed, state.isExpanded) {
+        if (isTelevision && state.isExpanded && queueSheetState.isCollapsed) {
+            delay(250)
+            runCatching { focusRequester.requestFocus() }
+        }
+    }
 
     LaunchedEffect(state.isExpanded) {
         if (state.isExpanded) {

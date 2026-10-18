@@ -340,4 +340,7 @@
     <string name="tv_key_delete">Delete</string>
     <string name="tv_key_clear">Clear</string>
     <string name="tv_onboarding_step">Step %1$d of %2$d</string>
+    <string name="tv_voice_listening">Listening… speak now</string>
+    <string name="tv_voice_starting">Starting the microphone…</string>
+    <string name="tv_voice_hint">Back: cancel</string>
 </resources>

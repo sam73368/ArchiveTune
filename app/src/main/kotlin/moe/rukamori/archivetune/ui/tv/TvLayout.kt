@@ -40,6 +40,10 @@ import androidx.compose.ui.unit.dp
 val LocalTvLayout = staticCompositionLocalOf { false }
 
 @Composable
+fun tvFocusIndication(): androidx.compose.foundation.Indication? =
+    if (LocalTvLayout.current) androidx.compose.foundation.LocalIndication.current else null
+
+@Composable
 fun Modifier.tvFocusableScroll(state: ScrollState): Modifier {
     if (!LocalTvLayout.current) return this
     val scope = rememberCoroutineScope()

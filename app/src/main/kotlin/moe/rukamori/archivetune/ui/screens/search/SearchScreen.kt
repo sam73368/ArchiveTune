@@ -153,6 +153,7 @@ fun SearchScreen(
     var liveSummary by remember { mutableStateOf<SearchSummaryPage?>(null) }
     val (hideExplicit) = rememberPreference(HideExplicitKey, defaultValue = false)
     val (hideVideo) = rememberPreference(HideVideoKey, defaultValue = false)
+    val artistsSectionTitle = stringResource(R.string.artists)
     LaunchedEffect(searchQuery, searchProvider, hideExplicit, hideVideo) {
         val query = searchQuery.trim()
         if (query.isEmpty()) {
@@ -179,14 +180,55 @@ fun SearchScreen(
                 }
             }
         if (searchProvider == SearchProvider.YOUTUBE) {
+            val topArtists =
+                YouTube
+                    .search(query, YouTube.SearchFilter.FILTER_ARTIST)
+                    .getOrNull()
+                    ?.items
+                    ?.filterIsInstance<ArtistItem>()
+                    ?.take(3)
+                    .orEmpty()
             YouTube
                 .searchSummary(query)
                 .onSuccess { page ->
                     if (searchQuery.trim() == query) {
-                        liveSummary =
+                        val filtered =
                             page
                                 .filterExplicit(hideExplicit)
                                 .filterVideo(hideVideo)
+                        val artistIds = topArtists.map { it.id }.toSet()
+                        liveSummary =
+                            if (topArtists.isEmpty()) {
+                                filtered
+                            } else {
+                                SearchSummaryPage(
+                                    listOf(
+                                        moe.rukamori.archivetune.innertube.pages.SearchSummary(
+                                            title = artistsSectionTitle,
+                                            items = topArtists,
+                                        ),
+                                    ) +
+                                        filtered.summaries
+                                            .map { section ->
+                                                moe.rukamori.archivetune.innertube.pages.SearchSummary(
+                                                    title = section.title,
+                                                    items = section.items.filter { it.id !in artistIds },
+                                                )
+                                            }.filter { it.items.isNotEmpty() },
+                                )
+                            }
+                    }
+                }.onFailure {
+                    if (searchQuery.trim() == query && topArtists.isNotEmpty()) {
+                        liveSummary =
+                            SearchSummaryPage(
+                                listOf(
+                                    moe.rukamori.archivetune.innertube.pages.SearchSummary(
+                                        title = artistsSectionTitle,
+                                        items = topArtists,
+                                    ),
+                                ),
+                            )
                     }
                 }
         }

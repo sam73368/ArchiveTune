@@ -20,6 +20,7 @@ package moe.rukamori.archivetune.ui.screens
 
 import androidx.compose.foundation.LocalIndication
 import moe.rukamori.archivetune.ui.tv.LocalTvLayout
+import moe.rukamori.archivetune.ui.utils.resize
 import moe.rukamori.archivetune.ui.tv.rememberTvFocusState
 import moe.rukamori.archivetune.ui.tv.tvFocusRing
 import moe.rukamori.archivetune.ui.tv.tvFocusScale
@@ -243,7 +244,7 @@ fun BitChordHeroCard(
                 ),
     ) {
         AsyncImage(
-            model = artworkUrl,
+            model = if (tv) artworkUrl?.resize(544, 544, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal) else artworkUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
@@ -339,7 +340,7 @@ fun BitChordShelfCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
-                model = artworkUrl,
+                model = if (tv) artworkUrl?.resize(544, 544, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal) else artworkUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

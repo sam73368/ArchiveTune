@@ -408,7 +408,7 @@ private fun PlaylistTagFilterChip(
                 .background(containerColor)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = onClick,
                 ).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

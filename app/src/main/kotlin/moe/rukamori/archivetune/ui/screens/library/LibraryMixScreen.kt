@@ -472,7 +472,7 @@ private fun LibraryCategoryRow(category: LibraryCategory) {
                     scaleY = scale
                 }.clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = category.onClick,
                 ).padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -565,7 +565,7 @@ private fun RecentlyAddedHeader(onSeeAll: () -> Unit) {
                 .fillMaxWidth()
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = onSeeAll,
                 ).padding(
                     horizontal = LibraryHeaderHorizontalPadding,
@@ -657,7 +657,7 @@ private fun RecentlyAddedGridItem(
                     scaleY = scale
                 }.clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = {
                         if (!playlist.playlist.isEditable && playlist.songCount == 0 &&
                             playlist.playlist.remoteSongCount != 0
@@ -830,7 +830,7 @@ private fun RecentlyLikedItem(
                     scaleY = scale
                 }.clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = {
                         val startIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
                         playerConnection.playQueue(

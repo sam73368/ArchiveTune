@@ -208,7 +208,7 @@ fun SettingsListRow(
                 .clip(RoundedCornerShape(SettingsCardDimensions.CardCorner / 2))
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     onClick = item.onClick,
                 )
                 .heightIn(min = SettingsCardDimensions.RowMinHeight)

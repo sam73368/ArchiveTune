@@ -506,7 +506,7 @@ private fun MiniPlayerTransportButton(
                 .clip(CircleShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
+                    indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     enabled = enabled,
                     onClick = handleClick,
                 ),

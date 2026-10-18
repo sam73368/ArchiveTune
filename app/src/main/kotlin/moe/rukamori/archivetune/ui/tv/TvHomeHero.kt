@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.ui.utils.resize
 
 @Composable
 fun TvHomeHero(
@@ -61,7 +62,7 @@ fun TvHomeHero(
                     .background(TvTokens.SurfaceHigh),
         ) {
             AsyncImage(
-                model = artworkUrl,
+                model = artworkUrl?.resize(400, 400, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.size(180.dp),

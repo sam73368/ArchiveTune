@@ -308,7 +308,7 @@ private fun Modifier.headerClickable(onClick: () -> Unit): Modifier =
     composed {
         clickable(
             interactionSource = remember { MutableInteractionSource() },
-            indication = null,
+            indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
             onClick = onClick,
         )
     }

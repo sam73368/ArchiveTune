@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.ui.player
 
+import moe.rukamori.archivetune.ui.tv.tvMenuFocusTrap
+
 import android.annotation.SuppressLint
 import android.view.ViewTreeObserver
 import android.widget.Toast
@@ -414,13 +416,23 @@ fun Queue(
             }
         }
 
+    val isTvQueue = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
     BottomSheet(
         state = state,
         backgroundColor = { Color.Unspecified },
-        modifier = modifier,
+        modifier =
+            modifier.then(
+                if (isTvQueue && !state.isCollapsed) {
+                    Modifier.tvMenuFocusTrap()
+                } else {
+                    Modifier
+                },
+            ),
 
         onCollapsedContentClick = {},
-        collapsedContent = {
+        collapsedFocusable = !isTvQueue,
+        collapsedContent = collapsedQueue@{
+            if (isTvQueue) return@collapsedQueue
             when (playerDesignStyle) {
                 PlayerDesignStyle.V5 -> {
                     QueueCollapsedContentV3(

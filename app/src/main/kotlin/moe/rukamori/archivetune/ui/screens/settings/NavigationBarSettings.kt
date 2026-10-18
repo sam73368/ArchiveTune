@@ -839,7 +839,7 @@ private fun CompactBehaviorPreview(
                     .background(fauxScreenBrush)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
+                        indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                     ) {
                         if (behavior == NavigationBarCompactBehavior.ADAPTIVE) {
                             demoCompact = !demoCompact

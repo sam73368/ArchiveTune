@@ -129,4 +129,7 @@
     <string name="tv_key_delete">Effacer</string>
     <string name="tv_key_clear">Tout effacer</string>
     <string name="tv_onboarding_step">Étape %1$d sur %2$d</string>
+    <string name="tv_voice_listening">J\'écoute… parlez maintenant</string>
+    <string name="tv_voice_starting">Activation du micro…</string>
+    <string name="tv_voice_hint">Retour : annuler</string>
 </resources>

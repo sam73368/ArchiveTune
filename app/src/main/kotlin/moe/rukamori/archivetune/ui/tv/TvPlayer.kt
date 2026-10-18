@@ -50,6 +50,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
@@ -76,6 +78,7 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.ui.utils.resize
 import moe.rukamori.archivetune.extensions.togglePlayPause
 import moe.rukamori.archivetune.extensions.toggleRepeatMode
 import moe.rukamori.archivetune.models.MediaMetadata
@@ -127,7 +130,7 @@ fun TvPlayerContent(
                 .background(TvTokens.Background),
     ) {
         AsyncImage(
-            model = mediaMetadata.thumbnailUrl,
+            model = mediaMetadata.thumbnailUrl?.resize(640, 640, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier =
@@ -167,7 +170,7 @@ fun TvPlayerContent(
                             .background(TvTokens.SurfaceHigh),
                 ) {
                     AsyncImage(
-                        model = mediaMetadata.thumbnailUrl,
+                        model = mediaMetadata.thumbnailUrl?.resize(640, 640, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
@@ -271,32 +274,32 @@ fun TvPlayerContent(
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TvPillButton(onClick = playerConnection::toggleLike, height = 28.dp, horizontalPadding = 12.dp) { color ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TvPillButton(onClick = playerConnection::toggleLike, height = 28.dp, horizontalPadding = 10.dp) { color ->
                         Icon(
                             painterResource(if (liked) R.drawable.favorite else R.drawable.favorite_border),
                             null,
                             tint = if (liked && color == TvTokens.OnSurface) accent else color,
                             modifier = Modifier.size(14.dp),
                         )
-                        Text(stringResource(R.string.tv_like), style = TvTokens.Caption, color = color)
+                        Text(stringResource(R.string.tv_like), style = TvTokens.Caption, color = color, maxLines = 1, softWrap = false)
                     }
-                    TvPillButton(onClick = onQueue, height = 28.dp, horizontalPadding = 12.dp) { color ->
+                    TvPillButton(onClick = onQueue, height = 28.dp, horizontalPadding = 10.dp) { color ->
                         Icon(painterResource(R.drawable.queue_music), null, tint = color, modifier = Modifier.size(14.dp))
-                        Text(stringResource(R.string.tv_queue), style = TvTokens.Caption, color = color)
+                        Text(stringResource(R.string.tv_queue), style = TvTokens.Caption, color = color, maxLines = 1, softWrap = false)
                     }
                     TvPillButton(
                         onClick = { lyricsVisible = !lyricsVisible },
                         style = if (lyricsVisible) TvPillStyle.Primary else TvPillStyle.Tonal,
                         height = 28.dp,
-                        horizontalPadding = 12.dp,
+                        horizontalPadding = 10.dp,
                     ) { color ->
                         Icon(painterResource(R.drawable.lyrics), null, tint = color, modifier = Modifier.size(14.dp))
-                        Text(stringResource(R.string.tv_lyrics), style = TvTokens.Caption, color = color)
+                        Text(stringResource(R.string.tv_lyrics), style = TvTokens.Caption, color = color, maxLines = 1, softWrap = false)
                     }
-                    TvPillButton(onClick = onMore, height = 28.dp, horizontalPadding = 12.dp) { color ->
+                    TvPillButton(onClick = onMore, height = 28.dp, horizontalPadding = 10.dp) { color ->
                         Icon(painterResource(R.drawable.more_vert), null, tint = color, modifier = Modifier.size(14.dp))
-                        Text(stringResource(R.string.tv_more), style = TvTokens.Caption, color = color)
+                        Text(stringResource(R.string.tv_more), style = TvTokens.Caption, color = color, maxLines = 1, softWrap = false)
                     }
                 }
 
@@ -314,7 +317,9 @@ fun TvPlayerContent(
                         Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .padding(top = 24.dp, end = 48.dp),
+                            .padding(top = 24.dp, end = 48.dp)
+                            .focusProperties { enter = { FocusRequester.Cancel } }
+                            .focusGroup(),
                 ) {
                     LyricsEnhanced(
                         sliderPositionProvider = sliderPositionProvider,

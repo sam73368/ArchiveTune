@@ -151,6 +151,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import moe.rukamori.archivetune.ui.tv.tvFocusScope
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.luminance
@@ -1526,10 +1527,54 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                    val tvVoiceController =
+                        remember { VoiceSearchControllerLocator.get(this@MainActivity) }
+                    var tvVoiceRequested by remember { mutableStateOf(false) }
+                    val tvVoiceState by tvVoiceController.state.collectAsStateWithLifecycle()
+                    LaunchedEffect(tvVoiceState, tvVoiceRequested) {
+                        if (!tvVoiceRequested) return@LaunchedEffect
+                        when (val voice = tvVoiceState) {
+                            is VoiceSearchState.Result -> {
+                                tvVoiceRequested = false
+                                tvVoiceController.cancel()
+                                onQueryChange(TextFieldValue(voice.text, TextRange(voice.text.length)))
+                                onSearch(voice.text)
+                            }
+                            is VoiceSearchState.Error -> {
+                                tvVoiceRequested = false
+                                tvVoiceController.cancel()
+                                if (!android.speech.SpeechRecognizer.isRecognitionAvailable(this@MainActivity)) {
+                                    launchSpeechRecognition()
+                                } else {
+                                    Toast.makeText(this@MainActivity, voice.message, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            else -> Unit
+                        }
+                    }
+                    if (isTvDevice && tvVoiceRequested) {
+                        BackHandler {
+                            tvVoiceRequested = false
+                            tvVoiceController.cancel()
+                        }
+                        androidx.compose.ui.window.Popup(alignment = Alignment.TopCenter) {
+                            moe.rukamori.archivetune.ui.tv.TvVoiceListeningBanner(
+                                listening = tvVoiceState is VoiceSearchState.Listening,
+                            )
+                        }
+                    }
+                    val startTvVoiceSearch: () -> Unit = {
+                        if (android.speech.SpeechRecognizer.isRecognitionAvailable(this@MainActivity)) {
+                            tvVoiceRequested = true
+                            tvVoiceController.startListening(this@MainActivity)
+                        } else {
+                            launchSpeechRecognition()
+                        }
+                    }
                     val microphonePermissionLauncher =
                         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                             if (granted) {
-                                launchSpeechRecognition()
+                                if (isTvDevice) startTvVoiceSearch() else launchSpeechRecognition()
                             } else {
                                 android.widget.Toast
                                     .makeText(
@@ -1546,7 +1591,7 @@ class MainActivity : ComponentActivity() {
                                 Manifest.permission.RECORD_AUDIO,
                             ) == PackageManager.PERMISSION_GRANTED
                         ) {
-                            launchSpeechRecognition()
+                            if (isTvDevice) startTvVoiceSearch() else launchSpeechRecognition()
                         } else {
                             microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                         }
@@ -1582,7 +1627,8 @@ class MainActivity : ComponentActivity() {
                         isYearInMusicScreen,
                     ) {
                         isBottomUiCompact =
-                            navigationBarCompactBehavior == NavigationBarCompactBehavior.ALWAYS_COMPACT &&
+                            !isTvDevice &&
+                                navigationBarCompactBehavior == NavigationBarCompactBehavior.ALWAYS_COMPACT &&
                                 !isYearInMusicScreen
                     }
                     val yearInMusicScreenUpdated = rememberUpdatedState(isYearInMusicScreen)
@@ -1597,6 +1643,7 @@ class MainActivity : ComponentActivity() {
                                     source: NestedScrollSource,
                                 ): Offset {
                                     if (source == NestedScrollSource.UserInput &&
+                                        !isTvDevice &&
                                         navigationBarCompactBehavior == NavigationBarCompactBehavior.ADAPTIVE &&
                                         !yearInMusicScreenUpdated.value
                                     ) {
@@ -2512,6 +2559,13 @@ class MainActivity : ComponentActivity() {
                                           Modifier
                                                         .onFocusChanged { tvRootHasFocus = it.hasFocus }
                                               .onPreviewKeyEvent { event ->
+                                                  if (
+                                                      event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                                                      (event.key == Key.Search || event.key == Key.VoiceAssist)
+                                                  ) {
+                                                      launchVoiceSearch()
+                                                      return@onPreviewKeyEvent true
+                                                  }
                                                   if (
                                                       (event.key == Key.DirectionUp || event.key == Key.DirectionDown) &&
                                                       moe.rukamori.archivetune.ui.tv.TvFocusFallback.focusedIsTextField(tvRootView)

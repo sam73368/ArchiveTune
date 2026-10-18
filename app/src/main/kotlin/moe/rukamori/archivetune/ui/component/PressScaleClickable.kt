@@ -35,7 +35,7 @@ fun Modifier.pressScaleClickable(
             .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
-                indication = null,
+                indication = moe.rukamori.archivetune.ui.tv.tvFocusIndication(),
                 enabled = enabled,
                 onClick = onClick,
             )

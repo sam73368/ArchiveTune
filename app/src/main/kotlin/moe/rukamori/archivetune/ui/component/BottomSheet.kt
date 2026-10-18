@@ -84,6 +84,7 @@ fun BottomSheet(
     sharedLayer: (@Composable BoxScope.() -> Unit)? = null,
     predictiveBackState: PredictiveSheetBackState? = null,
     collapsedContent: @Composable BoxScope.() -> Unit,
+    collapsedFocusable: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val morphShape =
@@ -236,6 +237,7 @@ fun BottomSheet(
                                     1f - (state.progress * 4).coerceAtMost(1f)
                                 }
                         }.tvFocusScope()
+                        .then(if (collapsedFocusable) Modifier else Modifier.focusProperties { canFocus = false })
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication =
