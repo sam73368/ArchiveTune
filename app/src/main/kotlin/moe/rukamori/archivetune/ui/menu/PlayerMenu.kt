@@ -1333,7 +1333,7 @@ fun PlayerMenu(
                                     },
                                 ),
                             )
-                            add(
+                            if (!moe.rukamori.archivetune.utils.TvPerformance.isTelevision) add(
                                 PlayerMenuCardModel(
                                     icon = {
                                         Icon(

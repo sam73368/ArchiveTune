@@ -3264,14 +3264,18 @@ class MainActivity : ComponentActivity() {
                                                                         navController.navigate("lastfm_dashboard")
                                                                     },
                                                                 ),
-                                                                ProfileMenuItem(
-                                                                    icon = R.drawable.mic,
-                                                                    label = stringResource(R.string.music_recognition),
-                                                                    onClick = {
-                                                                        profileMenuExpanded = false
-                                                                        navController.navigate(MusicRecognitionRoute)
-                                                                    },
-                                                                ),
+                                                                if (isTvDevice) {
+                                                                    null
+                                                                } else {
+                                                                    ProfileMenuItem(
+                                                                        icon = R.drawable.mic,
+                                                                        label = stringResource(R.string.music_recognition),
+                                                                        onClick = {
+                                                                            profileMenuExpanded = false
+                                                                            navController.navigate(MusicRecognitionRoute)
+                                                                        },
+                                                                    )
+                                                                },
 
                                                                 if (listenTogetherInTopBar) {
                                                                     ProfileMenuItem(
