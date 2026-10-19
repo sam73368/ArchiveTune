@@ -8,6 +8,7 @@
 package moe.rukamori.archivetune.ui.tv
 
 import android.util.Log
+import androidx.compose.ui.draw.alpha
 import android.view.View
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
@@ -97,13 +98,21 @@ val TvFocusExcludedKey = SemanticsPropertyKey<Boolean>("TvFocusExcluded")
 
 fun Modifier.tvFocusExcluded(): Modifier = semantics { this[TvFocusExcludedKey] = true }
 
+val TvFocusBlockedKey = SemanticsPropertyKey<Boolean>("TvFocusBlocked")
+
+fun Modifier.tvFocusBlocked(): Modifier = semantics { this[TvFocusBlockedKey] = true }
+
 fun Modifier.tvNonFocusable(): Modifier = focusProperties { canFocus = false }
 
 fun Modifier.tvSkipFocus(): Modifier =
     if (moe.rukamori.archivetune.utils.TvPerformance.isTelevision) focusProperties { canFocus = false } else this
 
 fun Modifier.tvBackButtonFocus(): Modifier =
-    if (moe.rukamori.archivetune.utils.TvPerformance.isTelevision) focusProperties { canFocus = false } else this
+    if (moe.rukamori.archivetune.utils.TvPerformance.isTelevision) {
+        focusProperties { canFocus = false }.alpha(0f)
+    } else {
+        this
+    }
 
 @Composable
 fun Modifier.tvMenuFocusTrap(): Modifier {
@@ -443,6 +452,7 @@ object TvFocusFallback {
             inPlayer: Boolean,
             inExcluded: Boolean,
         ) {
+            if (node.config.getOrNull(TvFocusBlockedKey) == true) return
             val scoped = inScope || node.config.getOrNull(TvFocusScopeKey) == true
             val railed = inRail || node.config.getOrNull(TvFocusRailKey) == true
             val played = inPlayer || node.config.getOrNull(TvPlayerPaneKey) == true

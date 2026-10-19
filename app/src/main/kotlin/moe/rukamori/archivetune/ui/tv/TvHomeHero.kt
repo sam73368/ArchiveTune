@@ -49,7 +49,7 @@ fun TvHomeHero(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = TvTokens.ScreenPaddingHorizontal, top = 20.dp, bottom = 12.dp),
+                .padding(start = 16.dp, end = 20.dp, top = 20.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(24.dp),
         verticalAlignment = Alignment.Bottom,
     ) {

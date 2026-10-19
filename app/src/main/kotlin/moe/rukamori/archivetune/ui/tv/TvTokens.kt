@@ -54,8 +54,11 @@ object TvTokens {
     val FocusRing = OnSurface
 
     val RailWidth = 96.dp
-    val ScreenPaddingHorizontal = 32.dp
-    val ScreenPaddingVertical = 24.dp
+    val ScreenPaddingHorizontal = 48.dp
+    val ScreenPaddingVertical = 28.dp
+    val SafeTop = 24.dp
+    val SafeEnd = 28.dp
+    val RailExpandedWidth = 248.dp
     val CardCorner = 10.dp
     val FocusScale = 1.06f
 

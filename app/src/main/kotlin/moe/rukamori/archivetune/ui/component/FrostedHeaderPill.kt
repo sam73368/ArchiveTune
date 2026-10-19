@@ -38,7 +38,16 @@ fun FrostedHeaderPill(
     content: @Composable () -> Unit,
 ) {
     val pillShape = RoundedCornerShape(percent = 50)
-    if (plain) {
+    if (moe.rukamori.archivetune.ui.tv.LocalTvLayout.current) {
+        ProvideTextStyle(MaterialTheme.typography.titleLarge) {
+            Row(
+                modifier = modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                content()
+            }
+        }
+    } else if (plain) {
         CompositionLocalProvider(LocalPlainHeaderPill provides true) {
             ProvideTextStyle(MaterialTheme.typography.titleLarge) {
                 Row(

@@ -68,7 +68,12 @@ fun SettingsPageTopBar(
 
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+            color =
+                if (moe.rukamori.archivetune.ui.tv.LocalTvLayout.current) {
+                    androidx.compose.ui.graphics.Color.Transparent
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
+                },
             modifier =
                 Modifier
                     .align(Alignment.CenterStart)

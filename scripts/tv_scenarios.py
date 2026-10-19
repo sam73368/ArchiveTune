@@ -141,7 +141,10 @@ MINI_KEYS = ["TAP:Play", "DISMISS", "EXPAND", "LEFT", "LEFT", "LEFT", "LEFT", "L
 
 TOP_SONGS_ITEMS_KEYS = ["TAP:Top songs", "DISMISS", "DOWN", "DOWN", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "DOWN", "DOWN", "DOWN", "LEFT"]
 
+SETTINGS_DRILL_KEYS = ["RIGHT", "DOWN", "DOWN", "RIGHT", "DOWN", "DOWN", "DOWN", "LEFT", "DOWN", "RIGHT", "DOWN", "BACK", "DOWN", "RIGHT", "BACK", "BACK", "UP"]
+
 SCENARIOS = [
+    ("settings_drill", "settings", SETTINGS_DRILL_KEYS, "all"),
     ("top_songs_page", f"artist/{ARTIST}", TOP_SONGS_KEYS, "all"),
     ("top_songs_items", f"artist/{ARTIST}", TOP_SONGS_ITEMS_KEYS, "all"),
     ("artist_main_full", f"artist/{ARTIST}", ["RIGHT"] + ["DOWN"] * 8 + ["UP"] * 9 + ["LEFT"], "sparse"),

@@ -5875,3 +5875,20 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification (no local compile by rule).
+
+---
+Task ID: TV-12
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Android TV design review follow-up: dark theme, safe areas, text size, hidden back arrows, expandable rail, horizontal settings drill-down with a live preview.
+
+Work Log:
+- `MainActivity`: the theme is forced dark on TV devices; the default TV text scale is now `TvTextScaleDefault` (1.15); `effectiveStatusBarTop` gets a 24 dp floor on TV (`TvTokens.SafeTop`) and the NavHost gets a 28 dp end padding (`TvTokens.SafeEnd`).
+- `tvBackButtonFocus()` now also hides the arrow (alpha 0) on TV; `FrostedHeaderPill` and `SettingsPageTopBar` drop their pill background on TV.
+- `TvNavigationRail`: the rail overlays the content and widens to `TvTokens.RailExpandedWidth` with icon + label rows while it holds focus (zIndex applied on its AnimatedVisibility in `MainActivity`).
+- `TvSettingsHome`: rewritten as a drill-down shell. The preview pane is the real sub-screen hosted by a nested NavHost (`LocalTvSettingsGraph` supplies `navigationBuilder` from `MainActivity`). Enter or Right slides the screen over and collapses the category list to an icon strip; Back or Left restores the list and the focus on the selected category; deeper pages slide inside the pane. Items without a route keep the old read-only pane.
+- `TvFocusFallback`: new `TvFocusBlockedKey` semantics so a non-interactive preview or the collapsed strip never provides fallback focus candidates.
+- `scripts/tv_scenarios.py`: new `settings_drill` scenario.
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification (no local compile by rule). Rollback: revert this commit or install the previous N build.

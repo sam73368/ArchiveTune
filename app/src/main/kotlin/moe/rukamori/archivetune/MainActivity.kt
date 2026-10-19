@@ -1113,9 +1113,16 @@ class MainActivity : ComponentActivity() {
             val customFontUri by rememberPreference(CustomFontUriKey, defaultValue = "")
             val legacyUseSystemFont by rememberPreference(UseSystemFontKey, defaultValue = false)
             val isSystemInDarkTheme = isSystemInDarkTheme()
+            val forceDarkOnTv = remember { applicationContext.isTvDevice() }
             val useDarkTheme =
-                remember(darkTheme, isSystemInDarkTheme) {
-                    if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
+                remember(darkTheme, isSystemInDarkTheme, forceDarkOnTv) {
+                    if (forceDarkOnTv) {
+                        true
+                    } else if (darkTheme == DarkMode.AUTO) {
+                        isSystemInDarkTheme
+                    } else {
+                        darkTheme == DarkMode.ON
+                    }
                 }
 
             val pureBlack = useDarkTheme
@@ -1369,7 +1376,7 @@ class MainActivity : ComponentActivity() {
 
                     val (uiScaleRaw) = rememberPreference(UiScaleFactorKey, defaultValue = 1.0f)
                     val uiScale = uiScaleRaw.coerceIn(0.85f, 1.30f)
-                    val tvTextScale by rememberPreference(moe.rukamori.archivetune.constants.TvTextScaleKey, defaultValue = 1f)
+                    val tvTextScale by rememberPreference(moe.rukamori.archivetune.constants.TvTextScaleKey, defaultValue = moe.rukamori.archivetune.constants.TvTextScaleDefault)
                     val effectiveTvTextScale = if (isTvDevice) tvTextScale else 1f
                     val scaledDensity = remember(density, uiScale, effectiveTvTextScale) {
                         Density(
@@ -2049,6 +2056,7 @@ class MainActivity : ComponentActivity() {
                             if (shouldHideStatusBars) cachedStatusBarTop else liveStatusBarTop,
                             if (shouldHideStatusBars) cachedDisplayCutoutTop else liveDisplayCutoutTop,
                             liveDisplayCutoutTop,
+                            if (isTvDevice) moe.rukamori.archivetune.ui.tv.TvTokens.SafeTop else 0.dp,
                         )
                     val effectiveWindowsInsets =
                         WindowInsets(
@@ -2719,6 +2727,7 @@ class MainActivity : ComponentActivity() {
                                 },
                         ) {
                             AnimatedVisibility(
+                                modifier = Modifier.zIndex(if (isTvDevice) 5f else 0f),
                                 visible =
                                     useRail &&
                                         if (isTvDevice) {
@@ -3863,6 +3872,25 @@ class MainActivity : ComponentActivity() {
                                 },
                                 modifier = Modifier.fillMaxSize(),
                             ) {
+                                val tvSettingsGraph =
+                                    remember(isTvDevice, topAppBarScrollBehavior, disableAnimations) {
+                                        if (isTvDevice) {
+                                            moe.rukamori.archivetune.ui.screens.settings.TvSettingsGraphBuilder { builder, nav ->
+                                                builder.navigationBuilder(
+                                                    nav,
+                                                    topAppBarScrollBehavior,
+                                                    { latestVersionName },
+                                                    disableAnimations,
+                                                    onClearUpdateBadge = { latestVersionName = BuildConfig.VERSION_NAME },
+                                                )
+                                            }
+                                        } else {
+                                            null
+                                        }
+                                    }
+                                CompositionLocalProvider(
+                                    moe.rukamori.archivetune.ui.screens.settings.LocalTvSettingsGraph provides tvSettingsGraph,
+                                ) {
                                 NavHost(
                                     navController = navController,
                                     startDestination =
@@ -3944,6 +3972,12 @@ class MainActivity : ComponentActivity() {
                                         Modifier
                                             .then(
                                                 if (isTvDevice) {
+                                                    Modifier.padding(end = moe.rukamori.archivetune.ui.tv.TvTokens.SafeEnd)
+                                                } else {
+                                                    Modifier
+                                                },
+                                            ).then(
+                                                if (isTvDevice) {
                                                     // Entering the content from the rail lands on an item
                                                     // (the last one used, else the first) instead of on the
                                                     // invisible content container, where the highlight was lost.
@@ -4018,6 +4052,7 @@ class MainActivity : ComponentActivity() {
                                         onlineSearchSort = onlineSearchSort,
                                         onOnlineSearchSortChange = { onlineSearchSort = it },
                                     )
+                                }
                                 }
                             }
                         }

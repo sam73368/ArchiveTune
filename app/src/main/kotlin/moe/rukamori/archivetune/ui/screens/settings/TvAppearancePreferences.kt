@@ -32,7 +32,7 @@ private val TvTextScales = listOf(0.9f, 1f, 1.15f, 1.3f)
 
 @Composable
 fun TvAppearancePreferences() {
-    var textScale by rememberPreference(TvTextScaleKey, defaultValue = 1f)
+    var textScale by rememberPreference(TvTextScaleKey, defaultValue = moe.rukamori.archivetune.constants.TvTextScaleDefault)
     var artworkAccent by rememberPreference(TvArtworkAccentKey, defaultValue = false)
     var performanceMode by rememberPreference(TvPerformanceModeKey, defaultValue = true)
     var playerBackground by rememberEnumPreference(TvPlayerBackgroundKey, TvPlayerBackground.GRADIENT)
