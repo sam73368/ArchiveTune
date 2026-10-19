@@ -110,16 +110,16 @@ DIALOG_BUTTONS = ["Later", "Not now", "Dismiss", "No thanks", "Skip", "Cancel", 
 ARTIST = "UCedvOgsKFzcK3hA5taf3KoQ"
 
 SCENARIOS = [
-    ("settings_hub", "settings/player", ["DOWN", "DOWN", "DOWN", "UP", "RIGHT", "LEFT", "LEFT"]),
-    ("settings_sources", "settings/sources", ["DOWN", "DOWN", "DOWN", "UP", "LEFT"]),
-    ("settings_rail_home", "settings/player", ["LEFT", "LEFT", "UP", "UP", "CENTER"]),
-    ("settings_rail_home_b", "settings/appearance", ["LEFT", "UP", "UP", "UP", "CENTER"]),
-    ("artist_albums", f"artist/{ARTIST}/albums", ["DOWN", "DOWN", "RIGHT", "DOWN", "UP", "LEFT"]),
-    ("artist_songs", f"artist/{ARTIST}/songs", ["DOWN", "DOWN", "RIGHT", "RIGHT", "DOWN", "UP", "LEFT"]),
-    ("artist_main", f"artist/{ARTIST}", ["DOWN", "DOWN", "DOWN", "UP", "LEFT"]),
-    ("library_playlists", "library_playlists", ["DOWN", "DOWN", "UP", "LEFT"]),
-    ("history", "history", ["DOWN", "DOWN", "UP", "LEFT"]),
-    ("stats", "stats", ["DOWN", "DOWN", "UP", "LEFT"]),
+    ("settings_player", "settings/player", ["RIGHT"] + ["DOWN"] * 7 + ["UP"] * 8 + ["DOWN"]),
+    ("settings_appearance", "settings/appearance", ["RIGHT"] + ["DOWN"] * 9 + ["UP"] * 10),
+    ("settings_sources", "settings/sources", ["RIGHT"] + ["DOWN"] * 5 + ["UP"] * 6),
+    ("artist_main_full", f"artist/{ARTIST}", ["RIGHT"] + ["DOWN"] * 6 + ["UP"] * 7 + ["LEFT"]),
+    ("artist_albums_full", f"artist/{ARTIST}/albums", ["RIGHT", "DOWN", "UP", "DOWN"]),
+    ("library_playlists_full", "library_playlists", ["RIGHT"] + ["DOWN"] * 3 + ["UP"] * 4),
+    ("history_full", "history", ["RIGHT", "DOWN", "DOWN", "UP", "UP", "UP"]),
+    ("stats_full", "stats", ["RIGHT", "DOWN", "UP"]),
+    ("mini_player", f"artist/{ARTIST}", ["TAP:Play", "LEFT", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT", "LEFT", "DOWN", "RIGHT", "RIGHT", "RIGHT", "LEFT", "UP"]),
+    ("rail_home_from_artist", f"artist/{ARTIST}", ["RIGHT", "DOWN", "LEFT", "UP", "UP", "CENTER"]),
 ]
 
 
@@ -160,6 +160,12 @@ def run_scenario(name, route, keys):
     shot(f"{name}_00_start")
     lines = [f"## {name} ({route})", "   start: " + describe_focus()]
     for i, k in enumerate(keys, start=1):
+        if k.startswith("TAP:"):
+            tapped = tap_text_nodes([k[4:]])
+            time.sleep(5)
+            shot(f"{name}_{i:02d}_TAP")
+            lines.append(f"   {i:02d} {k} tapped={tapped}: " + describe_focus())
+            continue
         code = "KEYCODE_DPAD_CENTER" if k == "CENTER" else f"KEYCODE_DPAD_{k}"
         key(code, 1.2)
         shot(f"{name}_{i:02d}_{k}")
