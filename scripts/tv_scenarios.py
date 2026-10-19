@@ -109,35 +109,38 @@ def in_direction(src, dst, direction):
 DIALOG_BUTTONS = ["Later", "Not now", "Dismiss", "No thanks", "Skip", "Cancel", "Close", "Plus tard", "Pas maintenant"]
 ARTIST = "UCedvOgsKFzcK3hA5taf3KoQ"
 
-SCENARIOS = [
-    ("settings_player", "settings/player", ["RIGHT"] + ["DOWN"] * 7 + ["UP"] * 8 + ["DOWN"]),
-    ("settings_appearance", "settings/appearance", ["RIGHT"] + ["DOWN"] * 9 + ["UP"] * 10),
-    ("settings_sources", "settings/sources", ["RIGHT"] + ["DOWN"] * 5 + ["UP"] * 6),
-    ("artist_main_full", f"artist/{ARTIST}", ["RIGHT"] + ["DOWN"] * 6 + ["UP"] * 7 + ["LEFT"]),
-    ("artist_albums_full", f"artist/{ARTIST}/albums", ["RIGHT", "DOWN", "UP", "DOWN"]),
-    ("library_playlists_full", "library_playlists", ["RIGHT"] + ["DOWN"] * 3 + ["UP"] * 4),
-    ("history_full", "history", ["RIGHT", "DOWN", "DOWN", "UP", "UP", "UP"]),
-    ("stats_full", "stats", ["RIGHT", "DOWN", "UP"]),
-    ("mini_player", f"artist/{ARTIST}", ["TAP:Play", "LEFT", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT", "LEFT", "DOWN", "RIGHT", "RIGHT", "RIGHT", "LEFT", "UP"]),
-    ("rail_home_from_artist", f"artist/{ARTIST}", ["RIGHT", "DOWN", "LEFT", "UP", "UP", "CENTER"]),
+PLAYER_KEYS = ['TAP:Play', 'EXPAND', 'UP', 'UP', 'UP', 'DOWN', 'DOWN', 'DOWN', 'DOWN', 'DOWN', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'RIGHT', 'RIGHT', 'UP', 'UP', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'RIGHT', 'DOWN', 'DOWN', 'RIGHT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'DOWN', 'DOWN', 'DOWN', 'RIGHT', 'RIGHT', 'RIGHT']
+
+LYRICS_KEYS = ["TAP:Play", "EXPAND", "TAP:Lyrics", "DOWN", "DOWN", "LEFT", "RIGHT", "RIGHT", "TAP:Lyrics", "DOWN", "UP", "UP", "LEFT", "LEFT", "RIGHT"]
+
+QUEUE_KEYS = ["TAP:Play", "EXPAND", "TAP:Queue", "DOWN", "DOWN", "UP", "CENTER", "BACK", "DOWN", "LEFT", "BACK", "BACK"]
+
+SETTINGS_ROUTES = [
+    "settings", "settings/account", "settings/appearance", "settings/appearance/extras", "settings/appearance/navigation_bar",
+    "settings/appearance/palette_picker", "settings/appearance/icon", "settings/player", "settings/player/audiophile",
+    "settings/player/canvas", "settings/lyrics", "settings/lyrics/providers", "settings/content", "settings/privacy",
+    "settings/storage", "settings/downloads", "settings/backup_restore", "settings/sources", "settings/integration",
+    "settings/internet", "settings/tidal", "settings/qobuz", "settings/deezer", "settings/lastfm", "settings/discord",
+    "settings/ai_integration", "settings/android_auto", "settings/language_packs", "settings/hidden_playlists",
+    "settings/misc", "settings/update", "settings/about", "settings/po_token", "settings/jiosaavn", "settings/telegram",
 ]
 
+SETTINGS_KEYS = ["RIGHT", "DOWN", "DOWN", "DOWN", "DOWN", "UP", "UP", "CENTER", "DOWN", "BACK", "UP", "LEFT"]
 
-def tap_text_nodes(labels):
-    xml = dump()
-    root = parse(xml)
-    if root is None:
-        return False
-    for el in root.iter("node"):
-        text = (el.get("text") or el.get("content-desc") or "").strip()
-        if text in labels:
-            b = bounds_of(el)
-            if b:
-                cx, cy = center(b)
-                adb("shell", "input", "tap", str(int(cx)), str(int(cy)))
-                time.sleep(1.2)
-                return True
-    return False
+PAGE_ROUTES = [
+    "home", "search", "library", "local_songs", "history", "library_playlists", "library_artists", "stats", "news",
+    "account", "new_release", "charts_screen", "mood_and_genres", "smart_playlists", "listen_together", "customize_background",
+    f"artist/{ARTIST}/songs", f"artist/{ARTIST}/albums",
+]
+
+PAGE_KEYS = ["RIGHT", "DOWN", "DOWN", "DOWN", "UP", "UP", "RIGHT", "LEFT", "LEFT", "CENTER", "BACK", "DOWN"]
+
+SCENARIOS = [
+    ("player_nav", f"artist/{ARTIST}", PLAYER_KEYS, "all"),
+    ("player_lyrics", f"artist/{ARTIST}", LYRICS_KEYS, "all"),
+    ("player_queue", f"artist/{ARTIST}", QUEUE_KEYS, "all"),
+    ("artist_main_full", f"artist/{ARTIST}", ["RIGHT"] + ["DOWN"] * 8 + ["UP"] * 9 + ["LEFT"], "sparse"),
+] + [(r.replace("/", "_"), r, SETTINGS_KEYS, "sparse") for r in SETTINGS_ROUTES] + [(r.replace("/", "_"), r, PAGE_KEYS, "sparse") for r in PAGE_ROUTES]
 
 
 def dismiss_dialogs():
@@ -153,13 +156,25 @@ def describe_focus():
     return "focus='%s' bounds=%s interactive=%d" % (focused[1], list(focused[0]), len(nodes))
 
 
-def run_scenario(name, route, keys):
+def run_scenario(name, route, keys, shots="all"):
     adb("shell", "am", "start", "-n", ACTIVITY, "--es", "navigate_to", route)
     time.sleep(7)
     dismiss_dialogs()
     shot(f"{name}_00_start")
     lines = [f"## {name} ({route})", "   start: " + describe_focus()]
     for i, k in enumerate(keys, start=1):
+        if k == "EXPAND":
+            adb("shell", "am", "start", "-n", ACTIVITY, "--ez", "expand_player", "true")
+            time.sleep(5)
+            shot(f"{name}_{i:02d}_EXPAND")
+            lines.append(f"   {i:02d} EXPAND: " + describe_focus())
+            continue
+        if k == "BACK":
+            key("KEYCODE_BACK", 1.2)
+            if shots == "all" or i % 3 == 0:
+                shot(f"{name}_{i:02d}_BACK")
+            lines.append(f"   {i:02d} BACK: " + describe_focus())
+            continue
         if k.startswith("TAP:"):
             tapped = tap_text_nodes([k[4:]])
             time.sleep(5)
@@ -168,7 +183,8 @@ def run_scenario(name, route, keys):
             continue
         code = "KEYCODE_DPAD_CENTER" if k == "CENTER" else f"KEYCODE_DPAD_{k}"
         key(code, 1.2)
-        shot(f"{name}_{i:02d}_{k}")
+        if shots == "all" or i % 3 == 0 or k == "CENTER":
+            shot(f"{name}_{i:02d}_{k}")
         lines.append(f"   {i:02d} {k}: " + describe_focus())
     for line in lines:
         say(line)
@@ -190,9 +206,9 @@ for _ in range(8):
 time.sleep(6)
 dismiss_dialogs()
 
-for name, route, keys in SCENARIOS:
+for name, route, keys, shots in SCENARIOS:
     try:
-        run_scenario(name, route, keys)
+        run_scenario(name, route, keys, shots)
     except Exception as error:
         say(f"## {name} SCENARIO_ERROR {error}")
     subprocess.run(["bash", "scripts/tv_crawl_publish.sh", OUT])

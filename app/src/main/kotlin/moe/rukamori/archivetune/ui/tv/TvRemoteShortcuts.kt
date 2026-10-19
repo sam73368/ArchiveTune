@@ -47,7 +47,8 @@ object TvRemoteShortcuts {
                 Key.MediaPrevious -> ({ connection.seekToPrevious() })
                 else -> return false
             }
-        if (event.type == KeyEventType.KeyDown) action()
+        val repeatable = event.key == Key.MediaFastForward || event.key == Key.MediaRewind
+        if (event.type == KeyEventType.KeyDown && (repeatable || event.nativeKeyEvent.repeatCount == 0)) action()
         return true
     }
 

@@ -5789,3 +5789,16 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification (no local compile by rule).
+
+---
+Task ID: TV-6
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: TV audit sweep — media key auto-repeat guard and a broad emulator scenario sweep.
+
+Work Log:
+- `TvRemoteShortcuts`: play/pause, play, pause, next and previous media keys act only on the first key-down, so holding the key no longer toggles playback repeatedly; fast-forward/rewind still repeat.
+- `scripts/tv_scenarios.py`: player navigation (rail and row-based focus, lyrics toggle, queue panel) after playing a title and expanding the player through the `expand_player` intent, plus a sweep of 35 settings routes and 18 page routes (enter content, move, open the first item, back).
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification (no local compile by rule).
