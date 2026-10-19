@@ -5846,3 +5846,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification (no local compile by rule).
+
+---
+Task ID: TV-10
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Third emulator sweep (build b997f7bd2): focus wrap-around in the player and the rail-to-player Right move.
+
+Work Log:
+- `TvFocusFallback.movePlayerPane`: a vertical move inside the player that lands on an element in the opposite direction (Up from the album link jumping to Play, Down from the Lyrics pill jumping back to Play) is reverted to the origin; the seek bar and lyrics are exempt.
+- `TvFocusFallback.moveWithFallback`: a vertical move in the content area that lands more than 40% of the screen height in the wrong direction is treated as a wrap-around and reverted or replaced by the best candidate in that direction.
+- Temporary `TvFocus` log lines (rail to player Right, content entry, player entry attempts, sheet focus request); `scripts/tv_scenarios.py` clears logcat per scenario and appends those lines to the report.
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification (no local compile by rule). The log lines are meant to be removed once the player entry focus and rail to player Right are understood.

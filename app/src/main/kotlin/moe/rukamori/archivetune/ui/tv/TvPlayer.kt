@@ -160,7 +160,10 @@ fun TvPlayerContent(
             userKeyed = false
             repeat(14) {
                 if (userKeyed) return@LaunchedEffect
-                if (!playHasFocus) runCatching { playFocus.requestFocus() }
+                if (!playHasFocus) {
+                    val result = runCatching { playFocus.requestFocus() }
+                    android.util.Log.d("TvFocus", "player entry attempt=$it result=$result userKeyed=$userKeyed")
+                }
                 delay(120)
             }
         }

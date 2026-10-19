@@ -1171,7 +1171,8 @@ fun BottomSheetPlayer(
     LaunchedEffect(isTelevision, queueSheetState.isCollapsed, state.isExpanded) {
         if (isTelevision && state.isExpanded && queueSheetState.isCollapsed) {
             delay(250)
-            runCatching { focusRequester.requestFocus() }
+            val result = runCatching { focusRequester.requestFocus() }
+            android.util.Log.d("TvFocus", "sheet focus request result=$result")
         }
     }
 

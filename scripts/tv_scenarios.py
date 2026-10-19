@@ -190,6 +190,7 @@ def describe_focus():
 
 
 def run_scenario(name, route, keys, shots="all"):
+    adb("logcat", "-c")
     adb("shell", "am", "start", "-n", ACTIVITY, "--es", "navigate_to", route)
     time.sleep(7)
     dismiss_dialogs()
@@ -226,6 +227,11 @@ def run_scenario(name, route, keys, shots="all"):
         lines.append(f"   {i:02d} {k}: " + describe_focus())
     for line in lines:
         say(line)
+    logs = adb("logcat", "-d", "-s", "TvFocus:D")
+    for entry in logs.splitlines():
+        if "TvFocus" in entry:
+            say("   LOG " + entry.split("TvFocus", 1)[-1].strip(": ")[:200])
+    adb("logcat", "-c")
     for _ in range(3):
         key("KEYCODE_BACK", 0.8)
 

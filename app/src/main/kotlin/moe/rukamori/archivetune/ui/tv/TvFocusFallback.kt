@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.tv
 
+import android.util.Log
 import android.view.View
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
@@ -133,6 +134,7 @@ class TvTextFieldTarget(
 private class FocusCandidate(
     val node: SemanticsNode,
     val rect: Rect,
+    val excluded: Boolean = false,
 )
 
 private class FocusSnapshot(
@@ -178,7 +180,9 @@ object TvFocusFallback {
         val below = usable.filter { it.rect.top >= entryTop }
         val pool = below.ifEmpty { usable }
         val ordered = pool.sortedWith(compareBy<FocusCandidate>({ (it.rect.top / 24f).toInt() }, { it.rect.left }))
-        return ordered.take(6).any { requestFocus(it) }
+        val result = ordered.take(6).any { requestFocus(it) }
+        Log.d("TvFocus", "enterContent offscreen=$includeOffscreen scope=${snap.scopeCandidates.size} usable=${usable.size} result=$result first=${ordered.firstOrNull()?.rect}")
+        return result
     }
 
     fun focusedIsTextField(view: View): Boolean =
@@ -272,6 +276,13 @@ object TvFocusFallback {
         val landedRailed = landed != null && after?.focusedInRail == true
         val landedInContent = landedScoped && !landedRailed
         val sameSpot = landed != null && landed.rect == start.rect
+        if (moved && landedInContent && !sameSpot && landed != null &&
+            wrappedFar(start.rect, landed.rect, direction, before.rootHeight)
+        ) {
+            Log.d("TvFocus", "content wrap $direction ${start.rect} -> ${landed.rect}")
+            requestFocus(start)
+            return true
+        }
         if (moved && landedInContent && !sameSpot) return true
         if (moved && landed != null && !landedScoped && !landedRailed) return true
         val pool = after?.scopeCandidates ?: before.scopeCandidates
@@ -296,13 +307,27 @@ object TvFocusFallback {
             if (direction != FocusDirection.Right || before.playerCandidates.isEmpty()) return null
             val railNeighbour = bestCandidate(origin, before.railCandidates, direction)
             if (railNeighbour != null) return if (requestFocus(railNeighbour)) true else null
-            val target = nearestInRow(origin, before.playerCandidates, direction) ?: return null
-            return if (requestFocus(target)) true else null
+            val target = nearestInRow(origin, before.playerCandidates, direction)
+            Log.d("TvFocus", "rail->player from ${origin.rect} candidates=${before.playerCandidates.size} target=${target?.rect}")
+            if (target == null) return null
+            val ok = requestFocus(target)
+            Log.d("TvFocus", "rail->player requestFocus=$ok")
+            return if (ok) true else null
         }
         if (!before.focusedInPlayer) return null
         val moved = focusManager.moveFocus(direction)
         val after = if (moved) runCatching { snapshot(view) }.getOrNull() else null
-        if (moved && after?.focusedInPlayer == true) return true
+        if (moved && after?.focusedInPlayer == true) {
+            val landed = after?.focused
+            val vertical = direction == FocusDirection.Up || direction == FocusDirection.Down
+            if (vertical && landed != null && !origin.excluded && !landed.excluded &&
+                !isForward(origin.rect, landed.rect, direction)
+            ) {
+                Log.d("TvFocus", "player wrap $direction ${origin.rect} -> ${landed.rect}")
+                requestFocus(origin)
+            }
+            return true
+        }
         if (direction == FocusDirection.Left) {
             val rail = nearestInRow(origin, before.railCandidates, direction)
             if (rail != null && requestFocus(rail)) return true
@@ -313,6 +338,32 @@ object TvFocusFallback {
         val alternative = bestCandidate(origin, pool, direction)
         if (alternative == null || !requestFocus(alternative)) requestFocus(origin)
         return true
+    }
+
+    private fun isForward(
+        from: Rect,
+        to: Rect,
+        direction: FocusDirection,
+    ): Boolean =
+        when (direction) {
+            FocusDirection.Up -> to.center.y < from.center.y - 1f
+            FocusDirection.Down -> to.center.y > from.center.y + 1f
+            FocusDirection.Left -> to.center.x < from.center.x - 1f
+            else -> to.center.x > from.center.x + 1f
+        }
+
+    private fun wrappedFar(
+        from: Rect,
+        to: Rect,
+        direction: FocusDirection,
+        rootHeight: Float,
+    ): Boolean {
+        val limit = rootHeight * 0.4f
+        return when (direction) {
+            FocusDirection.Up -> to.center.y - from.center.y > limit
+            FocusDirection.Down -> from.center.y - to.center.y > limit
+            else -> false
+        }
     }
 
     private fun nearestInRow(
@@ -381,7 +432,7 @@ object TvFocusFallback {
             ) {
                 val rect = node.boundsInRoot
                 if (rect.width > 1f && rect.height > 1f) {
-                    val candidate = FocusCandidate(node, rect)
+                    val candidate = FocusCandidate(node, rect, excluded)
                     if (config.getOrNull(SemanticsProperties.Focused) == true) {
                         focused = candidate
                         focusedInScope = scoped
