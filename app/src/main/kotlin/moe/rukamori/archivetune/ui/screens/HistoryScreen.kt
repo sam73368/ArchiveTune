@@ -13,6 +13,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.layout.asPaddingValues
 import moe.rukamori.archivetune.ui.component.glassAwareSurface
@@ -665,6 +666,7 @@ fun HistoryScreen(
                         if (selectionCount == 0) {
                             FrostedHeaderPill(modifier = Modifier.padding(end = 8.dp)) {
                                 AppIconButton(
+                                    modifier = Modifier.tvSkipFocus(),
                                     onClick = { navController.navigateHome() },
                                     onLongClick = {},
                                 ) {
@@ -785,6 +787,7 @@ fun HistoryScreen(
                             contentAlignment = Alignment.Center,
                         ) {
                             AppIconButton(
+                                modifier = Modifier.tvSkipFocus(),
                                 onClick = { if (compactFraction.value < 0.5f) navController.navigateHome() },
                                 onLongClick = {},
                             ) {

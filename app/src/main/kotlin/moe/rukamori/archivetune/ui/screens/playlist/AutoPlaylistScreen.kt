@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.playlist
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -713,7 +714,7 @@ fun AutoPlaylistScreen(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                    androidx.compose.material3.IconButton(modifier = Modifier.tvSkipFocus(), onClick = { navController.navigateHome() }) {
                         Icon(
                             painter = painterResource(R.drawable.home_outlined),
                             contentDescription = stringResource(R.string.home),
@@ -933,6 +934,7 @@ fun AutoPlaylistScreen(
                 } else if (!isSearching) {
                     if (showTopBarTitle || !liquidGlassHeaderActive) {
                         androidx.compose.material3.IconButton(
+                            modifier = Modifier.tvSkipFocus(),
                             onClick = { navController.navigateHome() },
                         ) {
                             Icon(

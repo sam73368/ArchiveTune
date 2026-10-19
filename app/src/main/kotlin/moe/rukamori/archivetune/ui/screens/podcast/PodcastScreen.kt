@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.podcast
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -384,7 +385,7 @@ private fun PodcastTopAppBar(
             }
         },
         actions = {
-            IconButton(onClick = onHome) {
+            IconButton(modifier = Modifier.tvSkipFocus(), onClick = onHome) {
                 Icon(
                     painter = painterResource(R.drawable.home_outlined),
                     contentDescription = stringResource(R.string.home),

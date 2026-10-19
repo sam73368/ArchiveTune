@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -271,6 +272,7 @@ fun NewReleaseScreen(
                         actions = {
                             if (!isSelectionMode) {
                                 IconButton(
+                                    modifier = Modifier.tvSkipFocus(),
                                     onClick = { navController.navigateHome() },
                                 ) {
                                     Icon(

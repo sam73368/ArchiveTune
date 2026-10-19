@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.playlist
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -635,7 +636,7 @@ fun CachePlaylistScreen(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                    androidx.compose.material3.IconButton(modifier = Modifier.tvSkipFocus(), onClick = { navController.navigateHome() }) {
                         Icon(
                             painter = painterResource(R.drawable.home_outlined),
                             contentDescription = stringResource(R.string.home),
@@ -846,7 +847,7 @@ fun CachePlaylistScreen(
                     }
                 } else if (!isSearching) {
                     if (showTopBarTitle || !liquidGlassHeaderActive) {
-                        androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                        androidx.compose.material3.IconButton(modifier = Modifier.tvSkipFocus(), onClick = { navController.navigateHome() }) {
                             Icon(
                                 painter = painterResource(R.drawable.home_outlined),
                                 contentDescription = stringResource(R.string.home),

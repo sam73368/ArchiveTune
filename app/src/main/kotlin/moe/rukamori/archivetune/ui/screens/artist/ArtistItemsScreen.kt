@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.artist
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -521,6 +522,7 @@ fun ArtistItemsScreen(
                 },
                 actions = {
                     IconButton(
+                        modifier = Modifier.tvSkipFocus(),
                         onClick = { navController.navigateHome() },
                         onLongClick = {},
                     ) {

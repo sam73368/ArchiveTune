@@ -5802,3 +5802,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification (no local compile by rule).
+
+---
+Task ID: TV-7
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Mini player Right teleport with the player open, dead-end on the top bar icons of the artist songs page.
+
+Work Log:
+- `TvFocusFallback.movePlayerPane`: from a rail item Right first moves to a rail neighbour to the right (mini player prev → play → next), and only jumps to the player when the rail has nothing further right.
+- Down from a focus target in the top band of the screen picks the best content candidate itself instead of relying on the default 2D search.
+- New `tvSkipFocus()` (canFocus=false on TV) on every header Home icon button; Home stays one key away in the rail.
+- `scripts/tv_scenarios.py`: restored the `tap_text_nodes` helper that an earlier edit dropped (the previous sweep produced an empty report); added the top songs page and mini player scenarios.
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification (no local compile by rule).

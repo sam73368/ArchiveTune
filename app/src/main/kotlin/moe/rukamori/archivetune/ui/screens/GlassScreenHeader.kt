@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.os.Build
 import androidx.compose.foundation.layout.Box
@@ -140,6 +141,7 @@ fun BoxScope.GlassScreenHeaderOverlay(
                     contentAlignment = Alignment.Center,
                 ) {
                     AppIconButton(
+                        modifier = Modifier.tvSkipFocus(),
                         onClick = onHome,
                         onLongClick = {},
                     ) {

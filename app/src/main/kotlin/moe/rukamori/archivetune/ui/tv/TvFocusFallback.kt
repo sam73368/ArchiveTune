@@ -98,6 +98,9 @@ fun Modifier.tvFocusExcluded(): Modifier = semantics { this[TvFocusExcludedKey] 
 
 fun Modifier.tvNonFocusable(): Modifier = focusProperties { canFocus = false }
 
+fun Modifier.tvSkipFocus(): Modifier =
+    if (moe.rukamori.archivetune.utils.TvPerformance.isTelevision) focusProperties { canFocus = false } else this
+
 fun Modifier.tvBackButtonFocus(): Modifier =
     if (moe.rukamori.archivetune.utils.TvPerformance.isTelevision) focusProperties { canFocus = false } else this
 
@@ -140,7 +143,10 @@ private class FocusSnapshot(
     val focusedInPlayer: Boolean = false,
     val playerCandidates: List<FocusCandidate> = emptyList(),
     val railCandidates: List<FocusCandidate> = emptyList(),
+    val rootHeight: Float = 0f,
 )
+
+private const val TopBandFraction = 0.17f
 
 object TvFocusFallback {
     var scopeFocusCount: Int = 0
@@ -213,6 +219,13 @@ object TvFocusFallback {
             return requestFocus(alternative)
         }
         val before = runCatching { snapshot(view) }.getOrNull()
+        if (before != null && before.focusedInScope && direction == FocusDirection.Down) {
+            val origin = before.focused
+            if (origin != null && before.rootHeight > 0f && origin.rect.bottom <= before.rootHeight * TopBandFraction) {
+                val below = bestCandidate(origin, before.scopeCandidates, direction)
+                if (below != null && requestFocus(below)) return true
+            }
+        }
         val moved = focusManager.moveFocus(direction)
         if (before == null || !before.focusedInScope) return moved
         val start = before.focused ?: return moved
@@ -244,6 +257,8 @@ object TvFocusFallback {
         val origin = before.focused ?: return null
         if (before.focusedInRail) {
             if (direction != FocusDirection.Right || before.playerCandidates.isEmpty()) return null
+            val railNeighbour = bestCandidate(origin, before.railCandidates, direction)
+            if (railNeighbour != null) return if (requestFocus(railNeighbour)) true else null
             val target = nearestInRow(origin, before.playerCandidates, direction) ?: return null
             return if (requestFocus(target)) true else null
         }
@@ -346,7 +361,7 @@ object TvFocusFallback {
             node.children.forEach { walk(it, scoped, railed, played, excluded) }
         }
         walk(rootNode, false, false, false, false)
-        return FocusSnapshot(focused, focusedInScope, focusedInRail, candidates, focusedInPlayer, playerCandidates, railCandidates)
+        return FocusSnapshot(focused, focusedInScope, focusedInRail, candidates, focusedInPlayer, playerCandidates, railCandidates, rootBounds.height)
     }
 
     private fun bestCandidate(

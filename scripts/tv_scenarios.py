@@ -135,12 +135,35 @@ PAGE_ROUTES = [
 
 PAGE_KEYS = ["RIGHT", "DOWN", "DOWN", "DOWN", "UP", "UP", "RIGHT", "LEFT", "LEFT", "CENTER", "BACK", "DOWN"]
 
+TOP_SONGS_KEYS = ["RIGHT", "DOWN", "DOWN", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "CENTER", "DOWN", "DOWN", "DOWN", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "DOWN", "DOWN", "DOWN", "LEFT"]
+
+MINI_KEYS = ["TAP:Play", "EXPAND", "LEFT", "LEFT", "LEFT", "LEFT", "LEFT", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT", "RIGHT", "RIGHT", "RIGHT", "LEFT", "LEFT", "LEFT", "RIGHT"]
+
 SCENARIOS = [
+    ("top_songs_page", f"artist/{ARTIST}", TOP_SONGS_KEYS, "all"),
+    ("mini_player_rail", f"artist/{ARTIST}", MINI_KEYS, "all"),
     ("player_nav", f"artist/{ARTIST}", PLAYER_KEYS, "all"),
     ("player_lyrics", f"artist/{ARTIST}", LYRICS_KEYS, "all"),
     ("player_queue", f"artist/{ARTIST}", QUEUE_KEYS, "all"),
     ("artist_main_full", f"artist/{ARTIST}", ["RIGHT"] + ["DOWN"] * 8 + ["UP"] * 9 + ["LEFT"], "sparse"),
 ] + [(r.replace("/", "_"), r, SETTINGS_KEYS, "sparse") for r in SETTINGS_ROUTES] + [(r.replace("/", "_"), r, PAGE_KEYS, "sparse") for r in PAGE_ROUTES]
+
+
+def tap_text_nodes(labels):
+    xml = dump()
+    root = parse(xml)
+    if root is None:
+        return False
+    for el in root.iter("node"):
+        text = (el.get("text") or el.get("content-desc") or "").strip()
+        if text in labels:
+            b = bounds_of(el)
+            if b:
+                cx, cy = center(b)
+                adb("shell", "input", "tap", str(int(cx)), str(int(cy)))
+                time.sleep(1.2)
+                return True
+    return False
 
 
 def dismiss_dialogs():

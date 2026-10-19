@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -113,7 +114,7 @@ fun MoodAndGenresScreen(
                     title = stringResource(R.string.mood_and_genres),
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = { navController.navigateHome() }) {
+                IconButton(modifier = Modifier.tvSkipFocus(), onClick = { navController.navigateHome() }) {
                     Icon(
                         painter = painterResource(R.drawable.home_outlined),
                         contentDescription = stringResource(R.string.home),

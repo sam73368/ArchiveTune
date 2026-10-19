@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -90,6 +91,7 @@ fun ChartsScreen(
                 onBackLongClick = { navController.backToMain() },
                 actions = {
                     IconButton(
+                        modifier = Modifier.tvSkipFocus(),
                         onClick = { navController.navigateHome() },
                         onLongClick = {},
                     ) {

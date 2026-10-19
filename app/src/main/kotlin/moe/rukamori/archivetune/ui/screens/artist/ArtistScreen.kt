@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.artist
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import moe.rukamori.archivetune.ui.tv.tvNonFocusable
 import moe.rukamori.archivetune.ui.tv.tvMenuFocusTrap
@@ -1684,7 +1685,7 @@ fun ArtistScreen(
                     backdrop = artworkBackdrop,
                     painter = painterResource(R.drawable.home_outlined),
                     contentDescription = stringResource(R.string.home),
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(48.dp).tvSkipFocus(),
                     onClick = { navController.navigateHome() },
                 )
                 LiquidGlassIconButton(
@@ -1783,6 +1784,7 @@ fun ArtistScreen(
         },
         actions = {
             IconButton(
+                modifier = Modifier.tvSkipFocus(),
                 onClick = { navController.navigateHome() },
                 onLongClick = {},
             ) {

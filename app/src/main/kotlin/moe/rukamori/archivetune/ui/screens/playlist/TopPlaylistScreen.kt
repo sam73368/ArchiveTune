@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.playlist
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -689,6 +690,7 @@ fun TopPlaylistScreen(
                     }
                 } else if (!isSearching) {
                     androidx.compose.material3.IconButton(
+                        modifier = Modifier.tvSkipFocus(),
                         onClick = { navController.navigateHome() },
                     ) {
                         Icon(

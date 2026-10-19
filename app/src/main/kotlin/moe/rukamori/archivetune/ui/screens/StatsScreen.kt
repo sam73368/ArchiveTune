@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -274,6 +275,7 @@ fun StatsScreen(
                 },
                 actions = {
                     IconButton(
+                        modifier = Modifier.tvSkipFocus(),
                         onClick = { navController.navigateHome() },
                         onLongClick = {},
                     ) {
@@ -668,7 +670,7 @@ private fun StatsStatusScreen(
                     IconButton(
                         onClick = { navController.navigateHome() },
                         onLongClick = {},
-                        modifier = Modifier.padding(end = 8.dp),
+                        modifier = Modifier.padding(end = 8.dp).tvSkipFocus(),
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.home_outlined),

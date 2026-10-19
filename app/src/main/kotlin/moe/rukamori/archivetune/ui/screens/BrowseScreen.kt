@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.asPaddingValues
@@ -151,6 +152,7 @@ fun BrowseScreen(
         onBackLongClick = navController::backToMain,
         actions = {
             IconButton(
+                modifier = Modifier.tvSkipFocus(),
                 onClick = { navController.navigateHome() },
                 onLongClick = {},
             ) {

@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -867,7 +868,7 @@ fun AlbumScreen(
                     modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    androidx.compose.material3.IconButton(onClick = { navController.navigateHome() }) {
+                    androidx.compose.material3.IconButton(modifier = Modifier.tvSkipFocus(), onClick = { navController.navigateHome() }) {
                         Icon(
                             painter = painterResource(R.drawable.home_outlined),
                             contentDescription = stringResource(R.string.home),
@@ -1039,6 +1040,7 @@ fun AlbumScreen(
                     }
                 } else {
                     IconButton(
+                        modifier = Modifier.tvSkipFocus(),
                         onClick = { navController.navigateHome() },
                         onLongClick = {},
                     ) {
