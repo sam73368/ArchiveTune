@@ -5905,3 +5905,15 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification.
+
+---
+Task ID: TV-14
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Second fix for Back in the TV settings drill-down (crawl of 5f7b37c7c still reset the selection).
+
+Work Log:
+- The nested preview NavHost kept its blank start entry in the back stack, so at the category root the stack had two entries and the NavHost's own back handling could pop the screen before `TvSettingsHome` did. Navigation now uses `popUpTo(graph.id) { inclusive = true }`, so a category root is a single-entry stack and the shell's `BackHandler` alone decides: pop a deeper page, or collapse back to the list with the focus on the selected category.
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification.

@@ -178,7 +178,7 @@ fun TvSettingsHome(
         delay(30)
         runCatching {
             previewNav.navigate(route) {
-                popUpTo(TvSettingsBlankRoute) { inclusive = false }
+                popUpTo(previewNav.graph.id) { inclusive = true }
                 launchSingleTop = true
             }
         }
@@ -208,8 +208,7 @@ fun TvSettingsHome(
     }
 
     BackHandler(enabled = entered) {
-        val previous = previewNav.previousBackStackEntry?.destination?.route
-        if (previous != null && previous != TvSettingsBlankRoute) {
+        if (previewNav.previousBackStackEntry != null) {
             previewNav.popBackStack()
         } else {
             leaving = true
