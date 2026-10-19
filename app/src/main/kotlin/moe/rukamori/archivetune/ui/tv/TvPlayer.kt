@@ -153,11 +153,15 @@ fun TvPlayerContent(
         }
     }
 
+    var playHasFocus by remember { mutableStateOf(false) }
+    var userKeyed by remember { mutableStateOf(false) }
     LaunchedEffect(expanded) {
         if (expanded) {
-            repeat(6) {
-                if (runCatching { playFocus.requestFocus() }.isSuccess) return@LaunchedEffect
-                delay(80)
+            userKeyed = false
+            repeat(14) {
+                if (userKeyed) return@LaunchedEffect
+                if (!playHasFocus) runCatching { playFocus.requestFocus() }
+                delay(120)
             }
         }
     }
@@ -167,7 +171,10 @@ fun TvPlayerContent(
             modifier
                 .fillMaxSize()
                 .tvPlayerPane()
-                .background(TvTokens.Background),
+                .onPreviewKeyEvent {
+                    if (it.type == KeyEventType.KeyDown) userKeyed = true
+                    false
+                }.background(TvTokens.Background),
     ) {
         val roomy = maxHeight >= 600.dp
         TvPlayerBackdrop(artworkUrl = mediaMetadata.thumbnailUrl)
@@ -312,7 +319,7 @@ fun TvPlayerContent(
                         size = 56.dp,
                         filled = true,
                         loading = isLoading,
-                        modifier = Modifier.focusRequester(playFocus),
+                        modifier = Modifier.focusRequester(playFocus).onFocusChanged { playHasFocus = it.isFocused },
                         onClick = { playerConnection.player.togglePlayPause() },
                     )
                     TvRoundButton(

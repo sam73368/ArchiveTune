@@ -177,10 +177,16 @@ def dismiss_dialogs():
 
 
 def describe_focus():
-    focused, nodes = scan(dump())
+    xml = dump()
+    prefix = ""
+    if "Login PO Token" in xml or "Playback confirmation" in xml:
+        dismiss_dialogs()
+        xml = dump()
+        prefix = "[dialog closed] "
+    focused, nodes = scan(xml)
     if focused is None:
-        return "focus=None interactive=%d" % len(nodes)
-    return "focus='%s' bounds=%s interactive=%d" % (focused[1], list(focused[0]), len(nodes))
+        return prefix + "focus=None interactive=%d" % len(nodes)
+    return prefix + "focus='%s' bounds=%s interactive=%d" % (focused[1], list(focused[0]), len(nodes))
 
 
 def run_scenario(name, route, keys, shots="all"):

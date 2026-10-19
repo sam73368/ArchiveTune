@@ -5833,3 +5833,16 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification (no local compile by rule).
+
+---
+Task ID: TV-9
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Player entry focus still landed on the seek bar in the second emulator sweep (build N202610191012).
+
+Work Log:
+- `TvPlayer`: the entry focus effect keeps requesting Play (every 120 ms, up to 14 times) until Play holds focus or the user presses a key, instead of stopping after the first call that did not throw.
+- `scripts/tv_scenarios.py`: the playback error dialog (Login PO Token) is closed after every step so it no longer hides the focus state of later steps.
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification (no local compile by rule).
