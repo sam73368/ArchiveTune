@@ -5759,3 +5759,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI and on-device verification (no local compile by rule).
+
+---
+Task ID: TV-4
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: TV focus/navigation regressions — inert rail Home on sub-pages, focus stuck on top-bar arrows, mini player Right teleport.
+
+Work Log:
+- Rail item clicks from a non-tab route (settings sub-pages, artist pages, etc.) now go through `navigateToTabRoot`; the old `popUpTo(start){saveState}` + `restoreState` path saved the sub-page stack under Home and restored it, which made Home look inert. Settings rail button pops back to the settings hub instead of re-navigating. Search from a sub-page returns to Home and opens search.
+- `TvNavigationRail` no longer forces Right on the whole column; the mini player passes a Right target only to the cover and the next button, so Right moves between prev/play/next normally.
+- New `Modifier.tvBackButtonFocus()` (canFocus=false on TV only) applied to every back-arrow button (about 50 files); the Back key handles it on TV.
+- `TvFocusFallback` vertical handling: after a Compose move it verifies focus really moved into content (not rail, not the same spot) and otherwise picks the best content candidate in that direction, instead of bouncing back to the origin.
+- `scripts/tv_scenarios.py`: scripted emulator scenarios with a screenshot after every key press (dismisses the support dialog first).
+
+Stage Summary:
+- Pending CI compile and on-device verification (no local compile by rule).

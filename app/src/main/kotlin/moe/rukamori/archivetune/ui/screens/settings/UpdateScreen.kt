@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -529,6 +530,7 @@ fun UpdateScreen(
                 navigationIcon = {
                     FrostedHeaderPill(plain = true) {
                         IconButton(
+                            modifier = Modifier.tvBackButtonFocus(),
                             onClick = navController::navigateUp,
                             onLongClick = navController::backToMain,
                         ) {

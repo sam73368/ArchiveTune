@@ -14,6 +14,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -178,6 +179,7 @@ fun TelegramBotsScreen(navController: NavController) {
                 title = { Text(stringResource(R.string.telegram_bots_title)) },
                 navigationIcon = {
                     ATIconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = navController::navigateUp,
                         onLongClick = navController::backToMain,
                     ) {

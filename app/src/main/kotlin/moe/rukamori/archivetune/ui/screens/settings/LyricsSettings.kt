@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -583,6 +584,7 @@ fun LyricsSettings(
         navigationIcon = {
             FrostedHeaderPill(plain = true) {
                 IconButton(
+                    modifier = Modifier.tvBackButtonFocus(),
                     onClick = navController::navigateUp,
                     onLongClick = navController::backToMain,
                 ) {

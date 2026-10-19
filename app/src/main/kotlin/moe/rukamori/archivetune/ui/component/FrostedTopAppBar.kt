@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.component
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import com.kyant.backdrop.Backdrop
 
 import androidx.compose.foundation.layout.padding
@@ -72,6 +73,7 @@ fun FrostedTopAppBar(
         navigationIcon = {
             FrostedHeaderPill(backdrop = backdrop) {
                 IconButton(
+                    modifier = Modifier.tvBackButtonFocus(),
                     onClick = onBack,
                     onLongClick = onBackLongClick,
                 ) {
@@ -123,6 +125,7 @@ fun LargeFrostedTopAppBar(
         navigationIcon = {
             FrostedHeaderPill(backdrop = backdrop) {
                 IconButton(
+                    modifier = Modifier.tvBackButtonFocus(),
                     onClick = onBack,
                     onLongClick = onBackLongClick,
                 ) {
@@ -171,6 +174,7 @@ fun LargeFrostedTopAppBar(
         navigationIcon = {
             FrostedHeaderPill(backdrop = backdrop) {
                 IconButton(
+                    modifier = Modifier.tvBackButtonFocus(),
                     onClick = onBack,
                     onLongClick = onBackLongClick,
                 ) {

@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.artist
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -508,6 +509,7 @@ fun ArtistItemsScreen(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = navController::navigateUp,
                         onLongClick = navController::backToMain,
                     ) {

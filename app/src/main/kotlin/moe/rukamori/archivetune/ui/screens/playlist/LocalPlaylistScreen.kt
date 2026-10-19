@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.playlist
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.annotation.SuppressLint
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -1146,7 +1147,7 @@ fun LocalPlaylistScreen(
                             navController.backToMain()
                         }
                     },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(48.dp).tvBackButtonFocus(),
                 ) {
                     Icon(
                         painter =
@@ -1374,6 +1375,7 @@ fun LocalPlaylistScreen(
             navigationIcon = {
                 if (isSearching || selection || showTopBarTitle || !liquidGlassHeaderActive) {
                     IconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = {
                             if (isSearching) {
                                 isSearching = false

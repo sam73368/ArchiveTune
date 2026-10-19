@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -364,6 +365,7 @@ private fun LogcatTopBar(
         navigationIcon = {
             FrostedHeaderPill(plain = true) {
                 ArchiveTuneIconButton(
+                    modifier = Modifier.tvBackButtonFocus(),
                     onClick = onNavigateBack,
                     onLongClick = onNavigateBackLongClick,
                 ) {

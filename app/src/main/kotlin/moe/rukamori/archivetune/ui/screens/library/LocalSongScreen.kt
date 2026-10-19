@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.library
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -378,6 +379,7 @@ fun LocalSongScreen(
                                 },
                                 leadingIcon = {
                                     IconButton(
+                                        modifier = Modifier.tvBackButtonFocus(),
                                         onClick = {
                                             query = ""
                                             isSearchActive = false

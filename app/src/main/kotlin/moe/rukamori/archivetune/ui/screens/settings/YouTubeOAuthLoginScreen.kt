@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -142,6 +143,7 @@ fun YouTubeOAuthLoginScreen(navController: NavController) {
                 },
                 navigationIcon = {
                     IconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = navController::navigateUp,
                         onLongClick = navController::backToMain,
                     ) {

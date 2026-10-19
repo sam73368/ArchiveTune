@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.layout.WindowInsets
 import android.content.Intent
 import android.net.Uri
@@ -394,6 +395,7 @@ fun DiscordSettings(navController: NavController, scrollTo: String? = null) {
                 navigationIcon = {
                     FrostedHeaderPill(plain = true) {
                         IconButton(
+                            modifier = Modifier.tvBackButtonFocus(),
                             onClick = navController::navigateUp,
                             onLongClick = navController::backToMain,
                         ) {

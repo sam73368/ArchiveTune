@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -256,6 +257,7 @@ fun StatsScreen(
                 navigationIcon = {
                     FrostedHeaderPill(plain = true) {
                         IconButton(
+                            modifier = Modifier.tvBackButtonFocus(),
                             onClick = navController::navigateUp,
                             onLongClick = navController::backToMain,
                         ) {
@@ -647,6 +649,7 @@ private fun StatsStatusScreen(
                 navigationIcon = {
                     FrostedHeaderPill(plain = true) {
                         IconButton(
+                            modifier = Modifier.tvBackButtonFocus(),
                             onClick = navController::navigateUp,
                             onLongClick = navController::backToMain,
                         ) {

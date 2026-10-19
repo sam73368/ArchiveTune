@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -244,7 +245,7 @@ private fun AndroidAutoSettingsContent(
                         modifier =
                             Modifier
                                 .align(Alignment.CenterStart)
-                                .padding(start = 12.dp),
+                                .padding(start = 12.dp).tvBackButtonFocus(),
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.arrow_back),

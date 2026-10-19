@@ -12,6 +12,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
@@ -164,6 +165,7 @@ fun NewsScreen(
                                 },
                                 leadingIcon = {
                                     IconButton(
+                                        modifier = Modifier.tvBackButtonFocus(),
                                         onClick = {
                                             viewModel.searchQuery.value = ""
                                             isSearchActive = false
@@ -211,6 +213,7 @@ fun NewsScreen(
                         },
                         navigationIcon = {
                             AppIconButton(
+                                modifier = Modifier.tvBackButtonFocus(),
                                 onClick = navController::navigateUp,
                                 onLongClick = navController::backToMain,
                             ) {

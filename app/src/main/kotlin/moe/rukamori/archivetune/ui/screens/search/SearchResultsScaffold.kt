@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.search
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.font.FontWeight
@@ -246,7 +247,7 @@ private fun SearchBackPill(
             AppIconButton(
                 onClick = onBack,
                 onLongClick = onBackLongClick,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(48.dp).tvBackButtonFocus(),
             ) {
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),
@@ -264,7 +265,7 @@ private fun SearchBackPill(
             AppIconButton(
                 onClick = onBack,
                 onLongClick = onBackLongClick,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(48.dp).tvBackButtonFocus(),
             ) {
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),
@@ -447,6 +448,7 @@ fun SearchResultsTopHeader(
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
             modifier =
                 pillModifier
+                    .tvBackButtonFocus()
                     .combinedClickable(onClick = onBack, onLongClick = onBackLongClick)
                     .padding(start = 8.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
         ) {

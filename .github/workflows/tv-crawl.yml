@@ -75,7 +75,7 @@ jobs:
           script: |
             adb install -r -g probe.apk
             adb shell pm list packages | grep archivetune || true
-            python3 scripts/tv_crawl.py || true
+            python3 scripts/tv_scenarios.py || true
             bash scripts/tv_crawl_publish.sh crawl-out || true
 
       - name: Publish probe results

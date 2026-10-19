@@ -10,6 +10,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -157,6 +158,7 @@ fun SmartPlaylistsScreen(
                 title = { Text(stringResource(R.string.smart_playlists_title)) },
                 navigationIcon = {
                     ATIconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = navController::navigateUp,
                         onLongClick = navController::backToMain,
                     ) {
@@ -256,6 +258,7 @@ fun SmartPlaylistDetailScreen(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
                     ATIconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = navController::navigateUp,
                         onLongClick = navController::backToMain,
                     ) {

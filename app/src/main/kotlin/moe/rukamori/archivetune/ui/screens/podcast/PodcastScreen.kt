@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.podcast
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -375,7 +376,7 @@ private fun PodcastTopAppBar(
             )
         },
         navigationIcon = {
-            IconButton(onClick = onBack) {
+            IconButton(modifier = Modifier.tvBackButtonFocus(), onClick = onBack) {
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),
                     contentDescription = stringResource(R.string.back_button_desc),

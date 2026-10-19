@@ -83,6 +83,9 @@ fun Modifier.tvFocusRail(): Modifier {
 
 fun Modifier.tvNonFocusable(): Modifier = focusProperties { canFocus = false }
 
+fun Modifier.tvBackButtonFocus(): Modifier =
+    if (moe.rukamori.archivetune.utils.TvPerformance.isTelevision) focusProperties { canFocus = false } else this
+
 @Composable
 fun Modifier.tvMenuFocusTrap(): Modifier {
     val context = LocalContext.current
@@ -192,16 +195,22 @@ object TvFocusFallback {
         val moved = focusManager.moveFocus(direction)
         if (before == null || !before.focusedInScope) return moved
         val start = before.focused ?: return moved
-        if (moved) {
-            if (railFocusCount <= 0) return true
-            val after = runCatching { snapshot(view) }.getOrNull() ?: return true
-            if (after.focused == null || after.focusedInScope || !after.focusedInRail) return true
-            val alternative = bestCandidate(start, after.scopeCandidates, direction)
-            requestFocus(alternative ?: start)
+        val after = if (moved) runCatching { snapshot(view) }.getOrNull() else null
+        val landed = after?.focused
+        val landedScoped = landed != null && after?.focusedInScope == true
+        val landedRailed = landed != null && after?.focusedInRail == true
+        val landedInContent = landedScoped && !landedRailed
+        val sameSpot = landed != null && landed.rect == start.rect
+        if (moved && landedInContent && !sameSpot) return true
+        if (moved && landed != null && !landedScoped && !landedRailed) return true
+        val pool = after?.scopeCandidates ?: before.scopeCandidates
+        val alternative = bestCandidate(start, pool, direction)
+        if (alternative != null && requestFocus(alternative)) return true
+        if (moved && !landedInContent && railFocusCount > 0) {
+            requestFocus(start)
             return true
         }
-        val alternative = bestCandidate(start, before.scopeCandidates, direction) ?: return false
-        return requestFocus(alternative)
+        return moved
     }
 
     private fun requestFocus(candidate: FocusCandidate): Boolean =

@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
@@ -395,6 +396,7 @@ class PoTokenExtractionActivity : ComponentActivity() {
                 title = { Text(stringResource(R.string.extracting_from_url)) },
                 navigationIcon = {
                     IconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = { closeCanceled() },
                         onLongClick = { closeCanceled() },
                     ) {

@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -108,7 +109,7 @@ fun DiscordExperimental(
                 title = {},
                 navigationIcon = {
                     FrostedHeaderPill(plain = true) {
-                        IconButton(onClick = navController::navigateUp) {
+                        IconButton(modifier = Modifier.tvBackButtonFocus(), onClick = navController::navigateUp) {
                             Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
                         }
                         Text(

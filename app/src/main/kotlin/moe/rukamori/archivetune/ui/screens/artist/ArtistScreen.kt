@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.artist
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import moe.rukamori.archivetune.ui.tv.tvNonFocusable
 import moe.rukamori.archivetune.ui.tv.tvMenuFocusTrap
 
@@ -1648,6 +1649,7 @@ fun ArtistScreen(
                     modifier =
                         Modifier
                             .height(48.dp)
+                            .tvBackButtonFocus()
                             .combinedClickable(
                                 onClick = { navController.navigateUp() },
                                 onLongClick = navController::backToMain,
@@ -1769,6 +1771,7 @@ fun ArtistScreen(
         },
         navigationIcon = {
             IconButton(
+                modifier = Modifier.tvBackButtonFocus(),
                 onClick = navController::navigateUp,
                 onLongClick = navController::backToMain,
             ) {

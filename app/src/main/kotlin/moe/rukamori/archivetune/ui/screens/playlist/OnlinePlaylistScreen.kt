@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.playlist
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -776,7 +777,7 @@ fun OnlinePlaylistScreen(
                             navController.backToMain()
                         }
                     },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(48.dp).tvBackButtonFocus(),
                 ) {
                     Icon(
                         painter =
@@ -966,6 +967,7 @@ fun OnlinePlaylistScreen(
             navigationIcon = {
                 if (isSearching || selection || showTopBarTitle) {
                     IconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = {
                             if (isSearching) {
                                 isSearching = false

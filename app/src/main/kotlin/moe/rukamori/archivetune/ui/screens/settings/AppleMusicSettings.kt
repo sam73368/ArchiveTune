@@ -10,6 +10,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -102,7 +103,7 @@ fun AppleMusicSettings(navController: NavController) {
             LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.applemusic_settings), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = navController::navigateUp, onLongClick = navController::backToMain) {
+                    IconButton(modifier = Modifier.tvBackButtonFocus(), onClick = navController::navigateUp, onLongClick = navController::backToMain) {
                         Icon(painterResource(R.drawable.arrow_back), null)
                     }
                 },

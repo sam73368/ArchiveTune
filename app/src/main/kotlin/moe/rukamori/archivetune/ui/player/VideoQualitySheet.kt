@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.player
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.content.res.Configuration
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
@@ -269,7 +270,7 @@ private fun AdvancedQualityPage(
         modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = metrics.horizontalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBack) {
+        IconButton(modifier = Modifier.tvBackButtonFocus(), onClick = onBack) {
             Icon(
                 painter = painterResource(R.drawable.arrow_back),
                 contentDescription = stringResource(R.string.video_quality_back),

@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -1169,6 +1170,7 @@ fun ThemeCreatorScreen(navController: NavController) {
                 navigationIcon = {
                     FrostedHeaderPill(plain = true) {
                         IconButton(
+                            modifier = Modifier.tvBackButtonFocus(),
                             onClick = navController::navigateUp,
                             onLongClick = navController::backToMain,
                         ) {

@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.os.Build
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -113,7 +114,7 @@ fun BoxScope.GlassScreenHeaderOverlay(
         AppIconButton(
             onClick = onBack,
             onLongClick = onBackLongClick,
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier.size(48.dp).tvBackButtonFocus(),
         ) {
             Icon(
                 painter = painterResource(R.drawable.arrow_back),

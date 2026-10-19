@@ -67,7 +67,7 @@ fun TvNavigationRail(
     contentFocusRequester: FocusRequester? = null,
     settingsSelected: Boolean = false,
     onSettingsClick: (() -> Unit)? = null,
-    nowPlaying: (@Composable () -> Unit)? = null,
+    nowPlaying: (@Composable (FocusRequester?) -> Unit)? = null,
     onItemClick: (Screens) -> Unit,
 ) {
     LaunchedEffect(firstItemFocusRequester) {
@@ -84,7 +84,6 @@ fun TvNavigationRail(
     Column(
         modifier =
             modifier
-                .then(rightToContent)
                 .tvFocusRail()
                 .fillMaxHeight()
                 .width(TvTokens.RailWidth)
@@ -138,7 +137,7 @@ fun TvNavigationRail(
         }
         Spacer(Modifier.weight(1f))
         if (nowPlaying != null) {
-            nowPlaying()
+            nowPlaying(contentFocusRequester)
         }
         if (onSettingsClick != null) {
             TvNavigationRailItem(

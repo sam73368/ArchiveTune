@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.search
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -757,6 +758,7 @@ private fun SearchTabBottomChrome(
             modifier =
                 backModifier
                     .size(48.dp)
+                    .tvBackButtonFocus()
                     .combinedClickable(
                         onClick = onBack,
                         onLongClick = onBackLongClick,

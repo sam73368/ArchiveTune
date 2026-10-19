@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -231,6 +232,7 @@ private fun AboutScreenContent(
                     ) {
                         FrostedHeaderPill(plain = true) {
                             IconButton(
+                                modifier = Modifier.tvBackButtonFocus(),
                                 onClick = onNavigateUp,
                                 onLongClick = onNavigateHome,
                             ) {

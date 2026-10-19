@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.layout.ime
 import coil3.request.allowHardware
 import coil3.toBitmap
@@ -2746,16 +2747,20 @@ class MainActivity : ComponentActivity() {
                                                 contentAreaFocusRequester
                                             },
                                         settingsSelected = navBackStackEntry?.destination?.route?.startsWith("settings") == true,
-                                        nowPlaying = {
+                                        nowPlaying = { rightTarget ->
                                             moe.rukamori.archivetune.ui.tv.TvRailNowPlaying(
                                                 onOpenPlayer = { playerBottomSheetState.expandSoft() },
+                                                rightTarget = rightTarget,
                                             )
                                         },
                                         onSettingsClick = {
                                             if (playerBottomSheetState.isExpanded) {
                                                 playerBottomSheetState.collapse(if (disableAnimations) snap() else spring())
                                             }
-                                            navController.navigate("settings") { launchSingleTop = true }
+                                            val popped = runCatching { navController.popBackStack("settings", false) }.getOrDefault(false)
+                                            if (!popped && navController.currentDestination?.route != "settings") {
+                                                navController.navigate("settings") { launchSingleTop = true }
+                                            }
                                         },
                                         onItemClick = { screen ->
                                             val wasPlayerActive = playerBottomSheetState.isExpanded
@@ -2767,7 +2772,17 @@ class MainActivity : ComponentActivity() {
                                             if (wasPlayerActive && isSelected) {
                                                 return@TvNavigationRail
                                             }
-                                            handlePrimaryNavigationClick(screen, isSelected)
+                                            val onSubPage = navigationItems.none { it.route == currentRoute } && !active
+                                            if (onSubPage) {
+                                                if (screen == Screens.Search) {
+                                                    navigateToTabRoot(Screens.Home)
+                                                    openSearch()
+                                                } else {
+                                                    navigateToTabRoot(screen)
+                                                }
+                                            } else {
+                                                handlePrimaryNavigationClick(screen, isSelected)
+                                            }
                                         },
                                     )
                                 } else {
@@ -3383,6 +3398,7 @@ class MainActivity : ComponentActivity() {
                                             },
                                             leadingIcon = {
                                                 IconButton(
+                                                    modifier = Modifier.tvBackButtonFocus(),
                                                     onClick = {
                                                         when {
                                                             active -> {

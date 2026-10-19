@@ -13,6 +13,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.layout.asPaddingValues
 import moe.rukamori.archivetune.ui.component.glassAwareSurface
 import androidx.activity.compose.BackHandler
@@ -629,6 +630,7 @@ fun HistoryScreen(
                     navigationIcon = {
                         FrostedHeaderPill {
                             AppIconButton(
+                                modifier = Modifier.tvBackButtonFocus(),
                                 onClick = {
                                     if (selectionCount > 0) {
                                         clearSelection()
@@ -739,7 +741,7 @@ fun HistoryScreen(
                         onLongClick = {
                             if (selectionCount == 0) navController.backToMain()
                         },
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(48.dp).tvBackButtonFocus(),
                     ) {
                         Icon(
                             painter =
@@ -840,6 +842,7 @@ fun HistoryScreen(
                     },
                     leadingIcon = {
                         AppIconButton(
+                            modifier = Modifier.tvBackButtonFocus(),
                             onClick = { resetSearch() },
                             onLongClick = {
                                 if (query.text.isBlank()) {

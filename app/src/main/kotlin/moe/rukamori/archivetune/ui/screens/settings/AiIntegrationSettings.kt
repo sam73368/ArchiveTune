@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -1003,6 +1004,7 @@ fun AiIntegrationSettings(
         navigationIcon = {
             FrostedHeaderPill(plain = true) {
                 IconButton(
+                    modifier = Modifier.tvBackButtonFocus(),
                     onClick = navController::navigateUp,
                     onLongClick = navController::backToMain,
                 ) {

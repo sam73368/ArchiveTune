@@ -12,6 +12,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.activity.compose.BackHandler
 import android.content.Intent
 import android.widget.Toast
@@ -544,7 +545,7 @@ fun CommentTogetherScreen(navController: NavController) {
                         modifier = Modifier,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { navController.navigateUp() }) {
+                            IconButton(modifier = Modifier.tvBackButtonFocus(), onClick = { navController.navigateUp() }) {
                                 Icon(
                                     painter = painterResource(R.drawable.arrow_back),
                                     contentDescription = null,

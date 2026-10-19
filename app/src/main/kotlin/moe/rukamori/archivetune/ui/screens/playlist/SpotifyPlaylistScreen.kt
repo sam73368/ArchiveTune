@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.playlist
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -650,7 +651,7 @@ fun SpotifyPlaylistScreen(
                         }
                     },
                     onLongClick = { navController.backToMain() },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(48.dp).tvBackButtonFocus(),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),
@@ -741,6 +742,7 @@ fun SpotifyPlaylistScreen(
             navigationIcon = {
                 if (isSearching || showTopBarTitle) {
                     IconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = {
                             if (isSearching) {
                                 isSearching = false

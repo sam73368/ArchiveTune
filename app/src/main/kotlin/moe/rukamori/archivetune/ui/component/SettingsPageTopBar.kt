@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.component
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -74,6 +75,7 @@ fun SettingsPageTopBar(
                     .padding(start = 12.dp),
         ) {
             IconButton(
+                modifier = Modifier.tvBackButtonFocus(),
                 onClick = onBack,
                 onLongClick = onBackLongClick,
             ) {

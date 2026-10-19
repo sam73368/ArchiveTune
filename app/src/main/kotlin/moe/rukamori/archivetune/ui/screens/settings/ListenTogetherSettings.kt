@@ -8,6 +8,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -737,7 +738,7 @@ fun ListenTogetherSettings(
                 IconButton(
                     onClick = navController::navigateUp,
                     onLongClick = navController::backToMain,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(48.dp).tvBackButtonFocus(),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),
@@ -752,6 +753,7 @@ fun ListenTogetherSettings(
                 title = { Text(stringResource(R.string.listen_together)) },
                 navigationIcon = {
                     IconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = navController::navigateUp,
                         onLongClick = navController::backToMain,
                     ) {

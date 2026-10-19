@@ -8,6 +8,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.graphics.BitmapFactory
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -503,7 +504,7 @@ fun ListenTogetherScreen(
                 IconButton(
                     onClick = navController::navigateUp,
                     onLongClick = navController::backToMain,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(48.dp).tvBackButtonFocus(),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),
@@ -519,6 +520,7 @@ fun ListenTogetherScreen(
                 },
                 navigationIcon = {
                     IconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = navController::navigateUp,
                         onLongClick = navController::backToMain
                     ) {

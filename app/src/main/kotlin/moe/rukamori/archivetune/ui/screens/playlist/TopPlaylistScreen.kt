@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.playlist
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -613,6 +614,7 @@ fun TopPlaylistScreen(
             },
             navigationIcon = {
                 IconButton(
+                    modifier = Modifier.tvBackButtonFocus(),
                     onClick = {
                         when {
                             isSearching -> {

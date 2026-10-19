@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.musicrecognition
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
@@ -124,7 +125,7 @@ fun MusicRecognitionDetailsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(modifier = Modifier.tvBackButtonFocus(), onClick = onNavigateBack) {
                         Icon(
                             painter = painterResource(R.drawable.arrow_back),
                             contentDescription = stringResource(R.string.back_button_desc),

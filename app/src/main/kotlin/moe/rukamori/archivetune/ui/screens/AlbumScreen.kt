@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -778,7 +779,7 @@ fun AlbumScreen(
                             navController.backToMain()
                         }
                     },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(48.dp).tvBackButtonFocus(),
                 ) {
                     Icon(
                         painter =
@@ -970,6 +971,7 @@ fun AlbumScreen(
             navigationIcon = {
                 if (selection || showTopBarTitle || !liquidGlassHeaderActive) {
                     IconButton(
+                        modifier = Modifier.tvBackButtonFocus(),
                         onClick = {
                             if (selection) {
                                 selection = false

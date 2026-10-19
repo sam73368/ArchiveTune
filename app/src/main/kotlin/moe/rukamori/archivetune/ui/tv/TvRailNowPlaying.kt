@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -69,7 +70,14 @@ import moe.rukamori.archivetune.utils.makeTimeString
 fun TvRailNowPlaying(
     onOpenPlayer: () -> Unit,
     modifier: Modifier = Modifier,
+    rightTarget: FocusRequester? = null,
 ) {
+    val rightModifier =
+        if (rightTarget != null) {
+            Modifier.focusProperties { right = rightTarget }
+        } else {
+            Modifier
+        }
     val playerConnection = LocalPlayerConnection.current ?: return
     val metadata by playerConnection.mediaMetadata.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -104,6 +112,7 @@ fun TvRailNowPlaying(
         TvRailNowPlayingButton(
             size = 52.dp,
             corner = 10.dp,
+            modifier = rightModifier,
             contentDescription = stringResource(R.string.tv_open_player),
             onClick = onOpenPlayer,
             onLongClick = { queueOpen = true },
@@ -180,6 +189,7 @@ fun TvRailNowPlaying(
             TvRailNowPlayingButton(
                 size = 24.dp,
                 corner = 12.dp,
+                modifier = rightModifier,
                 contentDescription = null,
                 onClick = { playerConnection.seekToNext() },
             ) { tint ->
@@ -200,6 +210,7 @@ private fun TvRailNowPlayingButton(
     corner: androidx.compose.ui.unit.Dp,
     contentDescription: String?,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     content: @Composable (Color) -> Unit,
 ) {
@@ -207,7 +218,7 @@ private fun TvRailNowPlayingButton(
     val tint = if (focused) TvTokens.Background else TvTokens.OnSurface
     Box(
         modifier =
-            Modifier
+            modifier
                 .graphicsLayer {
                     val s = if (focused) 1.12f else 1f
                     scaleX = s

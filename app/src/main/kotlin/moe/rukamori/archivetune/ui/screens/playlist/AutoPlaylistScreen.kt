@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.playlist
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -633,7 +634,7 @@ fun AutoPlaylistScreen(
                             navController.backToMain()
                         }
                     },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(48.dp).tvBackButtonFocus(),
                 ) {
                     Icon(
                         painter =
@@ -829,6 +830,7 @@ fun AutoPlaylistScreen(
                     if (!isSearching && !selection && !liquidGlassHeaderActive) {
                         FrostedHeaderPill {
                             IconButton(
+                                modifier = Modifier.tvBackButtonFocus(),
                                 onClick = { navController.navigateUp() },
                                 onLongClick = { navController.backToMain() },
                             ) {
@@ -848,6 +850,7 @@ fun AutoPlaylistScreen(
                         }
                     } else {
                         IconButton(
+                            modifier = Modifier.tvBackButtonFocus(),
                             onClick = {
                                 when {
                                     isSearching -> {

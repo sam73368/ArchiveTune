@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -132,6 +133,7 @@ fun LanguagePackSettings(navController: NavController) {
         navigationIcon = {
             FrostedHeaderPill(plain = true) {
                 IconButton(
+                    modifier = Modifier.tvBackButtonFocus(),
                     onClick = navController::navigateUp,
                     onLongClick = navController::backToMain,
                 ) {

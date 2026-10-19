@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.downloads
 
+import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
@@ -223,7 +224,7 @@ private fun DownloadLibraryScreenContent(
                                 onExpandedChange = {},
                                 placeholder = { Text(stringResource(R.string.search_downloads)) },
                                 leadingIcon = {
-                                    IconButton(onClick = onCloseSearch) {
+                                    IconButton(modifier = Modifier.tvBackButtonFocus(), onClick = onCloseSearch) {
                                         Icon(
                                             painter = painterResource(R.drawable.arrow_back),
                                             contentDescription = stringResource(R.string.back_button_desc),
@@ -266,6 +267,7 @@ private fun DownloadLibraryScreenContent(
                             },
                             navigationIcon = {
                                 moe.rukamori.archivetune.ui.component.IconButton(
+                                    modifier = Modifier.tvBackButtonFocus(),
                                     onClick = onBack,
                                     onLongClick = onBackToMain,
                                 ) {
