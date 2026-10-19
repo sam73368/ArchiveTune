@@ -13,6 +13,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -97,7 +98,7 @@ private fun tvSeekStepFor(repeatCount: Int): Long =
         else -> TvSeekStepMs * 6
     }
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun TvPlayerContent(
     mediaMetadata: MediaMetadata,
@@ -115,6 +116,8 @@ fun TvPlayerContent(
     onSeekFinished: () -> Unit,
     onQueue: () -> Unit,
     onMore: () -> Unit,
+    onArtistClick: (String) -> Unit,
+    onAlbumClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -122,7 +125,7 @@ fun TvPlayerContent(
     val shuffleEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
     var lyricsVisible by rememberSaveable { mutableStateOf(true) }
-    val playFocus = remember { FocusRequester() }
+    val playFocus = TvPlayerFocus.entry
     var lyricsBrowsing by remember { mutableStateOf(false) }
     val tvPerformance = rememberTvPerformanceMode()
     val queueWindows by playerConnection.queueWindows.collectAsState()
@@ -213,17 +216,29 @@ fun TvPlayerContent(
                             }
                         }
                     }
-                    Text(
-                        text =
-                            listOfNotNull(
-                                mediaMetadata.artists.joinToString { it.name }.takeIf { it.isNotBlank() },
-                                mediaMetadata.album?.title,
-                            ).joinToString(" · "),
-                        style = TvTokens.Body,
-                        color = TvTokens.OnSurface.copy(alpha = 0.8f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    mediaMetadata.album?.takeIf { it.title.isNotBlank() }?.let { album ->
+                        TvLinkText(
+                            text = album.title,
+                            style = TvTokens.Body,
+                            color = TvTokens.OnSurface.copy(alpha = 0.8f),
+                            onClick = { onAlbumClick(album.id) },
+                        )
+                    }
+                    FlowRow(
+                        horizontalArrangement = Arrangement.Start,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        val artistList = mediaMetadata.artists.filter { it.name.isNotBlank() }
+                        artistList.forEachIndexed { index, artist ->
+                            val artistId = artist.id
+                            TvLinkText(
+                                text = artist.name + if (index < artistList.lastIndex) "," else "",
+                                style = if (index == 0) TvTokens.BodyBold else TvTokens.Body,
+                                color = TvTokens.OnSurface.copy(alpha = if (index == 0) 0.95f else 0.75f),
+                                onClick = artistId?.let { id -> { onArtistClick(id) } },
+                            )
+                        }
+                    }
                 }
 
                 TvSeekBar(
@@ -550,12 +565,16 @@ private fun TvRoundButton(
                 strokeWidth = 2.dp,
             )
         } else {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = contentDescription,
-                tint = iconTint,
-                modifier = Modifier.size(size * 0.45f),
-            )
+            if (iconRes == R.drawable.pause) {
+                TvPauseGlyph(tint = iconTint, modifier = Modifier.size(size * 0.45f))
+            } else {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = contentDescription,
+                    tint = iconTint,
+                    modifier = Modifier.size(size * 0.45f),
+                )
+            }
         }
     }
 }

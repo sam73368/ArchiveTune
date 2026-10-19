@@ -1790,6 +1790,14 @@ fun BottomSheetPlayer(
                     onSeek = onSliderValueChange,
                     onSeekFinished = onSliderValueChangeFinished,
                     onQueue = { tvQueueOpen = true },
+                    onArtistClick = { artistId ->
+                        navController.navigate("artist/$artistId")
+                        state.collapseSoft()
+                    },
+                    onAlbumClick = { albumId ->
+                        navController.navigate("album/$albumId")
+                        state.collapseSoft()
+                    },
                     onMore = {
                         menuState.showImmersive {
                             PlayerMenu(

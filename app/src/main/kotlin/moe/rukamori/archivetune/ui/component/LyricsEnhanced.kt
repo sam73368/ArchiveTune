@@ -133,6 +133,7 @@ import moe.rukamori.archivetune.constants.EnhancedLyricsStyle
 import moe.rukamori.archivetune.constants.EnhancedLyricsStyleKey
 import moe.rukamori.archivetune.constants.LyricsHoldManualScrollKey
 import moe.rukamori.archivetune.constants.LyricsLineBlurKey
+import moe.rukamori.archivetune.constants.TvWordSyncLyricsKey
 import moe.rukamori.archivetune.constants.LyricsScrollKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeChineseKey
 import moe.rukamori.archivetune.constants.LyricsRomanizeHindiKey
@@ -438,7 +439,9 @@ fun LyricsEnhanced(
         )
     }
 
-    LaunchedEffect(lyricsEntries, romanizationPreferences, aiRomanizedLines, lyricsProviderLabel, composerFooterLabel, mediaMetadata?.id, singleActiveLine) {
+    val tvWordSyncPreferred by rememberPreference(TvWordSyncLyricsKey, defaultValue = false)
+    val wordSyncEnabled = !TvPerformance.isTelevision || tvWordSyncPreferred
+    LaunchedEffect(lyricsEntries, romanizationPreferences, aiRomanizedLines, lyricsProviderLabel, composerFooterLabel, mediaMetadata?.id, singleActiveLine, wordSyncEnabled) {
         withContext(Dispatchers.Default) {
         fun publish(romanization: Map<Int, List<String?>>) {
             val previous = karaokeBuild
@@ -454,6 +457,7 @@ fun LyricsEnhanced(
                         providerHeader = lyricsProviderLabel,
                         composerFooter = composerFooterLabel,
                         compactTranslation = singleActiveLine,
+                        wordSyncEnabled = wordSyncEnabled,
                     )
                 } catch (e: CancellationException) {
                     throw e
@@ -1850,6 +1854,7 @@ private fun buildSyncedLyrics(
     providerHeader: String?,
     composerFooter: String? = null,
     compactTranslation: Boolean = false,
+    wordSyncEnabled: Boolean = true,
 ): SyncedLyrics {
     if (entries.isEmpty()) return SyncedLyrics(emptyList())
     val lines = mutableListOf<ISyncedLine>()
@@ -1870,7 +1875,7 @@ private fun buildSyncedLyrics(
         if (entry.isInstrumental) return@forEachIndexed
         if (entry.text.isBlank() && entry.words.isNullOrEmpty()) return@forEachIndexed
 
-        if (entry.words != null && hasTrueWordSync(entry)) {
+        if (wordSyncEnabled && entry.words != null && hasTrueWordSync(entry)) {
             val translation = providedTranslationTextForEntry(entry)
             val mainWords = entry.words!!.filter { !it.isBackground }
             val bgWords = entry.words!!.filter { it.isBackground }

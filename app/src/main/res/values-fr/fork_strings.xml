@@ -138,7 +138,7 @@
     <string name="tv_lyrics_browse_hint">OK : aller à cette ligne · ◀ ou Retour : suivre la chanson</string>
     <string name="tv_queue_count">%1$d titres</string>
     <string name="tv_queue_autoplay">Lecture auto</string>
-    <string name="tv_queue_hint">OK : jouer · OK maintenu : jouer ensuite, déplacer, retirer · Retour : fermer</string>
+    <string name="tv_queue_hint">OK : jouer · OK maintenu ou Menu : jouer ensuite, déplacer, retirer · Retour : fermer</string>
     <string name="tv_queue_move_hint">▲ ▼ déplacent le titre · OK ou Retour : terminé</string>
     <string name="tv_queue_move_shuffle">Désactive l\'aléatoire pour réordonner la file</string>
     <string name="tv_queue_play_next">Jouer ensuite</string>
@@ -169,4 +169,7 @@
     <string name="tv_performance_mode_desc">Coupe le flou, le verre liquide et les vidéos canvas animées pour que la télécommande reste fluide</string>
     <string name="reorder_move_up">Monter</string>
     <string name="reorder_move_down">Descendre</string>
+    <string name="tv_previous">Précédent</string>
+    <string name="tv_word_sync_lyrics">Paroles mot à mot</string>
+    <string name="tv_word_sync_lyrics_desc">Surligne chaque mot au moment où il est chanté. Plus joli mais plus lourd : à laisser désactivé sur les télés et box moins puissantes, les paroles suivent alors ligne par ligne</string>
 </resources>

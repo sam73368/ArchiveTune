@@ -19,6 +19,7 @@ import moe.rukamori.archivetune.constants.TvArtworkAccentKey
 import moe.rukamori.archivetune.constants.TvPerformanceModeKey
 import moe.rukamori.archivetune.constants.TvPlayerBackground
 import moe.rukamori.archivetune.constants.TvPlayerBackgroundKey
+import moe.rukamori.archivetune.constants.TvWordSyncLyricsKey
 import moe.rukamori.archivetune.constants.TvTextScaleKey
 import moe.rukamori.archivetune.ui.component.EnumListPreference
 import moe.rukamori.archivetune.ui.component.ListPreference
@@ -35,6 +36,7 @@ fun TvAppearancePreferences() {
     var artworkAccent by rememberPreference(TvArtworkAccentKey, defaultValue = false)
     var performanceMode by rememberPreference(TvPerformanceModeKey, defaultValue = true)
     var playerBackground by rememberEnumPreference(TvPlayerBackgroundKey, TvPlayerBackground.GRADIENT)
+    var wordSyncLyrics by rememberPreference(TvWordSyncLyricsKey, defaultValue = false)
     val labels =
         listOf(
             stringResource(R.string.tv_text_size_small),
@@ -67,6 +69,15 @@ fun TvAppearancePreferences() {
                         TvPlayerBackground.COVER -> stringResource(R.string.tv_player_bg_cover)
                     }
                 },
+            )
+        }
+        item {
+            SwitchPreference(
+                title = { Text(stringResource(R.string.tv_word_sync_lyrics)) },
+                description = stringResource(R.string.tv_word_sync_lyrics_desc),
+                icon = { Icon(painterResource(R.drawable.lyrics), null) },
+                checked = wordSyncLyrics,
+                onCheckedChange = { wordSyncLyrics = it },
             )
         }
         item {

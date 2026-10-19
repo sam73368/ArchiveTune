@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,6 +63,7 @@ import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.togglePlayPause
 import moe.rukamori.archivetune.ui.utils.resize
+import moe.rukamori.archivetune.utils.makeTimeString
 
 @Composable
 fun TvRailNowPlaying(
@@ -74,12 +76,17 @@ fun TvRailNowPlaying(
     val current = metadata ?: return
     val accent = MaterialTheme.colorScheme.primary
     var progress by remember { mutableFloatStateOf(0f) }
+    var positionMs by remember { mutableLongStateOf(0L) }
+    var durationMs by remember { mutableLongStateOf(0L) }
     var queueOpen by remember { mutableStateOf(false) }
     LaunchedEffect(current.id) {
         while (true) {
             val player = playerConnection.player
             val duration = player.duration
-            progress = if (duration > 0) (player.currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f
+            val position = player.currentPosition.coerceAtLeast(0L)
+            durationMs = if (duration > 0) duration else 0L
+            positionMs = position
+            progress = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
             delay(500)
         }
     }
@@ -87,10 +94,10 @@ fun TvRailNowPlaying(
     Column(
         modifier =
             modifier
-                .width(72.dp)
+                .width(88.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color.White.copy(alpha = 0.06f))
-                .padding(vertical = 8.dp, horizontal = 6.dp),
+                .padding(vertical = 8.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -115,6 +122,15 @@ fun TvRailNowPlaying(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        current.artists.joinToString { it.name }.takeIf { it.isNotBlank() }?.let { artistNames ->
+            Text(
+                text = artistNames,
+                style = TvTokens.Caption,
+                color = TvTokens.OnSurfaceMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Box(
             modifier =
                 Modifier
@@ -131,22 +147,43 @@ fun TvRailNowPlaying(
                         .drawBehind { drawRect(accent, size = size.copy(width = size.width * progress)) },
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(makeTimeString(positionMs), style = TvTokens.Caption, color = TvTokens.OnSurfaceMuted, maxLines = 1)
+            Text(
+                if (durationMs > 0L) makeTimeString(durationMs) else "",
+                style = TvTokens.Caption,
+                color = TvTokens.OnSurfaceMuted,
+                maxLines = 1,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             TvRailNowPlayingButton(
-                size = 28.dp,
-                corner = 14.dp,
+                size = 24.dp,
+                corner = 12.dp,
+                contentDescription = stringResource(R.string.tv_previous),
+                onClick = { playerConnection.seekToPrevious() },
+            ) { tint ->
+                Icon(painterResource(R.drawable.skip_previous), null, tint = tint, modifier = Modifier.size(14.dp))
+            }
+            TvRailNowPlayingButton(
+                size = 24.dp,
+                corner = 12.dp,
                 contentDescription = stringResource(if (isPlaying) R.string.tv_pause else R.string.tv_resume),
                 onClick = { playerConnection.player.togglePlayPause() },
             ) { tint ->
-                Icon(painterResource(if (isPlaying) R.drawable.pause else R.drawable.play), null, tint = tint, modifier = Modifier.size(16.dp))
+                if (isPlaying) {
+                    TvPauseGlyph(tint = tint, modifier = Modifier.size(14.dp))
+                } else {
+                    Icon(painterResource(R.drawable.play), null, tint = tint, modifier = Modifier.size(14.dp))
+                }
             }
             TvRailNowPlayingButton(
-                size = 28.dp,
-                corner = 14.dp,
+                size = 24.dp,
+                corner = 12.dp,
                 contentDescription = null,
                 onClick = { playerConnection.seekToNext() },
             ) { tint ->
-                Icon(painterResource(R.drawable.skip_next), null, tint = tint, modifier = Modifier.size(16.dp))
+                Icon(painterResource(R.drawable.skip_next), null, tint = tint, modifier = Modifier.size(14.dp))
             }
         }
     }

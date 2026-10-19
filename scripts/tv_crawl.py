@@ -151,9 +151,12 @@ def shot(tag):
     png = os.path.join(OUT, tag + ".png")
     subprocess.run(f"adb exec-out screencap -p > {png}", shell=True)
     jpg = os.path.join(OUT, tag + ".jpg")
-    r = subprocess.run(["convert", png, "-resize", "50%", "-quality", "55", jpg], capture_output=True)
-    if r.returncode == 0:
-        os.remove(png)
+    try:
+        r = subprocess.run(["convert", png, "-resize", "50%", "-quality", "55", jpg], capture_output=True)
+        if r.returncode == 0:
+            os.remove(png)
+    except Exception:
+        pass
 
 
 def say(line):

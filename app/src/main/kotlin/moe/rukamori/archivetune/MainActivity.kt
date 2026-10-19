@@ -2716,8 +2716,11 @@ class MainActivity : ComponentActivity() {
                             AnimatedVisibility(
                                 visible =
                                     useRail &&
-                                        shouldShowNavigationBar &&
-                                        (isTvDevice || !playerBottomSheetState.isExpandedOrExpanding),
+                                        if (isTvDevice) {
+                                            !isYearInMusicScreen
+                                        } else {
+                                            shouldShowNavigationBar && !playerBottomSheetState.isExpandedOrExpanding
+                                        },
                                 enter = fadeIn(animationSpec = tween(durationMillis = if (disableAnimations) 0 else 150)),
                                 exit = fadeOut(animationSpec = tween(durationMillis = if (disableAnimations) 0 else 100)),
                             ) {
@@ -2733,7 +2736,9 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier.onFocusChanged { tvRailHasFocus = it.hasFocus },
                                         firstItemFocusRequester = tvRailFocusRequester,
                                         contentFocusRequester =
-                                            if (active ||
+                                            if (playerBottomSheetState.isExpandedOrExpanding) {
+                                                moe.rukamori.archivetune.ui.tv.TvPlayerFocus.entry
+                                            } else if (active ||
                                                 navBackStackEntry?.destination?.route?.startsWith(OnlineSearchResultRoutePrefix) == true
                                             ) {
                                                 if (active) tvSearchKeyboardFocusRequester else contentAreaFocusRequester

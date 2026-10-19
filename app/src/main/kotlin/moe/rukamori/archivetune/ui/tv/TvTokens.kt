@@ -53,7 +53,7 @@ object TvTokens {
     val Scrim = Color(0xB8050608)
     val FocusRing = OnSurface
 
-    val RailWidth = 84.dp
+    val RailWidth = 96.dp
     val ScreenPaddingHorizontal = 32.dp
     val ScreenPaddingVertical = 24.dp
     val CardCorner = 10.dp

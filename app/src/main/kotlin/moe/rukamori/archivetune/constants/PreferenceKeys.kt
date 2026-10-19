@@ -1657,6 +1657,7 @@ val TvArtworkAccentKey = booleanPreferencesKey("tvArtworkAccent")
 val TvPerformanceModeKey = booleanPreferencesKey("tvPerformanceMode")
 
 val TvPlayerBackgroundKey = stringPreferencesKey("tvPlayerBackground")
+val TvWordSyncLyricsKey = booleanPreferencesKey("tvWordSyncLyrics")
 
 enum class TvPlayerBackground {
     GRADIENT,

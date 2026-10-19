@@ -33,6 +33,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -84,6 +86,24 @@ fun TvQueuePanel(
     val currentFocus = remember { FocusRequester() }
     var mode by remember { mutableStateOf(TvQueueMode.Browse) }
     var activeUid by remember { mutableStateOf<Any?>(null) }
+    var focusedUid by remember { mutableStateOf<Any?>(null) }
+    var confirmHeld by remember { mutableStateOf(false) }
+    var swallowConfirm by remember { mutableStateOf(false) }
+    val restoreFocus = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
+
+    fun openActions(uid: Any?) {
+        if (uid == null) return
+        activeUid = uid
+        mode = TvQueueMode.Actions
+    }
+
+    LaunchedEffect(mode) {
+        if (mode != TvQueueMode.Actions && activeUid != null) {
+            delay(60)
+            runCatching { restoreFocus.requestFocus() }
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (currentIndex >= 0) listState.scrollToItem(currentIndex.coerceAtLeast(0))
@@ -100,6 +120,14 @@ fun TvQueuePanel(
         val to = from + delta
         if (from < 0 || to !in windows.indices || shuffleEnabled) return
         player.moveMediaItem(windows[from].firstPeriodIndex, windows[to].firstPeriodIndex)
+        scope.launch {
+            val visible = listState.layoutInfo.visibleItemsInfo
+            val firstVisible = visible.firstOrNull()?.index ?: 0
+            val lastVisible = visible.lastOrNull()?.index ?: 0
+            if (to <= firstVisible + 1 || to >= lastVisible - 1) listState.animateScrollToItem((to - 3).coerceAtLeast(0))
+            delay(80)
+            runCatching { restoreFocus.requestFocus() }
+        }
     }
 
     Box(
@@ -110,7 +138,20 @@ fun TvQueuePanel(
                 .background(TvTokens.Surface)
                 .tvMenuFocusTrap()
                 .onPreviewKeyEvent { event ->
+                    val isConfirm = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
+                    if (isConfirm) {
+                        if (event.type == KeyEventType.KeyDown) confirmHeld = true
+                        if (event.type == KeyEventType.KeyUp) confirmHeld = false
+                    }
                     when {
+                        isConfirm && swallowConfirm -> {
+                            if (event.type == KeyEventType.KeyUp) swallowConfirm = false
+                            true
+                        }
+                        event.key == Key.Menu && mode == TvQueueMode.Browse -> {
+                            if (event.type == KeyEventType.KeyDown) openActions(focusedUid)
+                            true
+                        }
                         event.key == Key.Back -> {
                             if (event.type == KeyEventType.KeyUp) {
                                 if (mode == TvQueueMode.Browse) onClose() else mode = TvQueueMode.Browse
@@ -193,7 +234,13 @@ fun TvQueuePanel(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .then(if (isCurrent) Modifier.focusRequester(currentFocus) else Modifier)
+                                    .then(
+                                        when {
+                                            window.uid == activeUid -> Modifier.focusRequester(restoreFocus)
+                                            isCurrent -> Modifier.focusRequester(currentFocus)
+                                            else -> Modifier
+                                        },
+                                    )
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(
                                         when {
@@ -201,7 +248,10 @@ fun TvQueuePanel(
                                             focused -> TvTokens.OnSurface
                                             else -> Color.Transparent
                                         },
-                                    ).onFocusChanged { focused = it.isFocused }
+                                    ).onFocusChanged {
+                                        focused = it.isFocused
+                                        if (it.isFocused) focusedUid = window.uid
+                                    }
                                     .combinedClickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
@@ -214,8 +264,8 @@ fun TvQueuePanel(
                                             }
                                         },
                                         onLongClick = {
-                                            activeUid = window.uid
-                                            mode = TvQueueMode.Actions
+                                            if (confirmHeld) swallowConfirm = true
+                                            openActions(window.uid)
                                         },
                                     ).padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically,

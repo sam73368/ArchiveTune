@@ -84,6 +84,7 @@ fun TvNavigationRail(
     Column(
         modifier =
             modifier
+                .then(rightToContent)
                 .tvFocusRail()
                 .fillMaxHeight()
                 .width(TvTokens.RailWidth)

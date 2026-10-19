@@ -5741,3 +5741,21 @@ Work Log:
 
 Stage Summary:
 - Task 126 complete on dev: all six reports fixed at the root. CI ALL GREEN (8/8) at 061ebaaf7; canary N202610141420 (17.0.6778-061ebaaf7). On-device verification pending user testing.
+
+---
+Task ID: TV-3
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: TV feedback round — queue panel focus, permanent rail, word-sync lyrics option, pause glyph, ambient screen, clickable artists/album.
+
+Work Log:
+- `TvQueuePanel`: long OK no longer leaks the held key to the freshly focused action pill (`swallowConfirm` until key-up) and focus is restored to the active row whenever Actions/Moving mode ends (`restoreFocus`); Menu opens the same actions; moving keeps the row visible and focused.
+- `MainActivity`: on TV the rail is visible on every route except year-in-music; Right from the rail while the player is expanded targets `TvPlayerFocus.entry` (the play button) instead of the NavHost content hidden behind the sheet; `TvNavigationRail` applies the Right target to the whole rail so the mini player buttons share it.
+- `LyricsEnhanced`/`TvAppearancePreferences`: new `TvWordSyncLyricsKey` (default off); on TV, entries with word timings are built as plain line-synced lines unless enabled.
+- `TvGlyphs.kt`: `TvPauseGlyph` draws the pause bars with `drawRoundRect` (the vector path rendered with a notch on some GPUs); `TvLinkText` focusable link text; `TvPlayerFocus`.
+- `TvPlayer`: album line and artist chips (main artist first) navigate to `album/{id}` / `artist/{id}` and collapse the sheet.
+- `TvAmbientOverlay`: uses `TvPlayerBackdrop`, fixed position (no drift), shows title, album, artists, elapsed/total.
+- `TvRailNowPlaying`: artist, elapsed/total, previous button; rail width 96dp.
+
+Stage Summary:
+- Pending CI and on-device verification (no local compile by rule).
