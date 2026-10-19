@@ -5817,3 +5817,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification (no local compile by rule).
+
+---
+Task ID: TV-8
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Player entry focus and sub-page entry focus, from the first emulator sweep.
+
+Work Log:
+- `Player.kt`: the TV player sheet uses `focusRestorer(TvPlayerFocus.entry)` so expanding the player focuses Play instead of the seek bar.
+- `MainActivity`: the sub-page focus effect now overrides rail focus during the first attempts when the navigation came from content, and enters content through `TvFocusFallback.focusContentEntry` (first non-text-field target below the top band) before falling back to the focus requester.
+- `scripts/tv_scenarios.py`: new `DISMISS` token (closes the playback confirmation dialog), player scenarios run last, new top songs items scenario.
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification (no local compile by rule).

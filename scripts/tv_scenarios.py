@@ -109,11 +109,11 @@ def in_direction(src, dst, direction):
 DIALOG_BUTTONS = ["Later", "Not now", "Dismiss", "No thanks", "Skip", "Cancel", "Close", "Plus tard", "Pas maintenant"]
 ARTIST = "UCedvOgsKFzcK3hA5taf3KoQ"
 
-PLAYER_KEYS = ['TAP:Play', 'EXPAND', 'UP', 'UP', 'UP', 'DOWN', 'DOWN', 'DOWN', 'DOWN', 'DOWN', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'RIGHT', 'RIGHT', 'UP', 'UP', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'RIGHT', 'DOWN', 'DOWN', 'RIGHT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'DOWN', 'DOWN', 'DOWN', 'RIGHT', 'RIGHT', 'RIGHT']
+PLAYER_KEYS = ['TAP:Play', 'DISMISS', 'EXPAND', 'UP', 'UP', 'UP', 'DOWN', 'DOWN', 'DOWN', 'DOWN', 'DOWN', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'RIGHT', 'RIGHT', 'UP', 'UP', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'RIGHT', 'DOWN', 'DOWN', 'RIGHT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'LEFT', 'DOWN', 'DOWN', 'DOWN', 'RIGHT', 'RIGHT', 'RIGHT']
 
-LYRICS_KEYS = ["TAP:Play", "EXPAND", "TAP:Lyrics", "DOWN", "DOWN", "LEFT", "RIGHT", "RIGHT", "TAP:Lyrics", "DOWN", "UP", "UP", "LEFT", "LEFT", "RIGHT"]
+LYRICS_KEYS = ["TAP:Play", "DISMISS", "EXPAND", "TAP:Lyrics", "DOWN", "DOWN", "LEFT", "RIGHT", "RIGHT", "TAP:Lyrics", "DOWN", "UP", "UP", "LEFT", "LEFT", "RIGHT"]
 
-QUEUE_KEYS = ["TAP:Play", "EXPAND", "TAP:Queue", "DOWN", "DOWN", "UP", "CENTER", "BACK", "DOWN", "LEFT", "BACK", "BACK"]
+QUEUE_KEYS = ["TAP:Play", "DISMISS", "EXPAND", "TAP:Queue", "DOWN", "DOWN", "UP", "CENTER", "BACK", "DOWN", "LEFT", "BACK", "BACK"]
 
 SETTINGS_ROUTES = [
     "settings", "settings/account", "settings/appearance", "settings/appearance/extras", "settings/appearance/navigation_bar",
@@ -137,16 +137,20 @@ PAGE_KEYS = ["RIGHT", "DOWN", "DOWN", "DOWN", "UP", "UP", "RIGHT", "LEFT", "LEFT
 
 TOP_SONGS_KEYS = ["RIGHT", "DOWN", "DOWN", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "CENTER", "DOWN", "DOWN", "DOWN", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "DOWN", "DOWN", "DOWN", "LEFT"]
 
-MINI_KEYS = ["TAP:Play", "EXPAND", "LEFT", "LEFT", "LEFT", "LEFT", "LEFT", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT", "RIGHT", "RIGHT", "RIGHT", "LEFT", "LEFT", "LEFT", "RIGHT"]
+MINI_KEYS = ["TAP:Play", "DISMISS", "EXPAND", "LEFT", "LEFT", "LEFT", "LEFT", "LEFT", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT", "RIGHT", "RIGHT", "RIGHT", "LEFT", "LEFT", "LEFT", "RIGHT"]
+
+TOP_SONGS_ITEMS_KEYS = ["TAP:Top songs", "DISMISS", "DOWN", "DOWN", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "DOWN", "DOWN", "DOWN", "LEFT"]
 
 SCENARIOS = [
     ("top_songs_page", f"artist/{ARTIST}", TOP_SONGS_KEYS, "all"),
+    ("top_songs_items", f"artist/{ARTIST}", TOP_SONGS_ITEMS_KEYS, "all"),
+    ("artist_main_full", f"artist/{ARTIST}", ["RIGHT"] + ["DOWN"] * 8 + ["UP"] * 9 + ["LEFT"], "sparse"),
+] + [(r.replace("/", "_"), r, SETTINGS_KEYS, "sparse") for r in SETTINGS_ROUTES] + [(r.replace("/", "_"), r, PAGE_KEYS, "sparse") for r in PAGE_ROUTES] + [
     ("mini_player_rail", f"artist/{ARTIST}", MINI_KEYS, "all"),
     ("player_nav", f"artist/{ARTIST}", PLAYER_KEYS, "all"),
     ("player_lyrics", f"artist/{ARTIST}", LYRICS_KEYS, "all"),
     ("player_queue", f"artist/{ARTIST}", QUEUE_KEYS, "all"),
-    ("artist_main_full", f"artist/{ARTIST}", ["RIGHT"] + ["DOWN"] * 8 + ["UP"] * 9 + ["LEFT"], "sparse"),
-] + [(r.replace("/", "_"), r, SETTINGS_KEYS, "sparse") for r in SETTINGS_ROUTES] + [(r.replace("/", "_"), r, PAGE_KEYS, "sparse") for r in PAGE_ROUTES]
+]
 
 
 def tap_text_nodes(labels):
@@ -197,6 +201,11 @@ def run_scenario(name, route, keys, shots="all"):
             if shots == "all" or i % 3 == 0:
                 shot(f"{name}_{i:02d}_BACK")
             lines.append(f"   {i:02d} BACK: " + describe_focus())
+            continue
+        if k == "DISMISS":
+            dismiss_dialogs()
+            shot(f"{name}_{i:02d}_DISMISS")
+            lines.append(f"   {i:02d} DISMISS: " + describe_focus())
             continue
         if k.startswith("TAP:"):
             tapped = tap_text_nodes([k[4:]])

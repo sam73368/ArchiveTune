@@ -2378,13 +2378,17 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     var tvContentHasFocus by remember { mutableStateOf(false) }
+                    var tvContentLostAt by remember { mutableStateOf(0L) }
                     LaunchedEffect(isTvDevice, navBackStackEntry?.id, active) {
                         if (!isTvDevice || active || currentRoute in topLevelScreens) return@LaunchedEffect
-                        repeat(16) {
+                        val fromContent =
+                            tvContentHasFocus || android.os.SystemClock.uptimeMillis() - tvContentLostAt < 1500L
+                        repeat(16) { attempt ->
                             delay(150)
-                            if (tvRailHasFocus) return@LaunchedEffect
+                            if (tvRailHasFocus && !(fromContent && attempt < 4)) return@LaunchedEffect
                             if (!tvContentHasFocus && !playerBottomSheetState.isExpanded) {
-                                runCatching { contentAreaFocusRequester.requestFocus() }
+                                val entered = moe.rukamori.archivetune.ui.tv.TvFocusFallback.focusContentEntry(tvRootView)
+                                if (!entered) runCatching { contentAreaFocusRequester.requestFocus() }
                             }
                         }
                     }
@@ -3945,7 +3949,10 @@ class MainActivity : ComponentActivity() {
                                                     // invisible content container, where the highlight was lost.
                                                     Modifier
                                                         .tvFocusScope()
-                                                        .onFocusChanged { tvContentHasFocus = it.hasFocus }
+                                                        .onFocusChanged {
+                                                            if (tvContentHasFocus && !it.hasFocus) tvContentLostAt = android.os.SystemClock.uptimeMillis()
+                                                            tvContentHasFocus = it.hasFocus
+                                                        }
                                                         .focusRestorer()
                                                         .focusRequester(contentAreaFocusRequester)
                                                         .focusGroup()

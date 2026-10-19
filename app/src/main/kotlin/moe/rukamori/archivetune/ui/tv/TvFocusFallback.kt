@@ -166,6 +166,16 @@ object TvFocusFallback {
         return moveWithFallback(event, view, focusManager)
     }
 
+    fun focusContentEntry(view: View): Boolean {
+        val snap = runCatching { snapshot(view) }.getOrNull() ?: return false
+        val entryTop = snap.rootHeight * TopBandFraction
+        val usable = snap.scopeCandidates.filter { it.node.config.getOrNull(SemanticsActions.SetText) == null }
+        val below = usable.filter { it.rect.top >= entryTop }
+        val pool = below.ifEmpty { usable }
+        val ordered = pool.sortedWith(compareBy<FocusCandidate>({ (it.rect.top / 24f).toInt() }, { it.rect.left }))
+        return ordered.take(6).any { requestFocus(it) }
+    }
+
     fun focusedIsTextField(view: View): Boolean =
         runCatching { snapshot(view) }
             .getOrNull()
