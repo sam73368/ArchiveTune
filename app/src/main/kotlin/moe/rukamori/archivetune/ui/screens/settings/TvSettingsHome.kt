@@ -138,6 +138,7 @@ fun TvSettingsHome(
     var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     var entered by rememberSaveable { mutableStateOf(false) }
     var entering by remember { mutableStateOf(false) }
+    var leaving by remember { mutableStateOf(false) }
     val selected =
         rows.firstNotNullOfOrNull { row -> (row as? TvSettingsRow.Entry)?.item?.takeIf { it.key == selectedKey } }
             ?: rows.firstNotNullOfOrNull { (it as? TvSettingsRow.Entry)?.item }
@@ -211,11 +212,26 @@ fun TvSettingsHome(
         if (previous != null && previous != TvSettingsBlankRoute) {
             previewNav.popBackStack()
         } else {
-            entered = false
+            leaving = true
         }
     }
 
-    LaunchedEffect(entered) {
+    LaunchedEffect(leaving) {
+        if (!leaving) return@LaunchedEffect
+        val requester = selected?.key?.let { rowRequesters[it] }
+        repeat(15) {
+            if (requester != null && runCatching { requester.requestFocus() }.getOrDefault(false)) {
+                entered = false
+                leaving = false
+                return@LaunchedEffect
+            }
+            delay(60)
+        }
+        entered = false
+        leaving = false
+    }
+
+    LaunchedEffect(Unit) {
         if (entered) {
             repeat(24) {
                 delay(100)
@@ -264,7 +280,7 @@ fun TvSettingsHome(
                         .fillMaxHeight()
                         .background(TvTokens.RailBackground)
                         .then(
-                            if (entered) {
+                            if (entered && !leaving) {
                                 Modifier.tvFocusBlocked().focusProperties { canFocus = false }
                             } else {
                                 Modifier
@@ -310,6 +326,7 @@ fun TvSettingsHome(
                                     onFocused = {
                                         selectedKey = key
                                         if (entered) entered = false
+                                        leaving = false
                                     },
                                     onEnter = { enter(row.item) },
                                 )
@@ -334,7 +351,7 @@ fun TvSettingsHome(
                             ).focusProperties {
                                 exit = { direction ->
                                     if (direction == FocusDirection.Left && entered) {
-                                        entered = false
+                                        leaving = true
                                         FocusRequester.Cancel
                                     } else {
                                         FocusRequester.Default

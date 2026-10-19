@@ -5892,3 +5892,16 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification (no local compile by rule). Rollback: revert this commit or install the previous N build.
+
+---
+Task ID: TV-13
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Fix the focus after Back in the TV settings drill-down and soften the expanded rail edge (crawl of c2f65acae).
+
+Work Log:
+- The crawl showed the drill-down working (preview is the real screen, Right enters, Left returns, Down moves in the list) but Back from a sub-screen put the focus on the first category: blocking the content (`canFocus = false`) before the focus left it made the global focus guard grab the first row. `TvSettingsHome` now has a `leaving` state: the list is unblocked first, the selected row is focused, and only then does `entered` flip to false.
+- `TvNavigationRail`: the expanded panel gets a 56 dp soft black fade on its right edge so content under it does not look cut off.
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification.

@@ -50,6 +50,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -120,6 +122,17 @@ fun TvNavigationRail(
                             start = Offset(size.width, 0f),
                             end = Offset(size.width, size.height),
                             strokeWidth = 1f,
+                        )
+                        val fade = 56.dp.toPx()
+                        drawRect(
+                            brush =
+                                Brush.horizontalGradient(
+                                    colors = listOf(Color.Black.copy(alpha = 0.55f * expand), Color.Transparent),
+                                    startX = size.width,
+                                    endX = size.width + fade,
+                                ),
+                            topLeft = Offset(size.width, 0f),
+                            size = Size(fade, size.height),
                         )
                     },
         )
