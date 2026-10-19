@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import moe.rukamori.archivetune.utils.isTelevision
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -238,21 +239,32 @@ private fun CustomizeBackgroundContent(
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
                 verticalAlignment = Alignment.Top,
             ) {
+                val tvContext = LocalContext.current
+                val actionsFirst = remember(tvContext) { tvContext.isTelevision() }
                 Column(
                     modifier = Modifier.weight(1.1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
+                    if (actionsFirst) {
+                        BackgroundImageActions(
+                            hasImage = hasImage,
+                            onChooseImage = onChooseImage,
+                            onRemoveImage = onRemoveImage,
+                        )
+                    }
                     BackgroundPreviewSection(
                         imageUri = imageUri,
                         blur = blur,
                         contrast = contrast,
                         brightness = brightness,
                     )
-                    BackgroundImageActions(
-                        hasImage = hasImage,
-                        onChooseImage = onChooseImage,
-                        onRemoveImage = onRemoveImage,
-                    )
+                    if (!actionsFirst) {
+                        BackgroundImageActions(
+                            hasImage = hasImage,
+                            onChooseImage = onChooseImage,
+                            onRemoveImage = onRemoveImage,
+                        )
+                    }
                 }
 
                 Column(

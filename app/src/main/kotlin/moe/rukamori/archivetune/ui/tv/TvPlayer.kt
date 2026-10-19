@@ -154,17 +154,24 @@ fun TvPlayerContent(
     }
 
     var playHasFocus by remember { mutableStateOf(false) }
+    var seekHasFocus by remember { mutableStateOf(false) }
     var userKeyed by remember { mutableStateOf(false) }
+    val entryFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
     LaunchedEffect(expanded) {
         if (expanded) {
             userKeyed = false
-            repeat(14) {
+            repeat(24) {
                 if (userKeyed) return@LaunchedEffect
                 if (!playHasFocus) {
-                    val result = runCatching { playFocus.requestFocus() }
-                    android.util.Log.d("TvFocus", "player entry attempt=$it result=$result userKeyed=$userKeyed")
+                    if (seekHasFocus) {
+                        val moved = entryFocusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)
+                        android.util.Log.d("TvFocus", "player entry attempt=$it seek->down moved=$moved")
+                    } else {
+                        val result = runCatching { playFocus.requestFocus() }
+                        android.util.Log.d("TvFocus", "player entry attempt=$it result=$result")
+                    }
                 }
-                delay(120)
+                delay(130)
             }
         }
     }
@@ -188,8 +195,7 @@ fun TvPlayerContent(
                     Modifier
                         .then(if (lyricsVisible) Modifier.width(440.dp) else Modifier.weight(1f))
                         .fillMaxHeight()
-                        .padding(start = 64.dp, end = 32.dp, top = 28.dp, bottom = 20.dp)
-                        .focusRestorer(playFocus),
+                        .padding(start = 64.dp, end = 32.dp, top = 28.dp, bottom = 20.dp),
                 horizontalAlignment = if (lyricsVisible) Alignment.Start else Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -294,7 +300,7 @@ fun TvPlayerContent(
                     onSeekFinished = onSeekFinished,
                     seekRequester = seekFocus,
                     upTarget = if (linkedArtistIndex >= 0) firstArtistFocus else if (hasAlbumLink) albumFocus else null,
-                    modifier = Modifier.width(320.dp),
+                    modifier = Modifier.width(320.dp).onFocusChanged { seekHasFocus = it.hasFocus },
                 )
 
                 Row(

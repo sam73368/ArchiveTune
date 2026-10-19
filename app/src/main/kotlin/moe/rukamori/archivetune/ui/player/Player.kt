@@ -1290,7 +1290,6 @@ fun BottomSheetPlayer(
                         // TV: the sheet is a group, so focus goes to its buttons (and, collapsed, the
                         // sheet no longer keeps the focus while the user browses the other screens).
                         Modifier
-                            .focusRestorer(moe.rukamori.archivetune.ui.tv.TvPlayerFocus.entry)
                             .focusRequester(focusRequester)
                             .focusGroup()
                     } else {

@@ -5860,3 +5860,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification (no local compile by rule). The log lines are meant to be removed once the player entry focus and rail to player Right are understood.
+
+---
+Task ID: TV-11
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Fourth emulator sweep (build ef8b997af): player entry focus, rail to player Right, wrap-around, Customize background.
+
+Work Log:
+- Logs showed `TvPlayerFocus.entry.requestFocus()` returning false on every attempt and Right from the rail landing on Play although the fallback focused the same-row target: the `focusRestorer(entry)` modifiers on the player sheet and the left column of `TvPlayer` redirect focus to Play. Both restorers are removed; Play is focused explicitly instead.
+- `TvPlayer` entry loop: if the seek bar holds focus before the user pressed a key, it moves Down to Play (up to 24 attempts, 130 ms apart).
+- `TvFocusFallback`: wrap-around guard also covers vertical moves handled by the default focus search outside the content scope (the player); extra `TvFocus` log lines for the player pane decisions.
+- `CustomizeBackground`: on TV the image buttons are placed above the tall preview so the first focus target is on screen.
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification (no local compile by rule).

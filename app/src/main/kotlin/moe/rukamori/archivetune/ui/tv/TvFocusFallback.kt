@@ -236,7 +236,25 @@ object TvFocusFallback {
                     return true
                 }
             }
+            val verticalMove = direction == FocusDirection.Up || direction == FocusDirection.Down
+            val preMove = if (verticalMove) runCatching { snapshot(view) }.getOrNull() else null
             if (focusManager.moveFocus(direction)) {
+                if (preMove != null) {
+                    val start = preMove.focused
+                    val post = runCatching { snapshot(view) }.getOrNull()
+                    val landed = post?.focused
+                    if (start != null && landed != null && post != null &&
+                        !start.excluded && !landed.excluded &&
+                        preMove.focusedInRail == post.focusedInRail &&
+                        preMove.focusedInPlayer == post.focusedInPlayer &&
+                        landed.rect != start.rect &&
+                        !isForward(start.rect, landed.rect, direction)
+                    ) {
+                        Log.d("TvFocus", "outside wrap $direction ${start.rect} -> ${landed.rect} player=${post.focusedInPlayer}")
+                        requestFocus(start)
+                        return true
+                    }
+                }
                 if (direction == FocusDirection.Right && railFocusCount > 0) {
                     val after = runCatching { snapshot(view) }.getOrNull()
                     if (after != null && after.focused == null && focusContentEntry(view)) return true
@@ -302,7 +320,9 @@ object TvFocusFallback {
     ): Boolean? {
         if (playerPaneCount <= 0) return null
         val before = runCatching { snapshot(view) }.getOrNull() ?: return null
-        val origin = before.focused ?: return null
+        val origin = before.focused
+        Log.d("TvFocus", "pane $direction origin=${origin?.rect} rail=${before.focusedInRail} player=${before.focusedInPlayer} scope=${before.focusedInScope}")
+        if (origin == null) return null
         if (before.focusedInRail) {
             if (direction != FocusDirection.Right || before.playerCandidates.isEmpty()) return null
             val railNeighbour = bestCandidate(origin, before.railCandidates, direction)
@@ -311,7 +331,8 @@ object TvFocusFallback {
             Log.d("TvFocus", "rail->player from ${origin.rect} candidates=${before.playerCandidates.size} target=${target?.rect}")
             if (target == null) return null
             val ok = requestFocus(target)
-            Log.d("TvFocus", "rail->player requestFocus=$ok")
+            val landedAt = runCatching { snapshot(view) }.getOrNull()?.focused?.rect
+            Log.d("TvFocus", "rail->player requestFocus=$ok landed=$landedAt")
             return if (ok) true else null
         }
         if (!before.focusedInPlayer) return null
