@@ -18,6 +18,9 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -126,6 +129,11 @@ fun TvPlayerContent(
     val repeatMode by playerConnection.repeatMode.collectAsState()
     var lyricsVisible by rememberSaveable { mutableStateOf(true) }
     val playFocus = TvPlayerFocus.entry
+    val albumFocus = remember { FocusRequester() }
+    val firstArtistFocus = remember { FocusRequester() }
+    val seekFocus = remember { FocusRequester() }
+    val linkedArtistIndex = mediaMetadata.artists.filter { it.name.isNotBlank() }.indexOfFirst { it.id != null }
+    val hasAlbumLink = mediaMetadata.album?.title?.isNotBlank() == true
     var lyricsBrowsing by remember { mutableStateOf(false) }
     val tvPerformance = rememberTvPerformanceMode()
     val queueWindows by playerConnection.queueWindows.collectAsState()
@@ -154,12 +162,14 @@ fun TvPlayerContent(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier =
             modifier
                 .fillMaxSize()
+                .tvPlayerPane()
                 .background(TvTokens.Background),
     ) {
+        val roomy = maxHeight >= 600.dp
         TvPlayerBackdrop(artworkUrl = mediaMetadata.thumbnailUrl)
 
         Row(modifier = Modifier.fillMaxSize()) {
@@ -168,15 +178,17 @@ fun TvPlayerContent(
                     Modifier
                         .then(if (lyricsVisible) Modifier.width(440.dp) else Modifier.weight(1f))
                         .fillMaxHeight()
-                        .padding(start = 64.dp, end = 32.dp, top = 40.dp, bottom = 28.dp)
+                        .padding(start = 64.dp, end = 32.dp, top = 28.dp, bottom = 20.dp)
                         .focusRestorer(playFocus),
                 horizontalAlignment = if (lyricsVisible) Alignment.Start else Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Box(
                     modifier =
                         Modifier
-                            .size(if (lyricsVisible) 240.dp else 260.dp)
+                            .weight(1f, fill = false)
+                            .heightIn(max = if (lyricsVisible) 240.dp else 260.dp)
+                            .aspectRatio(1f)
                             .shadow(40.dp, RoundedCornerShape(16.dp))
                             .clip(RoundedCornerShape(16.dp))
                             .background(TvTokens.SurfaceHigh),
@@ -222,6 +234,16 @@ fun TvPlayerContent(
                             style = TvTokens.Body,
                             color = TvTokens.OnSurface.copy(alpha = 0.8f),
                             onClick = { onAlbumClick(album.id) },
+                            modifier =
+                                Modifier
+                                    .focusRequester(albumFocus)
+                                    .then(
+                                        if (linkedArtistIndex >= 0) {
+                                            Modifier.focusProperties { down = firstArtistFocus }
+                                        } else {
+                                            Modifier
+                                        },
+                                    ),
                         )
                     }
                     FlowRow(
@@ -236,6 +258,20 @@ fun TvPlayerContent(
                                 style = if (index == 0) TvTokens.BodyBold else TvTokens.Body,
                                 color = TvTokens.OnSurface.copy(alpha = if (index == 0) 0.95f else 0.75f),
                                 onClick = artistId?.let { id -> { onArtistClick(id) } },
+                                modifier =
+                                    if (index == linkedArtistIndex) {
+                                        Modifier
+                                            .focusRequester(firstArtistFocus)
+                                            .then(
+                                                if (hasAlbumLink) {
+                                                    Modifier.focusProperties { up = albumFocus }
+                                                } else {
+                                                    Modifier
+                                                },
+                                            )
+                                    } else {
+                                        Modifier
+                                    },
                             )
                         }
                     }
@@ -246,6 +282,8 @@ fun TvPlayerContent(
                     duration = liveDuration,
                     onSeek = onSeek,
                     onSeekFinished = onSeekFinished,
+                    seekRequester = seekFocus,
+                    upTarget = if (linkedArtistIndex >= 0) firstArtistFocus else if (hasAlbumLink) albumFocus else null,
                     modifier = Modifier.width(320.dp),
                 )
 
@@ -327,8 +365,7 @@ fun TvPlayerContent(
                     }
                 }
 
-                Spacer(Modifier.weight(1f))
-                nextMetadata?.let { next ->
+                nextMetadata?.takeIf { roomy }?.let { next ->
                     Text(
                         text =
                             stringResource(R.string.tv_up_next) + " · " + next.title +
@@ -340,11 +377,13 @@ fun TvPlayerContent(
                         modifier = Modifier.width(320.dp),
                     )
                 }
-                Text(
-                    text = stringResource(R.string.tv_player_hint),
-                    style = TvTokens.Caption,
-                    color = TvTokens.OnSurfaceFaint,
-                )
+                if (roomy) {
+                    Text(
+                        text = stringResource(R.string.tv_player_hint),
+                        style = TvTokens.Caption,
+                        color = TvTokens.OnSurfaceFaint,
+                    )
+                }
             }
 
             if (lyricsVisible) {
@@ -354,6 +393,7 @@ fun TvPlayerContent(
                             .weight(1f)
                             .fillMaxHeight()
                             .padding(top = 24.dp, end = 48.dp)
+                            .tvFocusExcluded()
                             .onPreviewKeyEvent { event ->
                                 if (event.key != Key.Back || !lyricsBrowsing) return@onPreviewKeyEvent false
                                 if (event.type == KeyEventType.KeyUp) {
@@ -422,6 +462,8 @@ private fun TvSeekBar(
     duration: Long,
     onSeek: (Long) -> Unit,
     onSeekFinished: () -> Unit,
+    seekRequester: FocusRequester,
+    upTarget: FocusRequester?,
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -469,7 +511,10 @@ private fun TvSeekBar(
                             }
                         }
                         true
-                    }.focusable()
+                    }.tvFocusExcluded()
+                    .focusRequester(seekRequester)
+                    .then(if (upTarget != null) Modifier.focusProperties { up = upTarget } else Modifier)
+                    .focusable()
                     .drawBehind {
                         val h = barHeight.dp.toPx()
                         val top = (size.height - h) / 2

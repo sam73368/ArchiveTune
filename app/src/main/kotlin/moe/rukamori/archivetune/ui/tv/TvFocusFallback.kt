@@ -81,6 +81,21 @@ fun Modifier.tvFocusRail(): Modifier {
         }
 }
 
+val TvPlayerPaneKey = SemanticsPropertyKey<Boolean>("TvPlayerPane")
+
+@Composable
+fun Modifier.tvPlayerPane(): Modifier {
+    DisposableEffect(Unit) {
+        TvFocusFallback.playerPaneCount++
+        onDispose { TvFocusFallback.playerPaneCount-- }
+    }
+    return semantics { this[TvPlayerPaneKey] = true }
+}
+
+val TvFocusExcludedKey = SemanticsPropertyKey<Boolean>("TvFocusExcluded")
+
+fun Modifier.tvFocusExcluded(): Modifier = semantics { this[TvFocusExcludedKey] = true }
+
 fun Modifier.tvNonFocusable(): Modifier = focusProperties { canFocus = false }
 
 fun Modifier.tvBackButtonFocus(): Modifier =
@@ -122,12 +137,17 @@ private class FocusSnapshot(
     val focusedInScope: Boolean,
     val focusedInRail: Boolean,
     val scopeCandidates: List<FocusCandidate>,
+    val focusedInPlayer: Boolean = false,
+    val playerCandidates: List<FocusCandidate> = emptyList(),
+    val railCandidates: List<FocusCandidate> = emptyList(),
 )
 
 object TvFocusFallback {
     var scopeFocusCount: Int = 0
 
     var railFocusCount: Int = 0
+
+    var playerPaneCount: Int = 0
 
     val focusInScope: Boolean
         get() = scopeFocusCount > 0
@@ -174,6 +194,7 @@ object TvFocusFallback {
                 Key.DirectionRight -> FocusDirection.Right
                 else -> return false
             }
+        movePlayerPane(direction, view, focusManager)?.let { return it }
         if (!focusInScope) {
             if (focusManager.moveFocus(direction)) return true
             if (direction != FocusDirection.Right || railFocusCount <= 0) return false
@@ -213,6 +234,60 @@ object TvFocusFallback {
         return moved
     }
 
+    private fun movePlayerPane(
+        direction: FocusDirection,
+        view: View,
+        focusManager: FocusManager,
+    ): Boolean? {
+        if (playerPaneCount <= 0) return null
+        val before = runCatching { snapshot(view) }.getOrNull() ?: return null
+        val origin = before.focused ?: return null
+        if (before.focusedInRail) {
+            if (direction != FocusDirection.Right || before.playerCandidates.isEmpty()) return null
+            val target = nearestInRow(origin, before.playerCandidates, direction) ?: return null
+            return if (requestFocus(target)) true else null
+        }
+        if (!before.focusedInPlayer) return null
+        val moved = focusManager.moveFocus(direction)
+        val after = if (moved) runCatching { snapshot(view) }.getOrNull() else null
+        if (moved && after?.focusedInPlayer == true) return true
+        if (direction == FocusDirection.Left) {
+            val rail = nearestInRow(origin, before.railCandidates, direction)
+            if (rail != null && requestFocus(rail)) return true
+            if (moved && after?.focusedInRail == true) return true
+        }
+        if (!moved) return false
+        val pool = after?.playerCandidates ?: before.playerCandidates
+        val alternative = bestCandidate(origin, pool, direction)
+        if (alternative == null || !requestFocus(alternative)) requestFocus(origin)
+        return true
+    }
+
+    private fun nearestInRow(
+        origin: FocusCandidate,
+        candidates: List<FocusCandidate>,
+        direction: FocusDirection,
+    ): FocusCandidate? {
+        if (candidates.isEmpty()) return null
+        val center = origin.rect.center
+        val sideways =
+            candidates.filter { c ->
+                if (direction == FocusDirection.Right) c.rect.center.x > center.x else c.rect.center.x < center.x
+            }.ifEmpty { candidates }
+        val sameRow =
+            sideways.filter { c ->
+                kotlin.math.abs(c.rect.center.y - center.y) <= maxOf(origin.rect.height, c.rect.height) / 2f
+            }
+        if (sameRow.isNotEmpty()) {
+            return sameRow.minByOrNull { c -> kotlin.math.abs(c.rect.center.x - center.x) }
+        }
+        return sideways.minByOrNull { c ->
+            val dx = c.rect.center.x - center.x
+            val dy = c.rect.center.y - center.y
+            dx * dx + dy * dy
+        }
+    }
+
     private fun requestFocus(candidate: FocusCandidate): Boolean =
         runCatching {
             candidate.node.config
@@ -231,15 +306,22 @@ object TvFocusFallback {
         var focused: FocusCandidate? = null
         var focusedInScope = false
         var focusedInRail = false
+        var focusedInPlayer = false
         val candidates = ArrayList<FocusCandidate>()
+        val playerCandidates = ArrayList<FocusCandidate>()
+        val railCandidates = ArrayList<FocusCandidate>()
 
         fun walk(
             node: SemanticsNode,
             inScope: Boolean,
             inRail: Boolean,
+            inPlayer: Boolean,
+            inExcluded: Boolean,
         ) {
             val scoped = inScope || node.config.getOrNull(TvFocusScopeKey) == true
             val railed = inRail || node.config.getOrNull(TvFocusRailKey) == true
+            val played = inPlayer || node.config.getOrNull(TvPlayerPaneKey) == true
+            val excluded = inExcluded || node.config.getOrNull(TvFocusExcludedKey) == true
             val config = node.config
             if (config.getOrNull(SemanticsActions.RequestFocus) != null &&
                 config.getOrNull(SemanticsProperties.Disabled) == null
@@ -251,17 +333,20 @@ object TvFocusFallback {
                         focused = candidate
                         focusedInScope = scoped
                         focusedInRail = railed
-                    } else if (scoped || (includeAllContent && !railed)) {
-                        candidates += candidate
+                        focusedInPlayer = played
+                    } else {
+                        if (scoped || (includeAllContent && !railed)) candidates += candidate
+                        if (played && !excluded) playerCandidates += candidate
+                        if (railed) railCandidates += candidate
                     }
                 }
             }
             val nodeBounds = node.boundsInRoot
             if (node !== rootNode && !nodeBounds.overlaps(rootBounds)) return
-            node.children.forEach { walk(it, scoped, railed) }
+            node.children.forEach { walk(it, scoped, railed, played, excluded) }
         }
-        walk(rootNode, false, false)
-        return FocusSnapshot(focused, focusedInScope, focusedInRail, candidates)
+        walk(rootNode, false, false, false, false)
+        return FocusSnapshot(focused, focusedInScope, focusedInRail, candidates, focusedInPlayer, playerCandidates, railCandidates)
     }
 
     private fun bestCandidate(

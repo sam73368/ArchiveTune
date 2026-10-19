@@ -5775,3 +5775,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification (no local compile by rule).
+
+---
+Task ID: TV-5
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: TV player — bottom pills vanishing when lyrics are hidden, row-based focus between the rail and the player, artist link unreachable from the seek bar, focus escaping to the page behind the player.
+
+Work Log:
+- `TvPlayerContent`: the artwork is now the flexible element (`weight(1f, fill = false)`, `heightIn(max)`, `aspectRatio(1f)`) so the seek bar, transport row and the Like/Queue/Lyrics/More pills always get their height first; with lyrics hidden the 260dp artwork overflowed a 540dp screen and Column handed the pills zero height. The up-next line and hint only render when the viewport is at least 600dp tall.
+- Explicit focus links: seek bar Up → first linked artist (else album), album Down → first linked artist, first artist Up → album. The default 2D search skipped the short artist chip in favour of the wider album text.
+- `TvFocusFallback`: new `tvPlayerPane()` / `tvFocusExcluded()` semantics. Right from a rail item lands on the player control nearest in the same row (nearest overall when none), Left from the player lands on the rail icon nearest in the same row; the seek bar and the lyrics pane are excluded as targets so an automatic landing can never start scrubbing or lyric browsing. Any D-pad move that would leave the player for the hidden page behind it is reverted to the best in-player candidate or the origin.
+
+Stage Summary:
+- Pending CI compile and on-device verification (no local compile by rule).
