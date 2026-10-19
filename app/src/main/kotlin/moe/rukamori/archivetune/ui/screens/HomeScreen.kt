@@ -51,6 +51,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -355,7 +360,12 @@ private fun HomeContent(
             onRefresh = { onAction(HomeAction.Refresh) },
             state = pullState,
             indicator = {},
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                    if (!isTvLayout || (event.key != Key.Menu && event.key != Key.F5)) return@onPreviewKeyEvent false
+                    if (event.type == KeyEventType.KeyDown && !uiState.isRefreshing) onAction(HomeAction.Refresh)
+                    true
+                },
         ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val tvFocusedPreview = moe.rukamori.archivetune.ui.tv.LocalTvFocusedPreview.current

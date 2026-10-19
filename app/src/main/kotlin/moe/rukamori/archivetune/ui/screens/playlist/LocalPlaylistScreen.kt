@@ -530,54 +530,58 @@ fun LocalPlaylistScreen(
         }
     }
 
-    LaunchedEffect(reorderableState.isAnyItemDragging) {
-        if (!reorderableState.isAnyItemDragging) {
-            dragInfo?.let { (from, to) ->
-                // `songs` hides blocked artists / music videos, so its indexes are not the stored
-                // positions: translate through the real `position` of both rows.
-                val orderedBeforeMove = songs
-                val browseId =
-                    viewModel.playlist.value
-                        ?.playlist
-                        ?.browseId
-                val fromPosition = orderedBeforeMove.getOrNull(from)?.map?.position
-                val toPosition = orderedBeforeMove.getOrNull(to)?.map?.position
+    val commitMove: (Int, Int) -> Unit = { from, to ->
+        // `songs` hides blocked artists / music videos, so its indexes are not the stored
+        // positions: translate through the real `position` of both rows.
+        val orderedBeforeMove = songs
+        val browseId =
+            viewModel.playlist.value
+                ?.playlist
+                ?.browseId
+        val fromPosition = orderedBeforeMove.getOrNull(from)?.map?.position
+        val toPosition = orderedBeforeMove.getOrNull(to)?.map?.position
 
-                if (fromPosition != null && toPosition != null) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        val fullPlaylist = database.playlistSongs(viewModel.playlistId).first()
-                        val movedSetVideoId = fullPlaylist.firstOrNull { it.map.position == fromPosition }?.map?.setVideoId
-                        val targetIndex = fullPlaylist.indexOfFirst { it.map.position == toPosition }
-                        val successorSetVideoId =
-                            if (targetIndex < 0) {
-                                null
-                            } else {
-                                fullPlaylist.getOrNull(if (fromPosition > toPosition) targetIndex else targetIndex + 1)?.map?.setVideoId
-                            }
+        if (fromPosition != null && toPosition != null) {
+            coroutineScope.launch(Dispatchers.IO) {
+                val fullPlaylist = database.playlistSongs(viewModel.playlistId).first()
+                val movedSetVideoId = fullPlaylist.firstOrNull { it.map.position == fromPosition }?.map?.setVideoId
+                val targetIndex = fullPlaylist.indexOfFirst { it.map.position == toPosition }
+                val successorSetVideoId =
+                    if (targetIndex < 0) {
+                        null
+                    } else {
+                        fullPlaylist.getOrNull(if (fromPosition > toPosition) targetIndex else targetIndex + 1)?.map?.setVideoId
+                    }
 
-                        database.withTransaction {
-                            move(viewModel.playlistId, fromPosition, toPosition)
-                        }
+                database.withTransaction {
+                    move(viewModel.playlistId, fromPosition, toPosition)
+                }
 
-                        if (browseId != null && movedSetVideoId != null) {
-                            runCatching {
-                                YouTube
-                                    .moveSongPlaylist(
-                                        browseId,
-                                        movedSetVideoId,
-                                        successorSetVideoId,
-                                    ).getOrThrow()
-                            }.onFailure {
-                                withContext(Dispatchers.Main) {
-                                    snackbarHostState.showSnackbar(
-                                        message = context.getString(R.string.error_unknown),
-                                        withDismissAction = true,
-                                    )
-                                }
-                            }
+                if (browseId != null && movedSetVideoId != null) {
+                    runCatching {
+                        YouTube
+                            .moveSongPlaylist(
+                                browseId,
+                                movedSetVideoId,
+                                successorSetVideoId,
+                            ).getOrThrow()
+                    }.onFailure {
+                        withContext(Dispatchers.Main) {
+                            snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.error_unknown),
+                                withDismissAction = true,
+                            )
                         }
                     }
                 }
+            }
+        }
+    }
+
+    LaunchedEffect(reorderableState.isAnyItemDragging) {
+        if (!reorderableState.isAnyItemDragging) {
+            dragInfo?.let { (from, to) ->
+                commitMove(from, to)
                 dragInfo = null
             }
         }
@@ -914,7 +918,26 @@ fun LocalPlaylistScreen(
                                         )
                                     }
 
-                                    if (isReorderingEnabled) {
+                                    if (isReorderingEnabled && moe.rukamori.archivetune.utils.TvPerformance.isTelevision) {
+                                        IconButton(
+                                            onClick = { if (index > 0) commitMove(index, index - 1) },
+                                            onLongClick = {},
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.arrow_upward),
+                                                contentDescription = stringResource(R.string.reorder_move_up),
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { if (index < songs.lastIndex) commitMove(index, index + 1) },
+                                            onLongClick = {},
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.arrow_downward),
+                                                contentDescription = stringResource(R.string.reorder_move_down),
+                                            )
+                                        }
+                                    } else if (isReorderingEnabled) {
                                         IconButton(
                                             onClick = { },
                                             onLongClick = {},

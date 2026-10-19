@@ -17,8 +17,15 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.unit.Dp
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 
@@ -32,11 +39,19 @@ fun ExpressivePullToRefreshBox(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val state = rememberPullToRefreshState()
+    val latestRefresh by rememberUpdatedState(onRefresh)
+    val latestRefreshing by rememberUpdatedState(isRefreshing)
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
-        modifier = modifier,
+        modifier =
+            modifier.onPreviewKeyEvent { event ->
+                if (!moe.rukamori.archivetune.utils.TvPerformance.isTelevision) return@onPreviewKeyEvent false
+                if (event.key != Key.Menu && event.key != Key.F5) return@onPreviewKeyEvent false
+                if (event.type == KeyEventType.KeyDown && !latestRefreshing) latestRefresh()
+                true
+            },
         state = state,
         indicator = {
             PullToRefreshDefaults.LoadingIndicator(
