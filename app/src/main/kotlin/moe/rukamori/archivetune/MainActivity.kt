@@ -2383,7 +2383,7 @@ class MainActivity : ComponentActivity() {
                         if (!isTvDevice || active || currentRoute in topLevelScreens) return@LaunchedEffect
                         val fromContent =
                             tvContentHasFocus || android.os.SystemClock.uptimeMillis() - tvContentLostAt < 1500L
-                        repeat(16) { attempt ->
+                        repeat(30) { attempt ->
                             delay(150)
                             if (tvRailHasFocus && !(fromContent && attempt < 4)) return@LaunchedEffect
                             if (!tvContentHasFocus && !playerBottomSheetState.isExpanded) {

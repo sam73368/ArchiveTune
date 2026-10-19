@@ -166,8 +166,13 @@ object TvFocusFallback {
         return moveWithFallback(event, view, focusManager)
     }
 
-    fun focusContentEntry(view: View): Boolean {
-        val snap = runCatching { snapshot(view) }.getOrNull() ?: return false
+    fun focusContentEntry(view: View): Boolean = enterContent(view, false) || enterContent(view, true)
+
+    private fun enterContent(
+        view: View,
+        includeOffscreen: Boolean,
+    ): Boolean {
+        val snap = runCatching { snapshot(view, includeOffscreen = includeOffscreen) }.getOrNull() ?: return false
         val entryTop = snap.rootHeight * TopBandFraction
         val usable = snap.scopeCandidates.filter { it.node.config.getOrNull(SemanticsActions.SetText) == null }
         val below = usable.filter { it.rect.top >= entryTop }
@@ -212,12 +217,34 @@ object TvFocusFallback {
             }
         movePlayerPane(direction, view, focusManager)?.let { return it }
         if (!focusInScope) {
-            if (focusManager.moveFocus(direction)) return true
+            if (direction == FocusDirection.Left && railFocusCount > 0) {
+                val inRail = runCatching { snapshot(view) }.getOrNull()
+                val origin = inRail?.focused
+                if (inRail != null && inRail.focusedInRail && origin != null) {
+                    val sameRow =
+                        inRail.railCandidates.filter { c ->
+                            c.rect.center.x < origin.rect.center.x &&
+                                kotlin.math.abs(c.rect.center.y - origin.rect.center.y) <=
+                                maxOf(origin.rect.height, c.rect.height) / 2f
+                        }
+                    val target = sameRow.maxByOrNull { it.rect.center.x }
+                    if (target != null) requestFocus(target)
+                    return true
+                }
+            }
+            if (focusManager.moveFocus(direction)) {
+                if (direction == FocusDirection.Right && railFocusCount > 0) {
+                    val after = runCatching { snapshot(view) }.getOrNull()
+                    if (after != null && after.focused == null && focusContentEntry(view)) return true
+                }
+                return true
+            }
             if (direction != FocusDirection.Right || railFocusCount <= 0) return false
             val fromRail = runCatching { snapshot(view, includeAllContent = true) }.getOrNull() ?: return false
             val origin = fromRail.focused ?: return false
-            val target = bestCandidate(origin, fromRail.scopeCandidates, direction) ?: return false
-            return requestFocus(target)
+            val target = bestCandidate(origin, fromRail.scopeCandidates, direction)
+            if (target != null && requestFocus(target)) return true
+            return fromRail.focusedInRail && focusContentEntry(view)
         }
         val vertical = direction == FocusDirection.Up || direction == FocusDirection.Down
         if (!vertical) {
@@ -324,6 +351,7 @@ object TvFocusFallback {
     private fun snapshot(
         view: View,
         includeAllContent: Boolean = false,
+        includeOffscreen: Boolean = false,
     ): FocusSnapshot? {
         val owner = (view as? ViewRootForTest)?.semanticsOwner ?: return null
         val rootNode = owner.unmergedRootSemanticsNode
@@ -367,7 +395,7 @@ object TvFocusFallback {
                 }
             }
             val nodeBounds = node.boundsInRoot
-            if (node !== rootNode && !nodeBounds.overlaps(rootBounds)) return
+            if (!includeOffscreen && node !== rootNode && !nodeBounds.overlaps(rootBounds)) return
             node.children.forEach { walk(it, scoped, railed, played, excluded) }
         }
         walk(rootNode, false, false, false, false)

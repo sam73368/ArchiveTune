@@ -5827,6 +5827,8 @@ Task: Player entry focus and sub-page entry focus, from the first emulator sweep
 Work Log:
 - `Player.kt`: the TV player sheet uses `focusRestorer(TvPlayerFocus.entry)` so expanding the player focuses Play instead of the seek bar.
 - `MainActivity`: the sub-page focus effect now overrides rail focus during the first attempts when the navigation came from content, and enters content through `TvFocusFallback.focusContentEntry` (first non-text-field target below the top band) before falling back to the focus requester.
+- `TvFocusFallback`: `focusContentEntry` also considers targets outside the visible window (pages that scroll, such as Customize background, had no reachable entry from the rail); Right from the rail falls back to it when the default move leaves nothing focused; Left on a rail item only moves within its own row, so the mini player cover no longer jumps to the previous button.
+- The sub-page focus retry window is 30 attempts instead of 16.
 - `scripts/tv_scenarios.py`: new `DISMISS` token (closes the playback confirmation dialog), player scenarios run last, new top songs items scenario.
 
 Stage Summary:
