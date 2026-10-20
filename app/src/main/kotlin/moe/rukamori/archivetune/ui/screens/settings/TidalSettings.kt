@@ -202,10 +202,12 @@ fun TidalSettings(navController: NavController, scrollTo: String? = null) {
         testingInstances = true
         coroutineScope.launch {
             val records =
-                withContext(Dispatchers.IO) {
-                    TidalInstanceHealthManager.refresh(context, includeDiscovery = false, staggered = false)
-                }
-            applyRecords(records)
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        TidalInstanceHealthManager.refresh(context, includeDiscovery = false, staggered = false)
+                    }
+                }.getOrNull()
+            if (records != null) applyRecords(records)
             testingInstances = false
         }
     }
@@ -224,7 +226,7 @@ fun TidalSettings(navController: NavController, scrollTo: String? = null) {
                     },
                     shapes = ButtonDefaults.shapes(),
                 ) {
-                    Text(context.getString(R.string.copy_link).replace("link", "token"))
+                    Text(stringResource(R.string.copy_token))
                 }
                 TextButton(
                     onClick = { showAccountDetail = false },
@@ -342,7 +344,7 @@ fun TidalSettings(navController: NavController, scrollTo: String? = null) {
                                 },
                                 shapes = ButtonDefaults.shapes(),
                             ) {
-                                Text(context.getString(R.string.copy_link).replace("link", "URL"))
+                                Text(stringResource(R.string.copy_instance_url))
                             }
                             TextButton(
                                 onClick = { detailInstance = null },

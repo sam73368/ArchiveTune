@@ -100,6 +100,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import moe.rukamori.archivetune.utils.isLowEndDevice
+import moe.rukamori.archivetune.utils.isLowRamDevice
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -256,7 +257,8 @@ fun FloatingNavigationToolbar(
             baseColor.copy(alpha = effectiveAlpha.coerceIn(0.05f, 1f))
         }
     val motionScheme = MaterialTheme.motionScheme
-    val (disableAnimations) = rememberPreference(DisableAnimationsKey, defaultValue = false)
+    val lowRamDefaultsToNoAnimations = LocalContext.current.isLowRamDevice()
+    val (disableAnimations) = rememberPreference(DisableAnimationsKey, defaultValue = lowRamDefaultsToNoAnimations)
     val (hideNavigationLabels) = rememberPreference(HideNavigationBarLabelsKey, defaultValue = false)
     val density = LocalDensity.current
 

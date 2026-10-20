@@ -114,7 +114,7 @@ fun TelegramSettings(
                     onClick = {
                         showLogoutDialog = false
                         coroutineScope.launch {
-                            TelegramClient.logOut()
+                            runCatching { TelegramClient.logOut() }
                             onAccountNameChange("")
                             onAccountPhoneChange("")
                         }

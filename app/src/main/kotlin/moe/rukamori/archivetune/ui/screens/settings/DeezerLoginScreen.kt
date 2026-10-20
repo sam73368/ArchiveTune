@@ -90,7 +90,7 @@ fun DeezerLoginScreen(navController: NavController) {
 
     fun finishLogin(arl: String) {
         scope.launch {
-            val info = withContext(Dispatchers.IO) { DeezerAudioProvider.verifyArl(arl) }
+            val info = runCatching { withContext(Dispatchers.IO) { DeezerAudioProvider.verifyArl(arl) } }.getOrNull()
             if (info == null) {
                 handled.set(false)
                 toast(context.getString(R.string.deezer_arl_invalid))
@@ -120,7 +120,7 @@ fun DeezerLoginScreen(navController: NavController) {
         manualVerifying = true
         scope.launch {
             try {
-                val info = withContext(Dispatchers.IO) { DeezerAudioProvider.verifyArl(arl) }
+                val info = runCatching { withContext(Dispatchers.IO) { DeezerAudioProvider.verifyArl(arl) } }.getOrNull()
                 if (info == null) {
                     toast(context.getString(R.string.deezer_arl_invalid))
                     return@launch

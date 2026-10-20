@@ -748,7 +748,7 @@ fun ListenTogetherSettings(
                         tint = liquidGlassContentColor(),
                     )
                 }
-                GlassPillTitleText(text = stringResource(R.string.settings))
+                GlassPillTitleText(text = stringResource(R.string.listen_together))
             }
         } else {
             TopAppBar(

@@ -92,6 +92,7 @@ import moe.rukamori.archivetune.ui.component.InnerShadow
 import moe.rukamori.archivetune.ui.component.LiquidGlassDragAnimation
 import moe.rukamori.archivetune.ui.component.innerShadow
 import moe.rukamori.archivetune.ui.screens.Screens
+import moe.rukamori.archivetune.utils.isLowRamDevice
 import moe.rukamori.archivetune.utils.rememberPreference
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -115,7 +116,8 @@ fun SukisuLiquidNavBar(
     if (items.isEmpty()) return
 
     val (hideLabels) = rememberPreference(HideNavigationBarLabelsKey, defaultValue = false)
-    val (disableAnimations) = rememberPreference(DisableAnimationsKey, defaultValue = false)
+    val lowRamDefaultsToNoAnimations = androidx.compose.ui.platform.LocalContext.current.isLowRamDevice()
+    val (disableAnimations) = rememberPreference(DisableAnimationsKey, defaultValue = lowRamDefaultsToNoAnimations)
 
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val pillShape = remember { CircleShape }

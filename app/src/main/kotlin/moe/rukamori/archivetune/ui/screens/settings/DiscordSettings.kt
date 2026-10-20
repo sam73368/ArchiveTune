@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ForkRepositoryUrl
+import moe.rukamori.archivetune.utils.startActivitySafely
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.layout.WindowInsets
 import android.content.Intent
@@ -202,17 +204,23 @@ fun DiscordSettings(navController: NavController, scrollTo: String? = null) {
         authorizationUiModeName = DiscordAuthorizationUiMode.Waiting.name
 
         coroutineScope.launch {
-            val session = DiscordOAuthRepository.beginAuthorization(context)
+            val session =
+                runCatching { DiscordOAuthRepository.beginAuthorization(context) }.getOrNull()
+            if (session == null) {
+                authorizationUiModeName = DiscordAuthorizationUiMode.Failure.name
+                authorizationMessage = context.getString(R.string.discord_authorization_failed)
+                return@launch
+            }
             authorizationSession = session
-            runCatching {
-                context.startActivity(
+            val opened =
+                context.startActivitySafely(
                     Intent(Intent.ACTION_VIEW, session.authorizationUri).apply {
                         addCategory(Intent.CATEGORY_BROWSABLE)
                     },
                 )
-            }.onFailure {
+            if (!opened) {
                 authorizationUiModeName = DiscordAuthorizationUiMode.Failure.name
-                authorizationMessage = it.message ?: context.getString(R.string.discord_authorization_failed)
+                authorizationMessage = context.getString(R.string.discord_authorization_failed)
             }
         }
     }
@@ -357,7 +365,7 @@ fun DiscordSettings(navController: NavController, scrollTo: String? = null) {
     val (button2CustomUrl) =
         rememberPreference(
             key = DiscordActivityButton2CustomUrlKey,
-            defaultValue = "https://github.com/rukamori/ArchiveTune",
+            defaultValue = ForkRepositoryUrl,
         )
 
     val (activityType, onActivityTypeChange) =

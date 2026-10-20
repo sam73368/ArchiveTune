@@ -153,7 +153,7 @@ fun SearchScreen(
     var liveSuggestions by remember { mutableStateOf<SearchSuggestions?>(null) }
     var liveSummary by remember { mutableStateOf<SearchSummaryPage?>(null) }
     val (hideExplicit) = rememberPreference(HideExplicitKey, defaultValue = false)
-    val (hideVideo) = rememberPreference(HideVideoKey, defaultValue = false)
+    val (hideVideo) = rememberPreference(HideVideoKey, defaultValue = true)
     val artistsSectionTitle = stringResource(R.string.artists)
     LaunchedEffect(searchQuery, searchProvider, hideExplicit, hideVideo) {
         val query = searchQuery.trim()

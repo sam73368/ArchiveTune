@@ -5977,5 +5977,10 @@ Work Log:
 - StorageSettings and DiscordSettings no longer render a blank page when the cache or player connection is null. IntegrationScreen pool refresh cannot leave the spinner stuck. InternetSettings and TelegramSettings null-safety. SourceCheckService catches network errors and reports an unreachable result instead of crashing.
 - Export of downloaded songs and of themes on TV writes directly into `Download/ArchiveTune/Music` and `Download/ArchiveTune/Themes` (new `utils/DownloadsExport.kt`) because the system "Save" screen is not usable with the remote.
 
+- Second pass: sign-in WebViews (YouTube, Tidal, Qobuz, Deezer, Spotify) now request focus on TV and the footer text fields sit inside a TV text-entry host. The AI model sheet also hosts the TV keyboard, and the generic API-key row and model picker are hidden for DeepL/OpenRouter.
+- Added localized labels for "Copy token", "Copy instance URL" and "Get API key". Deezer ARL check and Telegram logout/engine download are wrapped so a network failure shows an error instead of crashing. Discord settings open the authorization page safely and its default button URL is the fork repository.
+- DisableAnimationsKey now defaults to the low-RAM device flag in the floating and Sukisu nav bars (same default as the setting), and HideVideoKey defaults to true in search, matching the setting.
+- Listen Together glass pill title uses its string resource.
+
 Stage Summary:
 - Not compiled locally (CI only). Pending CI compile and on-device verification.

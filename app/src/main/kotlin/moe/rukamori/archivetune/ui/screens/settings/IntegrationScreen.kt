@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.utils.startActivitySafely
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -404,14 +405,12 @@ fun IntegrationScreen(
                         icon = { Icon(painterResource(R.drawable.language), null) },
                         isEnabled = BuildConfig.SOURCE_PROVIDER_URL.isNotBlank(),
                         onClick = {
-                            runCatching {
-                                poolContext.startActivity(
-                                    Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse(BuildConfig.SOURCE_PROVIDER_URL),
-                                    ),
-                                )
-                            }
+                            poolContext.startActivitySafely(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse(BuildConfig.SOURCE_PROVIDER_URL),
+                                ),
+                            )
                         },
                     )
                 }

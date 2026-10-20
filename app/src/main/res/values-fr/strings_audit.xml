@@ -4,4 +4,7 @@
     <string name="tv_forced_by_performance">Géré par le mode performance TV (désactivez-le dans Apparence › Thème pour modifier)</string>
     <string name="export_downloaded_songs_tv_button">Exporter vers Téléchargements</string>
     <string name="export_downloaded_songs_tv_location">Exporté dans %1$s</string>
+    <string name="copy_token">Copier le jeton</string>
+    <string name="copy_instance_url">Copier l'URL</string>
+    <string name="ai_get_api_key">Obtenir une clé API</string>
 </resources>

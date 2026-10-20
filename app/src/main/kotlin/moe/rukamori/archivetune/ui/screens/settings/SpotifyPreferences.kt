@@ -299,6 +299,9 @@ internal fun SpotifyLoginSheet(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                         ),
                     )
+                    spotifyWebView.isFocusable = true
+                    spotifyWebView.isFocusableInTouchMode = true
+                    container.post { spotifyWebView.requestFocus() }
                     container
                 },
                 update = {

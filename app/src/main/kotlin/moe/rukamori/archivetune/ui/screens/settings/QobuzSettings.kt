@@ -339,7 +339,7 @@ fun QobuzSettings(navController: NavController, scrollTo: String? = null) {
                     },
                     shapes = ButtonDefaults.shapes(),
                 ) {
-                    Text(context.getString(R.string.copy_link).replace("link", "token"))
+                    Text(stringResource(R.string.copy_token))
                 }
                 TextButton(
                     onClick = { detailToken = null },
@@ -465,7 +465,7 @@ fun QobuzSettings(navController: NavController, scrollTo: String? = null) {
                                 },
                                 shapes = ButtonDefaults.shapes(),
                             ) {
-                                Text(context.getString(R.string.copy_link).replace("link", "URL"))
+                                Text(stringResource(R.string.copy_instance_url))
                             }
                             TextButton(
                                 onClick = { detailInstance = null },

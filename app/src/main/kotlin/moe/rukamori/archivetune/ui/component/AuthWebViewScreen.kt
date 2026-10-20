@@ -104,14 +104,23 @@ fun AuthWebViewScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .clip(MaterialTheme.shapes.large),
-                factory = { ctx -> factory(ctx).also { webView = it } },
+                factory = { ctx ->
+                    factory(ctx).also { created ->
+                        webView = created
+                        created.isFocusable = true
+                        created.isFocusableInTouchMode = true
+                        created.post { created.requestFocus() }
+                    }
+                },
                 onRelease = { released ->
                     onRelease?.invoke(released)
                     if (webView === released) webView = null
                 },
             )
 
-            footer?.invoke()
+            if (footer != null) {
+                moe.rukamori.archivetune.ui.tv.TvTextEntryColumnHost { footer() }
+            }
         }
     }
 

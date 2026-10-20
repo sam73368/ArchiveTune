@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.utils.startActivitySafely
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.content.Intent
 import android.net.Uri
@@ -434,24 +435,22 @@ fun AiIntegrationSettings(
                 val keyPortalUrl = provider.apiKeyPortalUrl()
                 val keyPortalLabel = provider.apiKeyPortalLabel()
                 PreferenceEntry(
-                    title = { Text("Get API key") },
+                    title = { Text(stringResource(R.string.ai_get_api_key)) },
                     description = keyPortalLabel,
                     icon = { Icon(painterResource(R.drawable.link), null) },
                     onClick = {
                         if (!keyPortalUrl.isNullOrBlank()) {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(keyPortalUrl)).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    },
-                                )
-                            }
+                            context.startActivitySafely(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(keyPortalUrl)).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                },
+                            )
                         }
                     },
                 )
             }
 
-            item {
+            item(visible = provider != AiProvider.DEEPL && provider != AiProvider.OPENROUTER) {
                 PreferenceEntry(
                     modifier = positions.modifierFor("ai_api_key"),
                     title = { Text(stringResource(R.string.ai_api_key)) },
@@ -467,7 +466,12 @@ fun AiIntegrationSettings(
                 )
             }
 
-            item(visible = provider != AiProvider.NONE && provider != AiProvider.CUSTOM) {
+            item(
+                visible = provider != AiProvider.NONE &&
+                    provider != AiProvider.CUSTOM &&
+                    provider != AiProvider.DEEPL &&
+                    provider != AiProvider.OPENROUTER,
+            ) {
                 ModelPickerPreference(
                     selectedModel = selectedModel,
                     availableModels = availableModels,
@@ -722,18 +726,16 @@ fun AiIntegrationSettings(
                 val keyPortalUrl = romanizeProvider.apiKeyPortalUrl()
                 val keyPortalLabel = romanizeProvider.apiKeyPortalLabel()
                 PreferenceEntry(
-                    title = { Text("Get API key") },
+                    title = { Text(stringResource(R.string.ai_get_api_key)) },
                     description = keyPortalLabel,
                     icon = { Icon(painterResource(R.drawable.link), null) },
                     onClick = {
                         if (!keyPortalUrl.isNullOrBlank()) {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(keyPortalUrl)).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    },
-                                )
-                            }
+                            context.startActivitySafely(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(keyPortalUrl)).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                },
+                            )
                         }
                     },
                 )
@@ -1205,6 +1207,7 @@ private fun ModelPickerPreference(
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
             KeepStatusBarHiddenInDialog()
+            moe.rukamori.archivetune.ui.tv.TvTextEntryColumnHost {
             Text(
                 text = stringResource(R.string.ai_model),
                 style = MaterialTheme.typography.headlineMedium,
@@ -1344,6 +1347,7 @@ private fun ModelPickerPreference(
                         }
                     }
                 }
+            }
             }
         }
     }

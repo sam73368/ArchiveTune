@@ -110,7 +110,7 @@ fun DeezerSettings(
                 verifyingArl = true
                 scope.launch {
 
-                    val info = withContext(Dispatchers.IO) { DeezerAudioProvider.verifyArl(arl) }
+                    val info = runCatching { withContext(Dispatchers.IO) { DeezerAudioProvider.verifyArl(arl) } }.getOrNull()
                     verifyingArl = false
                     if (info == null) {
                         Toast.makeText(context, R.string.deezer_arl_invalid, Toast.LENGTH_LONG).show()

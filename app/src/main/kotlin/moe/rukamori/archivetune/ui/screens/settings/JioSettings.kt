@@ -15,6 +15,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.utils.startActivitySafely
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -148,14 +149,12 @@ fun JioSettings(
                         description = stringResource(R.string.jiosaavn_credit_description),
                         icon = { Icon(painterResource(R.drawable.info), null) },
                         onClick = {
-                            runCatching {
-                                context.startActivity(
-                                    android.content.Intent(
-                                        android.content.Intent.ACTION_VIEW,
-                                        android.net.Uri.parse("https://www.jiosaavn.com"),
-                                    ),
-                                )
-                            }
+                            context.startActivitySafely(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("https://www.jiosaavn.com"),
+                                ),
+                            )
                         },
                     )
                 }

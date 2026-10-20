@@ -562,7 +562,7 @@ private fun EngineDownloadCard(progress: Float?) {
         CircularProgressIndicator()
         Spacer(Modifier.height(12.dp))
         Text(
-            text = stringResource(R.string.telegram_engine_downloading),
+            text = stringResource(R.string.telegram_engine_downloading, ((progress ?: 0f).coerceIn(0f, 1f) * 100).toInt()),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyMedium,
         )
