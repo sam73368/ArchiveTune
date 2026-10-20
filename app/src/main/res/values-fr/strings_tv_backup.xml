@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_backup_group">Sauvegarde TV</string>
+    <string name="tv_backup_create">Créer une sauvegarde</string>
+    <string name="tv_backup_create_desc">Enregistrée dans l\'appli et copiée dans le dossier Download/ArchiveTune. Aucun sélecteur de fichiers nécessaire.</string>
+    <string name="tv_backup_pick_file">Ouvrir un fichier de sauvegarde</string>
+    <string name="tv_backup_pick_file_desc">Choisir un fichier .tvbackup copié depuis une autre TV ou une clé USB.</string>
+    <string name="tv_backup_only_tv_title">Sauvegardes TV uniquement</string>
+    <string name="tv_backup_only_tv_desc">Ces fichiers ne fonctionnent qu\'avec la version TV. Les sauvegardes du téléphone sont refusées ici, et le téléphone refuse les sauvegardes TV.</string>
+    <string name="tv_backup_saved_group">Sauvegardes enregistrées</string>
+    <string name="tv_backup_none_title">Aucune sauvegarde</string>
+    <string name="tv_backup_none_desc">Crée-en une ci-dessus, elle apparaîtra ici.</string>
+    <string name="tv_backup_delete">Supprimer</string>
+    <string name="tv_backup_location_downloads">Dans Download/ArchiveTune</string>
+    <string name="tv_backup_location_app">Dans l\'appli</string>
+    <string name="tv_backup_saved_with_downloads">Sauvegarde enregistrée : %1$s (aussi dans Download/%2$s)</string>
+    <string name="tv_backup_saved_app_only">Sauvegarde enregistrée dans l\'appli : %1$s</string>
+    <string name="tv_backup_failed">Échec de la sauvegarde : %1$s</string>
+    <string name="tv_backup_deleted">Sauvegarde supprimée : %1$s</string>
+    <string name="restore_wrong_platform_tv_backup">Cette sauvegarde provient de la version TV et ne peut pas être restaurée sur un téléphone.</string>
+    <string name="restore_wrong_platform_mobile_backup">Cette sauvegarde provient de la version téléphone et ne peut pas être restaurée sur une TV.</string>
+</resources>

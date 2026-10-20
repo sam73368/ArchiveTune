@@ -5945,3 +5945,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification.
+
+---
+Task ID: TV-17
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Backup and restore on Android TV (the system file picker's Save button could not be reached with the remote, restoring failed with an error), with a format that only works within its own platform.
+
+Work Log:
+- Root cause: both actions went through the system document picker (`CreateDocument` / `OpenDocument`), whose Save screen is not navigable with a D-pad on TV. `BackupAndRestore` now hands over to the new `TvBackupAndRestore` page when `BackupPlatform.isTelevision` is true.
+- `TvBackupAndRestore`: "Create a backup" writes straight into `Android/data/<app>/files/tv_backups` through `TvBackupStorage` and copies the file to `Download/ArchiveTune` (MediaStore on API 29+). Saved backups are listed in the page (own files from both places, de-duplicated by name); selecting one opens Restore / Delete / Cancel. An "Open a backup file" row appears only when `ACTION_OPEN_DOCUMENT` has a handler. Backup category choices on TV: settings, account, library, lyrics; the default selection when backing up is settings only so a copy given to someone else does not carry the account. Scheduled backups, Drive sync and playlist import/export are not shown on TV (they depend on the picker).
+- Platform marker: every archive now starts with `archivetune_backup_info.json` (`format`, `version`, `platform`, `appVersion`, `createdAt`). `validateBackup` and `restore` refuse an archive whose platform differs from the running device (archives without the marker count as phone). TV files use the `.tvbackup` extension.
+- `BackupArchiveRepository.createBackup` gained an `OutputStream` overload (the `Uri` one delegates), `CreateBackupUseCase` too. `BackupRestoreViewModel` gained `backupTv`, `refreshTvBackups`, `deleteTvBackup`; restore failures are also posted to `backupEvent` (snackbar) so the message is not lost with the toast. `BackupOptionsDialog` is now shared (category list and initial selection are parameters, rows toggle through a single focus target, content scrolls).
+- New strings in `strings_tv_backup.xml` (en, fr).
+
+Stage Summary:
+- Pending CI compile and on-device verification. A TV backup cannot be restored on a phone and vice versa by design.

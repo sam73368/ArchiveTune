@@ -47,4 +47,10 @@ class CreateBackupUseCase
             categories: Set<BackupArchiveCategory>,
             onProgress: (BackupArchiveProgress) -> Unit = {},
         ) = repository.createBackup(uri, categories, onProgress)
+
+        suspend operator fun invoke(
+            output: java.io.OutputStream,
+            categories: Set<BackupArchiveCategory>,
+            onProgress: (BackupArchiveProgress) -> Unit = {},
+        ) = repository.createBackup(output, categories, onProgress)
     }

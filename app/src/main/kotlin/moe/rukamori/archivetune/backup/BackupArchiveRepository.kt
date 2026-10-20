@@ -55,6 +55,17 @@ class BackupArchiveRepository
             uri: Uri,
             categories: Set<BackupArchiveCategory>,
             onProgress: (BackupArchiveProgress) -> Unit = {},
+        ) {
+            val output =
+                context.contentResolver.openOutputStream(uri, "wt")
+                    ?: throw IllegalStateException("Failed to open backup destination")
+            createBackup(output, categories, onProgress)
+        }
+
+        suspend fun createBackup(
+            output: OutputStream,
+            categories: Set<BackupArchiveCategory>,
+            onProgress: (BackupArchiveProgress) -> Unit = {},
         ) = backupMutex.withLock {
             require(categories.isNotEmpty()) { "At least one backup category is required" }
 
@@ -124,10 +135,11 @@ class BackupArchiveRepository
                 }
             }
 
-            val output =
-                context.contentResolver.openOutputStream(uri, "wt")
-                    ?: throw IllegalStateException("Failed to open backup destination")
             output.buffered().zipOutputStream().use { zipStream ->
+                zipStream.putNextEntry(ZipEntry(BackupPlatform.INFO_ENTRY_NAME))
+                zipStream.write(BackupPlatform.encodeInfo(BackupPlatform.current(context)).toByteArray(Charsets.UTF_8))
+                zipStream.closeEntry()
+
                 if (!includeLibrary) {
                     emit(BackupArchiveStep.EXPORT_STATS, indeterminate = true)
                     val statsSnapshot = database.allEventsOnce()

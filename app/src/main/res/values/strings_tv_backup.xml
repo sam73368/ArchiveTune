@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_backup_group">TV backup</string>
+    <string name="tv_backup_create">Create a backup</string>
+    <string name="tv_backup_create_desc">Saved inside the app and copied to the Download/ArchiveTune folder. No file picker needed.</string>
+    <string name="tv_backup_pick_file">Open a backup file</string>
+    <string name="tv_backup_pick_file_desc">Pick a .tvbackup file copied from another TV or a USB drive.</string>
+    <string name="tv_backup_only_tv_title">TV backups only</string>
+    <string name="tv_backup_only_tv_desc">These files only work with the TV version. Phone backups are refused here, and phones refuse TV backups.</string>
+    <string name="tv_backup_saved_group">Saved backups</string>
+    <string name="tv_backup_none_title">No backup yet</string>
+    <string name="tv_backup_none_desc">Create one above, it will appear here.</string>
+    <string name="tv_backup_delete">Delete</string>
+    <string name="tv_backup_location_downloads">In Download/ArchiveTune</string>
+    <string name="tv_backup_location_app">In the app</string>
+    <string name="tv_backup_saved_with_downloads">Backup saved: %1$s (also in Download/%2$s)</string>
+    <string name="tv_backup_saved_app_only">Backup saved in the app: %1$s</string>
+    <string name="tv_backup_failed">Backup failed: %1$s</string>
+    <string name="tv_backup_deleted">Backup deleted: %1$s</string>
+    <string name="restore_wrong_platform_tv_backup">This backup comes from the TV version and cannot be restored on a phone.</string>
+    <string name="restore_wrong_platform_mobile_backup">This backup comes from the phone version and cannot be restored on a TV.</string>
+</resources>

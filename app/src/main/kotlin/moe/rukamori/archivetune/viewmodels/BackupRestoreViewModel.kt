@@ -41,6 +41,9 @@ import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.backup.BackupArchiveCategory
 import moe.rukamori.archivetune.backup.BackupArchiveRepository
 import moe.rukamori.archivetune.backup.BackupArchiveStep
+import moe.rukamori.archivetune.backup.BackupPlatform
+import moe.rukamori.archivetune.backup.TvBackupFile
+import moe.rukamori.archivetune.backup.TvBackupStorage
 import moe.rukamori.archivetune.backup.CreateBackupUseCase
 import moe.rukamori.archivetune.backup.LyricsBackup
 import moe.rukamori.archivetune.backup.mergeLyricsIntoDatabase
@@ -68,6 +71,7 @@ import moe.rukamori.archivetune.playlistexport.ObserveExportablePlaylistsUseCase
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.reportException
 import org.xmlpull.v1.XmlPullParser
+import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.io.PushbackReader
@@ -297,7 +301,10 @@ class BackupRestoreViewModel
         private val _backupRestoreProgress = MutableStateFlow<BackupRestoreProgressUi?>(null)
         val backupRestoreProgress: StateFlow<BackupRestoreProgressUi?> = _backupRestoreProgress.asStateFlow()
 
-        private val _backupEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+        private val _tvBackups = MutableStateFlow<List<TvBackupFile>>(emptyList())
+        val tvBackups: StateFlow<List<TvBackupFile>> = _tvBackups.asStateFlow()
+
+        private val _backupEvent = MutableSharedFlow<String>(extraBufferCapacity = 4)
         val backupEvent: SharedFlow<String> = _backupEvent.asSharedFlow()
 
         private val _scheduledBackupState = MutableStateFlow<ScheduledBackupScreenState>(ScheduledBackupScreenState.Loading)
@@ -505,36 +512,7 @@ class BackupRestoreViewModel
                             uri = uri,
                             categories = categories.mapTo(linkedSetOf()) { BackupArchiveCategory.valueOf(it.name) },
                         ) { progress ->
-                            val step =
-                                when (progress.step) {
-                                    BackupArchiveStep.EXPORT_SETTINGS -> {
-                                        context.getString(R.string.backup_step_export_settings)
-                                    }
-
-                                    BackupArchiveStep.EXPORT_STATS -> {
-                                        context.getString(R.string.backup_step_export_stats)
-                                    }
-
-                                    BackupArchiveStep.CHECKPOINT_DATABASE -> {
-                                        context.getString(R.string.backup_step_checkpoint_database)
-                                    }
-
-                                    BackupArchiveStep.COPY_DATABASE_FILE -> {
-                                        context.getString(R.string.backup_step_copying_file, progress.fileName.orEmpty())
-                                    }
-
-                                    BackupArchiveStep.COPY_CUSTOM_FONTS -> {
-                                        context.getString(R.string.backup_step_copying_file, progress.fileName.orEmpty())
-                                    }
-
-                                    BackupArchiveStep.EXPORT_LYRICS -> {
-                                        context.getString(R.string.backup_step_export_lyrics)
-                                    }
-
-                                    BackupArchiveStep.COPY_CANVAS_FILE -> {
-                                        context.getString(R.string.backup_step_copying_file, progress.fileName.orEmpty())
-                                    }
-                                }
+                            val step = backupStepLabel(context, progress)
                             emitProgress(title, step, progress.percent, progress.indeterminate)
                         }
 
@@ -550,6 +528,86 @@ class BackupRestoreViewModel
                         _backupRestoreProgress.value = null
                     }
                 }
+        }
+
+        private fun backupStepLabel(
+            context: Context,
+            progress: moe.rukamori.archivetune.backup.BackupArchiveProgress,
+        ): String =
+            when (progress.step) {
+                BackupArchiveStep.EXPORT_SETTINGS -> context.getString(R.string.backup_step_export_settings)
+                BackupArchiveStep.EXPORT_STATS -> context.getString(R.string.backup_step_export_stats)
+                BackupArchiveStep.CHECKPOINT_DATABASE -> context.getString(R.string.backup_step_checkpoint_database)
+                BackupArchiveStep.COPY_DATABASE_FILE,
+                BackupArchiveStep.COPY_CUSTOM_FONTS,
+                BackupArchiveStep.COPY_CANVAS_FILE,
+                -> context.getString(R.string.backup_step_copying_file, progress.fileName.orEmpty())
+                BackupArchiveStep.EXPORT_LYRICS -> context.getString(R.string.backup_step_export_lyrics)
+            }
+
+        fun refreshTvBackups(context: Context) {
+            val appContext = context.applicationContext
+            viewModelScope.launch(Dispatchers.IO) {
+                _tvBackups.value = TvBackupStorage.list(appContext)
+            }
+        }
+
+        fun backupTv(
+            context: Context,
+            categories: Set<BackupCategory>,
+        ) {
+            if (manualBackupJob?.isActive == true) return
+            val appContext = context.applicationContext
+            manualBackupJob =
+                viewModelScope.launch(Dispatchers.IO) {
+                    val title = appContext.getString(R.string.backup_in_progress)
+                    val target = File(TvBackupStorage.directory(appContext), TvBackupStorage.newFileName())
+                    try {
+                        FileOutputStream(target).use { output ->
+                            createBackupUseCase(
+                                output = output,
+                                categories = categories.mapTo(linkedSetOf()) { BackupArchiveCategory.valueOf(it.name) },
+                            ) { progress ->
+                                emitProgress(title, backupStepLabel(appContext, progress), progress.percent, progress.indeterminate)
+                            }
+                        }
+                        val exported = TvBackupStorage.exportToDownloads(appContext, target)
+                        _backupEvent.tryEmit(
+                            if (exported) {
+                                appContext.getString(R.string.tv_backup_saved_with_downloads, target.name, TvBackupStorage.DOWNLOADS_FOLDER)
+                            } else {
+                                appContext.getString(R.string.tv_backup_saved_app_only, target.name)
+                            },
+                        )
+                    } catch (cancellation: CancellationException) {
+                        target.delete()
+                        throw cancellation
+                    } catch (exception: Exception) {
+                        target.delete()
+                        reportException(exception)
+                        _backupEvent.tryEmit(
+                            appContext.getString(
+                                R.string.tv_backup_failed,
+                                exception.message ?: exception.javaClass.simpleName,
+                            ),
+                        )
+                    } finally {
+                        _backupRestoreProgress.value = null
+                        _tvBackups.value = TvBackupStorage.list(appContext)
+                    }
+                }
+        }
+
+        fun deleteTvBackup(
+            context: Context,
+            backup: TvBackupFile,
+        ) {
+            val appContext = context.applicationContext
+            viewModelScope.launch(Dispatchers.IO) {
+                TvBackupStorage.delete(appContext, backup.name)
+                _tvBackups.value = TvBackupStorage.list(appContext)
+                _backupEvent.tryEmit(appContext.getString(R.string.tv_backup_deleted, backup.name))
+            }
         }
 
         fun onScheduledBackupEnabledChanged(enabled: Boolean) {
@@ -827,16 +885,23 @@ class BackupRestoreViewModel
                     val entryNames = ArrayList<String>()
                     var hasDb = false
                     var hasStats = false
+                    var infoPayload: String? = null
                     context.applicationContext.contentResolver.openInputStream(uri)?.use { stream ->
                         stream.zipInputStream().use { zip ->
                             var entry = zip.nextEntry
                             while (entry != null) {
                                 entryNames.add(entry.name)
+                                if (entry.name == BackupPlatform.INFO_ENTRY_NAME) {
+                                    infoPayload = zip.readBytes().toString(Charsets.UTF_8)
+                                }
                                 if (entry.name == InternalDatabase.DB_NAME) hasDb = true
                                 if (entry.name == StatsBackup.ZIP_ENTRY_NAME) hasStats = true
                                 entry = zip.nextEntry
                             }
                         }
+                    }
+                    platformMismatchMessage(context, BackupPlatform.decodeInfo(infoPayload))?.let { message ->
+                        throw IllegalStateException(message)
                     }
                     if (includeLibrary && !hasDb) throw IllegalStateException("Backup missing database")
 
@@ -1016,8 +1081,10 @@ class BackupRestoreViewModel
                     exitProcess(0)
                 } catch (e: Exception) {
                     reportException(e)
+                    val failureMessage = e.message ?: context.getString(R.string.restore_failed)
+                    _backupEvent.tryEmit(failureMessage)
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, e.message ?: context.getString(R.string.restore_failed), Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, failureMessage, Toast.LENGTH_LONG).show()
                     }
                 } finally {
                     _backupRestoreProgress.value = null
@@ -1269,6 +1336,21 @@ class BackupRestoreViewModel
             return songs
         }
 
+        private fun platformMismatchMessage(
+            context: Context,
+            backupPlatform: BackupPlatform,
+        ): String? {
+            val currentPlatform = BackupPlatform.current(context)
+            if (backupPlatform == currentPlatform) return null
+            return context.getString(
+                if (backupPlatform == BackupPlatform.TV) {
+                    R.string.restore_wrong_platform_tv_backup
+                } else {
+                    R.string.restore_wrong_platform_mobile_backup
+                },
+            )
+        }
+
         suspend fun validateBackup(
             context: Context,
             uri: Uri,
@@ -1287,12 +1369,23 @@ class BackupRestoreViewModel
                     stream.use { inputStream ->
                         val zipStream = inputStream.zipInputStream()
                         val entryNames = mutableSetOf<String>()
+                        var infoPayload: String? = null
                         zipStream.use { zip ->
                             var entry = zip.nextEntry
                             while (entry != null) {
                                 entryNames.add(entry.name)
+                                if (entry.name == BackupPlatform.INFO_ENTRY_NAME) {
+                                    infoPayload = zip.readBytes().toString(Charsets.UTF_8)
+                                }
                                 entry = zip.nextEntry
                             }
+                        }
+                        platformMismatchMessage(context, BackupPlatform.decodeInfo(infoPayload))?.let { message ->
+                            return@withContext BackupValidationResult(
+                                isValid = false,
+                                availableCategories = emptySet(),
+                                errorMessage = message,
+                            )
                         }
                         if (entryNames.isEmpty()) {
                             return@withContext BackupValidationResult(

@@ -80,6 +80,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.backup.BackupPlatform
 import moe.rukamori.archivetune.backup.ScheduledBackupFrequency
 import moe.rukamori.archivetune.db.entities.Song
 import moe.rukamori.archivetune.ui.component.DefaultDialog
@@ -137,6 +138,10 @@ fun BackupAndRestore(
     viewModel: BackupRestoreViewModel = hiltViewModel(),
     scrollTo: String? = null,
 ) {
+    if (BackupPlatform.isTelevision(LocalContext.current)) {
+        TvBackupAndRestore(navController = navController, viewModel = viewModel, scrollTo = scrollTo)
+        return
+    }
     val importedSongs = remember { mutableStateListOf<Song>() }
     var showChoosePlaylistDialogOnline by rememberSaveable { mutableStateOf(false) }
     var isProgressStarted by rememberSaveable { mutableStateOf(false) }
@@ -1142,17 +1147,20 @@ private fun IconBubble(
 }
 
 @Composable
-private fun BackupOptionsDialog(
+internal fun BackupOptionsDialog(
     title: String,
     confirmLabel: String,
     onConfirm: (Set<BackupCategory>) -> Unit,
     onDismiss: () -> Unit,
+    categories: List<BackupCategory> = BackupCategory.entries,
+    initialSelection: Set<BackupCategory> = categories.toSet(),
 ) {
-    var selected by remember { mutableStateOf(BackupCategory.entries.toSet()) }
+    var selected by remember { mutableStateOf(initialSelection) }
 
     DefaultDialog(
         onDismiss = onDismiss,
         title = { Text(title) },
+        contentScrollable = true,
         buttons = {
             TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(android.R.string.cancel))
@@ -1167,7 +1175,7 @@ private fun BackupOptionsDialog(
         },
     ) {
         Spacer(Modifier.height(8.dp))
-        BackupCategory.entries.forEach { category ->
+        categories.forEach { category ->
             val isChecked = category in selected
             val labelRes =
                 when (category) {
@@ -1241,9 +1249,7 @@ private fun BackupOptionsDialog(
                     }
                     Checkbox(
                         checked = isChecked,
-                        onCheckedChange = { checked ->
-                            selected = if (checked) selected + category else selected - category
-                        },
+                        onCheckedChange = null,
                     )
                 }
             }
