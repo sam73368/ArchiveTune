@@ -326,6 +326,7 @@ fun AppearanceSettings(
         remember(customFontPickerLauncher) {
             {
                 customFontPickerLauncher.launchSafely(context, CustomFontLoader.supportedMimeTypes)
+                Unit
             }
         }
     val onFontPreferenceSelected =
