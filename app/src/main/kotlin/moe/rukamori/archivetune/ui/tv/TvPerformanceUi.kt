@@ -10,6 +10,7 @@ package moe.rukamori.archivetune.ui.tv
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.datastore.preferences.core.Preferences
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
@@ -19,6 +20,7 @@ import coil3.compose.AsyncImage
 import moe.rukamori.archivetune.constants.TvPerformanceModeKey
 import moe.rukamori.archivetune.ui.utils.YtimgResizePolicy
 import moe.rukamori.archivetune.ui.utils.resize
+import moe.rukamori.archivetune.utils.TvPerformance
 import moe.rukamori.archivetune.utils.rememberPreference
 
 @Composable
@@ -26,6 +28,12 @@ fun rememberTvPerformanceMode(): Boolean {
     val tv = LocalTvLayout.current
     val enabled by rememberPreference(TvPerformanceModeKey, defaultValue = true)
     return tv && enabled
+}
+
+@Composable
+fun rememberTvForcedLock(key: Preferences.Key<*>): Boolean {
+    val performance = rememberTvPerformanceMode()
+    return performance && TvPerformance.isForcedKey(key)
 }
 
 @Composable

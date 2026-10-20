@@ -580,7 +580,7 @@ fun InternetSettings(navController: NavController, scrollTo: String? = null) {
             onDismiss = { testResult = null },
             onConfirm = { testResult = null },
             content = {
-                Text(testResult!!)
+                Text(testResult.orEmpty())
             },
         )
     }

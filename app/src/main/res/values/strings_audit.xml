@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="no_app_to_open">No app on this device can open this.</string>
+    <string name="tv_forced_by_performance">Managed by TV performance mode (turn it off in Appearance › Theme to change this)</string>
+    <string name="export_downloaded_songs_tv_button">Export to Downloads</string>
+    <string name="export_downloaded_songs_tv_location">Exported to %1$s</string>
+</resources>

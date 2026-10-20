@@ -168,7 +168,7 @@ fun TelegramSettings(
                                     engineDownloadProgress != null ->
                                         stringResource(
                                             R.string.telegram_engine_downloading,
-                                            (engineDownloadProgress!! * 100).toInt(),
+                                            ((engineDownloadProgress ?: 0f) * 100).toInt(),
                                         )
 
                                     engineDownloadError != null -> engineDownloadError

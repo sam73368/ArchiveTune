@@ -539,7 +539,7 @@ fun BottomSheetPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
 
     val aodModeEnabled by playerConnection.aodModeEnabled.collectAsStateWithLifecycle()
-    val (thumbnailCornerRadius) = rememberPreference(ThumbnailCornerRadiusKey, defaultValue = 8f)
+    val (thumbnailCornerRadius) = rememberPreference(ThumbnailCornerRadiusKey, defaultValue = 16f)
     val archiveTuneCanvasEnabled by rememberPreference(ArchiveTuneCanvasKey, false)
     val spotifyCanvasEnabled by rememberPreference(SpotifyCanvasKey, false)
     val lowDataModeActive = rememberLowDataModeActive()

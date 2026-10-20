@@ -64,6 +64,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import moe.rukamori.archivetune.ui.tv.rememberTvForcedLock
+import moe.rukamori.archivetune.utils.launchSafely
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.AppFontPreference
@@ -230,6 +232,7 @@ fun AppearanceSettings(
             defaultValue = true,
         )
     val (disableBlur, onDisableBlurChange) = rememberPreference(DisableBlurKey, defaultValue = false)
+    val disableBlurLocked = rememberTvForcedLock(DisableBlurKey)
     val (disableAnimations, onDisableAnimationsChange) =
         rememberPreference(
             DisableAnimationsKey,
@@ -322,7 +325,7 @@ fun AppearanceSettings(
     val pickCustomFont =
         remember(customFontPickerLauncher) {
             {
-                customFontPickerLauncher.launch(CustomFontLoader.supportedMimeTypes)
+                customFontPickerLauncher.launchSafely(context, CustomFontLoader.supportedMimeTypes)
             }
         }
     val onFontPreferenceSelected =
@@ -609,10 +612,16 @@ fun AppearanceSettings(
                 item {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.disable_blur)) },
-                        description = stringResource(R.string.disable_blur_desc),
+                        description =
+                            if (disableBlurLocked) {
+                                stringResource(R.string.tv_forced_by_performance)
+                            } else {
+                                stringResource(R.string.disable_blur_desc)
+                            },
                         icon = { Icon(painterResource(R.drawable.blur_off), null) },
                         checked = disableBlur,
                         onCheckedChange = onDisableBlurChange,
+                        isEnabled = !disableBlurLocked,
                     )
                 }
 

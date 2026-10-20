@@ -73,6 +73,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import moe.rukamori.archivetune.utils.launchSafely
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.PoTokenGvsKey
@@ -190,7 +191,7 @@ fun PoTokenScreen(
                     Intent(context, PoTokenExtractionActivity::class.java).apply {
                         putExtra(PoTokenExtractionActivity.EXTRA_SOURCE_URL, launchUrl)
                     }
-                extractionLauncher.launch(intent)
+                extractionLauncher.launchSafely(context, intent)
             }
         }
 

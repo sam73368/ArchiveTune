@@ -405,14 +405,12 @@ private fun DownloadSourceOrderDialog(
                                     )
                                 }
                             }
-                            Icon(
-                                painter = painterResource(R.drawable.drag_handle),
-                                contentDescription = null,
+                            ReorderHandle(
+                                index = index,
+                                count = sources.size,
                                 tint = contentColor.copy(alpha = 0.6f),
-                                modifier =
-                                    Modifier
-                                        .size(20.dp)
-                                        .draggableHandle(),
+                                dragModifier = Modifier.size(20.dp).draggableHandle(),
+                                onMove = { from, to -> sources.add(to, sources.removeAt(from)) },
                             )
                         }
                     }

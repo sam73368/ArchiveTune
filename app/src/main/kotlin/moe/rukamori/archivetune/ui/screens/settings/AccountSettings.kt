@@ -77,7 +77,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -89,6 +88,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
+import moe.rukamori.archivetune.utils.rememberSafeUriHandler
 import moe.rukamori.archivetune.App.Companion.forgetAccount
 import moe.rukamori.archivetune.auth.YouTubeOAuthRepository
 import moe.rukamori.archivetune.BuildConfig
@@ -151,7 +151,7 @@ fun AccountSettings(
     latestVersionName: String,
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
+    val uriHandler = rememberSafeUriHandler()
     val coroutineScope = rememberCoroutineScope()
 
     val accountLabel = stringResource(R.string.account)

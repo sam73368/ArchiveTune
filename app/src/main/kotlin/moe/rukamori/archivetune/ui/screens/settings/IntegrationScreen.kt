@@ -402,6 +402,7 @@ fun IntegrationScreen(
                         title = { Text(stringResource(R.string.pool_get_key_title)) },
                         description = stringResource(R.string.pool_get_key_description),
                         icon = { Icon(painterResource(R.drawable.language), null) },
+                        isEnabled = BuildConfig.SOURCE_PROVIDER_URL.isNotBlank(),
                         onClick = {
                             runCatching {
                                 poolContext.startActivity(
@@ -434,7 +435,7 @@ fun IntegrationScreen(
                             poolRefreshing = true
                             poolRefreshMessage = null
                             poolScope.launch(Dispatchers.IO) {
-                                val refreshed = PoolAccountManager.refresh(poolContext, force = true)
+                                val refreshed = runCatching { PoolAccountManager.refresh(poolContext, force = true) }.getOrDefault(false)
                                 val accounts = PoolAccountManager.tidalAccounts()
                                 val message =
                                     if (refreshed) {

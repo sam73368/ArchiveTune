@@ -61,6 +61,8 @@ import moe.rukamori.archivetune.ui.component.TextFieldDialog
 import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
+import moe.rukamori.archivetune.utils.startActivitySafely
+import moe.rukamori.archivetune.utils.isTelevision
 import moe.rukamori.archivetune.utils.setAppLocale
 import moe.rukamori.archivetune.viewmodels.AiContentFilterSettingsEffect
 import moe.rukamori.archivetune.viewmodels.AiContentFilterSettingsState
@@ -97,7 +99,7 @@ fun ContentSettings(
                 }
 
                 is AiContentFilterSettingsEffect.OpenUrl -> {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, effect.url.toUri()))
+                    context.startActivitySafely(Intent(Intent.ACTION_VIEW, effect.url.toUri()))
                 }
             }
         }
@@ -354,12 +356,12 @@ fun ContentSettings(
             title = stringResource(R.string.app_language),
         ) {
             item {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !context.isTelevision()) {
                     PreferenceEntry(
                         title = { Text(stringResource(R.string.app_language)) },
                         icon = { Icon(painterResource(R.drawable.language), null) },
                         onClick = {
-                            context.startActivity(
+                            context.startActivitySafely(
                                 Intent(
                                     Settings.ACTION_APP_LOCALE_SETTINGS,
                                     "package:${context.packageName}".toUri(),
@@ -384,7 +386,18 @@ fun ContentSettings(
                                     ?: Locale.getDefault()
 
                             onAppLanguageChange(langTag)
-                            setAppLocale(context, newLocale)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                runCatching {
+                                    context.getSystemService(android.app.LocaleManager::class.java).applicationLocales =
+                                        if (langTag == SYSTEM_DEFAULT) {
+                                            android.os.LocaleList.getEmptyLocaleList()
+                                        } else {
+                                            android.os.LocaleList.forLanguageTags(langTag)
+                                        }
+                                }
+                            } else {
+                                setAppLocale(context, newLocale)
+                            }
                         },
                     )
                 }
@@ -397,7 +410,7 @@ fun ContentSettings(
         ) {
             item {
                 EditTextPreference(
-                    modifier = positions.modifierFor("ai_content_filter"),
+                    modifier = positions.modifierFor("top_length"),
                     title = { Text(stringResource(R.string.top_length)) },
                     icon = { Icon(painterResource(R.drawable.trending_up), null) },
                     value = lengthTop,
@@ -435,7 +448,10 @@ private fun AiContentFilterPreferences(
     onOpenSource: () -> Unit,
     positions: PreferencePositions,
 ) {
-    PreferenceGroup(title = stringResource(R.string.ai_content_filter)) {
+    PreferenceGroup(
+        modifier = positions.modifierFor("ai_content_filter"),
+        title = stringResource(R.string.ai_content_filter),
+    ) {
         when (state) {
             AiContentFilterSettingsState.Loading -> {
                 item {

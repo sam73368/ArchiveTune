@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import moe.rukamori.archivetune.utils.launchSafely
 import moe.rukamori.archivetune.utils.isTelevision
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -181,7 +182,7 @@ fun CustomizeBackground(navController: NavController) {
                 blur = blur.coerceIn(BLUR_RANGE),
                 contrast = contrast.coerceIn(TONE_RANGE),
                 brightness = brightness.coerceIn(TONE_RANGE),
-                onChooseImage = { launcher.launch(arrayOf("image/*")) },
+                onChooseImage = { launcher.launchSafely(context, arrayOf("image/*")) },
                 onRemoveImage = {
                     val permissionReleased = releaseBackgroundImagePermission(context, imageUri)
                     onImageUriChange("")

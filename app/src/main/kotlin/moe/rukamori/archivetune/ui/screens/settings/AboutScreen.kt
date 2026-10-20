@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.utils.rememberSafeUriHandler
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -88,7 +89,6 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -135,7 +135,7 @@ fun AboutScreen(
     viewModel: AboutViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val uriHandler = LocalUriHandler.current
+    val uriHandler = rememberSafeUriHandler()
 
     LaunchedEffect(viewModel, uriHandler) {
         viewModel.effects.collect { effect ->

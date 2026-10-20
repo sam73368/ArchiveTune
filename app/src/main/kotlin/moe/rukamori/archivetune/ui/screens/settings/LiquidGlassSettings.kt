@@ -38,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import dev.chrisbanes.haze.hazeSource
+import moe.rukamori.archivetune.ui.tv.rememberTvForcedLock
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalStableSystemBarsTopPadding
 import moe.rukamori.archivetune.R
@@ -80,6 +81,7 @@ fun LiquidGlassSettings(
 ) {
     val (liquidGlassEnabled, onLiquidGlassEnabledChange) =
         rememberPreference(LiquidGlassEnabledKey, defaultValue = true)
+    val liquidGlassLocked = rememberTvForcedLock(LiquidGlassEnabledKey)
 
     val (intensity, onIntensityChange) =
         rememberEnumPreference(
@@ -184,10 +186,16 @@ fun LiquidGlassSettings(
                         Column(modifier = positions.modifierFor("liquid_glass_effects")) {
                             SwitchPreference(
                                 title = { Text(stringResource(R.string.liquid_glass_effects)) },
-                                description = stringResource(R.string.liquid_glass_effects_desc),
+                                description =
+                                    if (liquidGlassLocked) {
+                                        stringResource(R.string.tv_forced_by_performance)
+                                    } else {
+                                        stringResource(R.string.liquid_glass_effects_desc)
+                                    },
                                 icon = { Icon(painterResource(R.drawable.blur_on), null) },
                                 checked = liquidGlassEnabled,
                                 onCheckedChange = onLiquidGlassEnabledChange,
+                                isEnabled = !liquidGlassLocked,
                             )
                             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && liquidGlassEnabled) {
                                 Text(

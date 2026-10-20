@@ -7,6 +7,8 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.utils.isTelevision
+import moe.rukamori.archivetune.utils.launchSafely
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -106,6 +108,26 @@ private data class DownloadedSongRow(
 }
 
 private const val EXPORT_COPY_BUFFER_BYTES = 1024 * 1024
+private const val TV_EXPORT_FOLDER_LABEL = "Download/ArchiveTune/Music"
+
+private fun openExportOutput(
+    context: android.content.Context,
+    parentDocUri: android.net.Uri?,
+    mime: String,
+    fileName: String,
+): java.io.OutputStream? {
+    if (parentDocUri != null) {
+        val destUri =
+            android.provider.DocumentsContract.createDocument(
+                context.contentResolver,
+                parentDocUri,
+                mime,
+                fileName,
+            ) ?: return null
+        return context.contentResolver.openOutputStream(destUri, "w")
+    }
+    return moe.rukamori.archivetune.utils.openDownloadsOutput(context, "ArchiveTune/Music", mime, fileName)
+}
 
 private fun sourceLabelResFor(cacheKey: String): Int =
     when (DownloadSourceConfig.downloadSourceForCacheKey(cacheKey)) {
@@ -193,9 +215,8 @@ fun ExportDownloadedSongsScreen(navController: NavController) {
         }
     }
 
-    val pickFolderLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
-            if (treeUri == null) return@rememberLauncherForActivityResult
+    val startExport: (android.net.Uri?) -> Unit =
+        startExport@{ treeUri ->
             val toExport = songs.filter { it.cacheKey in selectedIds }
             if (toExport.isEmpty()) {
                 Toast.makeText(
@@ -203,7 +224,7 @@ fun ExportDownloadedSongsScreen(navController: NavController) {
                     context.getString(R.string.export_downloaded_songs_pick_folder_first),
                     Toast.LENGTH_SHORT,
                 ).show()
-                return@rememberLauncherForActivityResult
+                return@startExport
             }
             isExporting = true
             totalCount = toExport.size
@@ -216,10 +237,12 @@ fun ExportDownloadedSongsScreen(navController: NavController) {
                     withContext(Dispatchers.IO) {
                         val cache = downloadUtil.downloadCache
                         val parentDocUri =
-                            android.provider.DocumentsContract.buildDocumentUriUsingTree(
-                                treeUri,
-                                android.provider.DocumentsContract.getTreeDocumentId(treeUri),
-                            )
+                            treeUri?.let {
+                                android.provider.DocumentsContract.buildDocumentUriUsingTree(
+                                    it,
+                                    android.provider.DocumentsContract.getTreeDocumentId(it),
+                                )
+                            }
                         val tempDir = java.io.File(context.cacheDir, "export_tmp").apply { mkdirs() }
                         loop@ for (row in toExport) {
                             val spans = runCatching { cache.getCachedSpans(row.cacheKey) }.getOrNull()
@@ -264,15 +287,11 @@ fun ExportDownloadedSongsScreen(navController: NavController) {
                                 val resolvedMetadata = resolveExportMetadata(database, row, row.isYouTubeSource)
                                 moe.rukamori.archivetune.playback.AudioTagger.tag(tempFile, resolvedMetadata)
 
-                                val destUri =
-                                    android.provider.DocumentsContract.createDocument(
-                                        context.contentResolver,
-                                        parentDocUri,
-                                        mime,
-                                        "$safeTitle.$exportExt",
-                                    ) ?: run { failed++; continue@loop }
                                 runCatching {
-                                    context.contentResolver.openOutputStream(destUri, "w")?.use { output ->
+                                    val destination =
+                                        openExportOutput(context, parentDocUri, mime, "$safeTitle.$exportExt")
+                                            ?: error("No export destination")
+                                    destination.use { output ->
                                         java.io.BufferedOutputStream(output, EXPORT_COPY_BUFFER_BYTES).use { bufOut ->
                                             java.io.FileInputStream(tempFile).use { input ->
                                                 java.io.BufferedInputStream(input, EXPORT_COPY_BUFFER_BYTES).use { bufIn ->
@@ -302,17 +321,28 @@ fun ExportDownloadedSongsScreen(navController: NavController) {
                         skippedIncompatible,
                     )
                 } else ""
+                val locationMsg =
+                    if (treeUri == null && exported > 0) {
+                        "\n" + context.getString(R.string.export_downloaded_songs_tv_location, TV_EXPORT_FOLDER_LABEL)
+                    } else {
+                        ""
+                    }
                 Toast.makeText(
                     context,
                     context.getString(
                         R.string.export_downloaded_songs_complete,
                         exported,
                         failedMsg,
-                    ) + skippedMsg,
+                    ) + skippedMsg + locationMsg,
                     Toast.LENGTH_LONG,
                 ).show()
             }
         }
+    val pickFolderLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
+            if (treeUri != null) startExport(treeUri)
+        }
+    val isTelevisionDevice = remember(context) { context.isTelevision() }
 
     val allSelected = displayedSongs.isNotEmpty() && selectedIds.size == displayedSongs.size
 
@@ -404,7 +434,7 @@ fun ExportDownloadedSongsScreen(navController: NavController) {
                             )
                         }
                         Text(
-                            text = stringResource(R.string.search),
+                            text = stringResource(R.string.export_downloaded_songs),
                             color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -523,7 +553,13 @@ fun ExportDownloadedSongsScreen(navController: NavController) {
                                 Text(stringResource(R.string.export_downloaded_songs_delete))
                             }
                             FilledTonalButton(
-                                onClick = { pickFolderLauncher.launch(null) },
+                                onClick = {
+                                    if (isTelevisionDevice) {
+                                        startExport(null)
+                                    } else {
+                                        pickFolderLauncher.launchSafely(context, null)
+                                    }
+                                },
                                 enabled = !isExporting && !isDeleting && selectedIds.isNotEmpty(),
                                 modifier = Modifier.weight(1f),
                             ) {
@@ -541,7 +577,15 @@ fun ExportDownloadedSongsScreen(navController: NavController) {
                                     )
                                     Spacer(Modifier.width(8.dp))
                                 }
-                                Text(stringResource(R.string.export_downloaded_songs_pick_folder))
+                                Text(
+                                    stringResource(
+                                        if (isTelevisionDevice) {
+                                            R.string.export_downloaded_songs_tv_button
+                                        } else {
+                                            R.string.export_downloaded_songs_pick_folder
+                                        },
+                                    ),
+                                )
                             }
                         }
                     }

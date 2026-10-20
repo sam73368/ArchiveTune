@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="no_app_to_open">Aucune appli de cet appareil ne peut ouvrir ceci.</string>
+    <string name="tv_forced_by_performance">Géré par le mode performance TV (désactivez-le dans Apparence › Thème pour modifier)</string>
+    <string name="export_downloaded_songs_tv_button">Exporter vers Téléchargements</string>
+    <string name="export_downloaded_songs_tv_location">Exporté dans %1$s</string>
+</resources>

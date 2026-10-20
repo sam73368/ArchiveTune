@@ -68,16 +68,25 @@ object SourceCheckService {
     suspend fun check(source: AudioSourceType, context: Context): SourceCheckResult {
         val result =
             withContext(Dispatchers.IO) {
-                when (source) {
-                    AudioSourceType.TIDAL -> checkTidal(context)
-                    AudioSourceType.QOBUZ -> checkQobuz(context)
-                    AudioSourceType.QOBUZ_BACKUP -> checkQobuzBackup(context)
-                    AudioSourceType.DEEZER -> checkDeezer(context)
-                    AudioSourceType.APPLE -> checkAppleMusic()
-                    AudioSourceType.JIOSAAVN -> checkJioSaavn()
-                    AudioSourceType.SOUNDCLOUD -> checkSoundCloud()
-                    AudioSourceType.SPOTIFY -> checkSpotifyDirect(context)
-                    AudioSourceType.YOUTUBE -> checkYouTube()
+                try {
+                    when (source) {
+                        AudioSourceType.TIDAL -> checkTidal(context)
+                        AudioSourceType.QOBUZ -> checkQobuz(context)
+                        AudioSourceType.QOBUZ_BACKUP -> checkQobuzBackup(context)
+                        AudioSourceType.DEEZER -> checkDeezer(context)
+                        AudioSourceType.APPLE -> checkAppleMusic()
+                        AudioSourceType.JIOSAAVN -> checkJioSaavn()
+                        AudioSourceType.SOUNDCLOUD -> checkSoundCloud()
+                        AudioSourceType.SPOTIFY -> checkSpotifyDirect(context)
+                        AudioSourceType.YOUTUBE -> checkYouTube()
+                    }
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    SourceCheckResult(
+                        status = SourceCheckStatus.UNREACHABLE,
+                        summary = "Check failed: ${error.message ?: error.javaClass.simpleName}",
+                    )
                 }
             }
         _results.update { it + (source to result) }

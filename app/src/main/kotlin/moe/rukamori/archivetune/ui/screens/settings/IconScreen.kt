@@ -73,7 +73,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -92,6 +91,7 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import moe.rukamori.archivetune.utils.rememberSafeUriHandler
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.ui.component.FrostedHeaderPill
@@ -124,7 +124,7 @@ fun IconScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
-    val uriHandler = LocalUriHandler.current
+    val uriHandler = rememberSafeUriHandler()
     val selectedTaskIconResId =
         (state as? IconScreenState.Success)
             ?.model

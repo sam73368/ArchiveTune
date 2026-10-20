@@ -220,7 +220,7 @@ fun PlayerMenu(
     val (artistSeparators) = rememberPreference(ArtistSeparatorsKey, defaultValue = ",;/&")
     val (externalDownloaderEnabled) = rememberPreference(ExternalDownloaderEnabledKey, defaultValue = false)
     val (externalDownloaderPackage) = rememberPreference(ExternalDownloaderPackageKey, defaultValue = "")
-    val (archiveTuneCanvasEnabled) = rememberPreference(ArchiveTuneCanvasKey, defaultValue = true)
+    val (archiveTuneCanvasEnabled) = rememberPreference(ArchiveTuneCanvasKey, defaultValue = false)
     val (spotifyCanvasEnabled) = rememberPreference(SpotifyCanvasKey, defaultValue = false)
     val (spotifySpDc) = rememberPreference(SpotifySpDcKey, defaultValue = "")
     val spotifyCanvasAvailable = spotifyCanvasEnabled || spotifySpDc.isNotBlank()

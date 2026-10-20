@@ -906,7 +906,7 @@ public fun PlaylistMenu(
                 MenuSurfaceSection {
                     val isTelegramPlaylist = playlist.playlist.id.startsWith("LPtg")
                     if (isTelegramPlaylist) {
-                        val losslessOnly by rememberPreference(TelegramLosslessOnlyKey, defaultValue = false)
+                        val losslessOnly by rememberPreference(TelegramLosslessOnlyKey, defaultValue = true)
 
                         if (onAddSongs != null) {
                             ListItem(

@@ -138,7 +138,7 @@ fun PlayerSettings(
 ) {
     val playerDesignStyle by rememberEnumPreference(
         key = PlayerDesignStyleKey,
-        defaultValue = PlayerDesignStyle.V4,
+        defaultValue = PlayerDesignStyle.APPLE_MUSIC,
     )
     val activeSection = section ?: playerSectionForKey(scrollTo)
     val (persistentQueue, onPersistentQueueChange) =
@@ -282,7 +282,7 @@ fun PlayerSettings(
     val (swipeToSong, onSwipeToSongChange) =
         rememberPreference(
             SwipeToSongKey,
-            defaultValue = false,
+            defaultValue = true,
         )
 
     val (swipeThumbnail, onSwipeThumbnailChange) =
@@ -1055,14 +1055,12 @@ internal fun ArtworkProviderOrderDialog(
                                 color = contentColor,
                                 modifier = Modifier.weight(1f),
                             )
-                            Icon(
-                                painter = painterResource(R.drawable.drag_handle),
-                                contentDescription = null,
+                            ReorderHandle(
+                                index = index,
+                                count = providers.size,
                                 tint = contentColor.copy(alpha = 0.6f),
-                                modifier =
-                                    Modifier
-                                        .size(20.dp)
-                                        .draggableHandle(),
+                                dragModifier = Modifier.size(20.dp).draggableHandle(),
+                                onMove = { from, to -> providers.add(to, providers.removeAt(from)) },
                             )
                         }
                     }

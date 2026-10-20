@@ -105,7 +105,7 @@ fun rememberViewCountText(
 ): String? {
     val context = LocalContext.current
     val showViewCounts by rememberPreference(ShowViewCountsKey, defaultValue = true)
-    val lowDataMode by rememberPreference(LowDataModeKey, defaultValue = false)
+    val lowDataMode by rememberPreference(LowDataModeKey, defaultValue = true)
     val active = enabled && showViewCounts && videoId != null && YouTubeVideoIdRegex.matches(videoId)
 
     LaunchedEffect(videoId, active, lowDataMode) {

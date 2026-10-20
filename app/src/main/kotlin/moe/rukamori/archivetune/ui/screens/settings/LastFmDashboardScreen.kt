@@ -139,6 +139,7 @@ import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.ui.utils.buildYTThumbnailUrl
 import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
+import moe.rukamori.archivetune.utils.startActivitySafely
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import moe.rukamori.archivetune.ui.component.KeepStatusBarHiddenInDialog
@@ -634,7 +635,7 @@ fun LastFmDashboardScreen(
                         userInfo?.getOrNull()?.url
                             ?.takeIf { it.isNotBlank() }
                             ?.let { profileUrl ->
-                                context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(profileUrl)))
+                                context.startActivitySafely(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(profileUrl)))
                             }
                     },
                     theme = theme,
@@ -1956,8 +1957,7 @@ private fun TrackOverflowSheet(
                 onDismiss()
                 lastFmUrl?.let {
                     val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(it))
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
+                    context.startActivitySafely(intent)
                 }
             },
             theme = theme,

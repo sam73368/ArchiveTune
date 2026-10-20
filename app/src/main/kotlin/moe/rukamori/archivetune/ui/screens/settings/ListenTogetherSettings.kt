@@ -8,6 +8,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.utils.launchSafely
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.os.Build
 import android.widget.Toast
@@ -521,8 +522,9 @@ fun ListenTogetherSettings(
                     },
                     onClick = if (roomState == null) {
                         {
-                            customAvatarPicker.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            customAvatarPicker.launchSafely(
+                                context,
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                             )
                         }
                     } else {

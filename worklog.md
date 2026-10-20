@@ -5961,3 +5961,21 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification. A TV backup cannot be restored on a phone and vice versa by design.
+
+---
+Task ID: TV-18
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Full read-through audit of the settings code (hub, categories, sub-pages, dialogs), TV remote usability and crash/blank-page hardening.
+
+Work Log:
+- Added `utils/SafeIntents.kt`: `Context.startActivitySafely`, `ActivityResultLauncher.launchSafely` and `rememberSafeUriHandler`. Every settings screen that opened links, pickers or external apps now shows a "no app to open this" toast instead of crashing when the TV image has no handler (Changelog, Logcat, Last.fm dashboard, Content, About, Update, Account, Icon, StarDialog, PalettePicker).
+- TV performance lock: switches whose value is forced by TV performance mode (blur, liquid glass, canvas, lyrics line blur) are now disabled with an explanation instead of silently reverting. Added `TvPerformance.isForcedKey` and `rememberTvForcedLock`.
+- TV reorder dialogs: the drag handle (not usable with a D-pad) is replaced by up/down arrows through the shared `ReorderHandle` in Downloads, Lyrics, Player and Playback source sections.
+- ContentSettings: the AI content filter and the top-length preference had swapped scroll keys; app language is now selectable on TV (`LocaleManager` on API 33+).
+- Default value alignment between preference readers (SettingsDataBuilders, PlayerSettings, AppearanceExtras, ViewCountCache, PlayerMenu, PlaylistMenu, Player, LyricsV2, LyricsEnhanced) so a screen no longer shows a different state from the code that consumes the preference.
+- StorageSettings and DiscordSettings no longer render a blank page when the cache or player connection is null. IntegrationScreen pool refresh cannot leave the spinner stuck. InternetSettings and TelegramSettings null-safety. SourceCheckService catches network errors and reports an unreachable result instead of crashing.
+- Export of downloaded songs and of themes on TV writes directly into `Download/ArchiveTune/Music` and `Download/ArchiveTune/Themes` (new `utils/DownloadsExport.kt`) because the system "Save" screen is not usable with the remote.
+
+Stage Summary:
+- Not compiled locally (CI only). Pending CI compile and on-device verification.

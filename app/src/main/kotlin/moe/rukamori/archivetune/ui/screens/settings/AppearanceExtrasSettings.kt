@@ -62,9 +62,9 @@ fun AppearanceExtrasSettings(
     scrollTo: String? = null,
 ) {
     val (showHomeCategoryChips, onShowHomeCategoryChipsChange) =
-        rememberPreference(ShowHomeCategoryChipsKey, defaultValue = false)
+        rememberPreference(ShowHomeCategoryChipsKey, defaultValue = true)
     val (showTagsInLibrary, onShowTagsInLibraryChange) =
-        rememberPreference(ShowTagsInLibraryKey, defaultValue = false)
+        rememberPreference(ShowTagsInLibraryKey, defaultValue = true)
     val (hideLikedSongsCard, onHideLikedSongsCardChange) =
         rememberPreference(HideLikedSongsCardKey, defaultValue = false)
     val (hideOfflineCard, onHideOfflineCardChange) =

@@ -36,6 +36,8 @@ object TvPerformance {
             Pair(LyricsLineBlurKey, false),
         )
 
+    fun isForcedKey(key: Preferences.Key<*>): Boolean = key in forcedValues
+
     fun isActive(preferences: Preferences?): Boolean {
         if (!isTelevision) return false
         return preferences?.get(TvPerformanceModeKey) ?: true

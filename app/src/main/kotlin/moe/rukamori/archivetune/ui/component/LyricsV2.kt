@@ -239,7 +239,7 @@ fun LyricsV2(
     val lrcBounceEnabled = lrcBounceEnabledPreference && !v2AnimationsDisabled
     val (romanizeChinese) = rememberPreference(LyricsRomanizeChineseKey, defaultValue = true)
     val (romanizeHindi) = rememberPreference(LyricsRomanizeHindiKey, defaultValue = true)
-    val (romanizeJapanese) = rememberPreference(LyricsRomanizeJapaneseKey, defaultValue = true)
+    val (romanizeJapanese) = rememberPreference(LyricsRomanizeJapaneseKey, defaultValue = false)
     val (romanizeKorean) = rememberPreference(LyricsRomanizeKoreanKey, defaultValue = true)
     val (romanizeOtherLanguages) = rememberPreference(LyricsRomanizeOtherLanguagesKey, defaultValue = true)
     val aiRomanizationSettings = AiLyricsRomanization.rememberSettings()

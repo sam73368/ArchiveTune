@@ -43,6 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import dev.chrisbanes.haze.hazeSource
+import moe.rukamori.archivetune.ui.tv.rememberTvForcedLock
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalStableSystemBarsTopPadding
 import moe.rukamori.archivetune.R
@@ -97,6 +98,11 @@ fun CanvasSettingsScreen(
             AlbumCanvasEnabledKey,
             defaultValue = true,
         )
+
+    val archiveTuneCanvasLocked = rememberTvForcedLock(ArchiveTuneCanvasKey)
+    val spotifyCanvasLocked = rememberTvForcedLock(SpotifyCanvasKey)
+    val albumCanvasLocked = rememberTvForcedLock(AlbumCanvasEnabledKey)
+    val proceduralArtworkLocked = rememberTvForcedLock(ProceduralArtworkEnabledKey)
 
     val (canvasResolverEndpointsRaw, onCanvasResolverEndpointsChange) =
         rememberPreference(
@@ -179,10 +185,16 @@ fun CanvasSettingsScreen(
                     item {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.archivetune_canvas)) },
-                            description = stringResource(R.string.archivetune_canvas_desc),
+                            description =
+                                if (archiveTuneCanvasLocked) {
+                                    stringResource(R.string.tv_forced_by_performance)
+                                } else {
+                                    stringResource(R.string.archivetune_canvas_desc)
+                                },
                             icon = { Icon(painterResource(R.drawable.motion_photos_on), null) },
                             checked = archiveTuneCanvasEnabled,
                             onCheckedChange = onArchiveTuneCanvasEnabledChange,
+                            isEnabled = !archiveTuneCanvasLocked,
                         )
                     }
 
@@ -190,10 +202,16 @@ fun CanvasSettingsScreen(
                         Column(modifier = positions.modifierFor("spotify_canvas")) {
                             SwitchPreference(
                                 title = { Text(stringResource(R.string.spotify_canvas)) },
-                                description = stringResource(R.string.spotify_canvas_desc),
+                                description =
+                                    if (spotifyCanvasLocked) {
+                                        stringResource(R.string.tv_forced_by_performance)
+                                    } else {
+                                        stringResource(R.string.spotify_canvas_desc)
+                                    },
                                 icon = { Icon(painterResource(R.drawable.slow_motion_video), null) },
                                 checked = spotifyCanvasEnabled,
                                 onCheckedChange = onSpotifyCanvasEnabledChange,
+                                isEnabled = !spotifyCanvasLocked,
                             )
                         }
                     }
@@ -202,10 +220,16 @@ fun CanvasSettingsScreen(
                         SwitchPreference(
                             modifier = positions.modifierFor("album_canvas_enabled"),
                             title = { Text(stringResource(R.string.album_canvas_enabled)) },
-                            description = stringResource(R.string.album_canvas_enabled_desc),
+                            description =
+                                if (albumCanvasLocked) {
+                                    stringResource(R.string.tv_forced_by_performance)
+                                } else {
+                                    stringResource(R.string.album_canvas_enabled_desc)
+                                },
                             icon = { Icon(painterResource(R.drawable.album), null) },
                             checked = albumCanvasEnabled,
                             onCheckedChange = onAlbumCanvasEnabledChange,
+                            isEnabled = !albumCanvasLocked,
                         )
                     }
 
@@ -320,10 +344,16 @@ fun CanvasSettingsScreen(
                     item {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.procedural_artwork_title)) },
-                            description = stringResource(R.string.procedural_artwork_desc),
+                            description =
+                                if (proceduralArtworkLocked) {
+                                    stringResource(R.string.tv_forced_by_performance)
+                                } else {
+                                    stringResource(R.string.procedural_artwork_desc)
+                                },
                             icon = { Icon(painterResource(R.drawable.motion_photos_on), null) },
                             checked = proceduralArtworkEnabled,
                             onCheckedChange = onProceduralArtworkEnabledChange,
+                            isEnabled = !proceduralArtworkLocked,
                         )
                     }
 

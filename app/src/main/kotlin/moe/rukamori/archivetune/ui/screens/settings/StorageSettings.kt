@@ -124,9 +124,9 @@ fun StorageSettings(
     scrollTo: String? = null,
 ) {
     val context = LocalContext.current
-    val imageDiskCache = context.imageLoader.diskCache ?: return
-    val playerCache = LocalPlayerConnection.current?.service?.playerCache ?: return
-    val downloadCache = LocalPlayerConnection.current?.service?.downloadCache ?: return
+    val imageDiskCache = context.imageLoader.diskCache
+    val playerCache = LocalPlayerConnection.current?.service?.playerCache
+    val downloadCache = LocalPlayerConnection.current?.service?.downloadCache
     val screenState by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val storagePickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -286,7 +286,7 @@ fun StorageSettings(
         while (isActive) {
             imageCacheSize =
                 withContext(Dispatchers.IO) {
-                    tryOrNull { imageDiskCache.size } ?: 0L
+                    tryOrNull { imageDiskCache?.size } ?: 0L
                 }
             delay(StorageRefreshIntervalMillis)
         }
@@ -296,7 +296,7 @@ fun StorageSettings(
         while (isActive) {
             playerCacheSize =
                 withContext(Dispatchers.IO) {
-                    val cacheSpace = tryOrNull { playerCache.cacheSpace } ?: 0L
+                    val cacheSpace = tryOrNull { playerCache?.cacheSpace } ?: 0L
                     if (cacheSpace == 0L) playerCacheDir.directorySizeBytes() else cacheSpace
                 }
             delay(StorageRefreshIntervalMillis)
@@ -307,7 +307,7 @@ fun StorageSettings(
         while (isActive) {
             downloadCacheSize =
                 withContext(Dispatchers.IO) {
-                    val cacheSpace = tryOrNull { downloadCache.cacheSpace } ?: 0L
+                    val cacheSpace = tryOrNull { downloadCache?.cacheSpace } ?: 0L
                     if (cacheSpace == 0L) downloadCacheDir.directorySizeBytes() else cacheSpace
                 }
             delay(StorageRefreshIntervalMillis)

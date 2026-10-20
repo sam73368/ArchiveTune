@@ -88,6 +88,7 @@ import moe.rukamori.archivetune.ui.component.IconButton
 import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.utils.ReleaseInfo
 import moe.rukamori.archivetune.utils.Updater
+import moe.rukamori.archivetune.utils.startActivitySafely
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.runtime.getValue
@@ -353,10 +354,8 @@ fun ChangelogScreen(
                                                     text = annotatedText,
                                                     onClick = { offset ->
                                                         annotatedText.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
-                                                            ContextCompat.startActivity(
-                                                                context,
+                                                            context.startActivitySafely(
                                                                 Intent(Intent.ACTION_VIEW, Uri.parse(it.item)),
-                                                                null,
                                                             )
                                                         }
                                                     },

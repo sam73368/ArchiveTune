@@ -9,6 +9,9 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.utils.openDownloadsOutput
+import moe.rukamori.archivetune.utils.isTelevision
+import moe.rukamori.archivetune.utils.launchSafely
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1011,7 +1014,7 @@ fun PalettePickerScreen(navController: NavController) {
                 ExtendedFloatingActionButton(
                     text = { Text(stringResource(R.string.import_theme)) },
                     icon = { Icon(painter = painterResource(R.drawable.restore), contentDescription = null) },
-                    onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
+                    onClick = { importLauncher.launchSafely(context, arrayOf("application/json", "text/plain", "*/*")) },
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1217,7 +1220,7 @@ fun ThemeCreatorScreen(navController: NavController) {
                 ExtendedFloatingActionButton(
                     text = { Text(stringResource(R.string.import_theme)) },
                     icon = { Icon(painter = painterResource(R.drawable.restore), contentDescription = null) },
-                    onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
+                    onClick = { importLauncher.launchSafely(context, arrayOf("application/json", "text/plain", "*/*")) },
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1229,7 +1232,32 @@ fun ThemeCreatorScreen(navController: NavController) {
                                 .ifBlank { "ArchiveTune Theme" }
                                 .replace(Regex("[^a-zA-Z0-9 _\\-]"), "_")
                                 .take(64)
-                        exportLauncher.launch("$safeName.json")
+                        if (context.isTelevision()) {
+                            scope.launch {
+                                val payload = ThemeSeedPaletteCodec.encodeAsJson(currentPalette, themeName.takeIf { it.isNotBlank() })
+                                val ok =
+                                    withContext(Dispatchers.IO) {
+                                        runCatching {
+                                            openDownloadsOutput(context, "ArchiveTune/Themes", "application/json", "$safeName.json")
+                                                ?.use { out ->
+                                                    out.write(payload.toByteArray(Charsets.UTF_8))
+                                                    out.flush()
+                                                } ?: error("No output stream")
+                                        }.isSuccess
+                                    }
+                                Toast.makeText(
+                                    context,
+                                    if (ok) {
+                                        context.getString(R.string.export_downloaded_songs_tv_location, "Download/ArchiveTune/Themes")
+                                    } else {
+                                        context.getString(R.string.theme_export_failed)
+                                    },
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            }
+                        } else {
+                            exportLauncher.launchSafely(context, "$safeName.json")
+                        }
                     },
                     text = { Text(stringResource(R.string.export_theme)) },
                     icon = { Icon(painter = painterResource(R.drawable.share), contentDescription = null) },

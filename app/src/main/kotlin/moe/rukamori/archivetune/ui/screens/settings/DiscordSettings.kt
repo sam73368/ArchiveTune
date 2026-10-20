@@ -95,11 +95,11 @@ private val DiscordLargeTextOptions = listOf("song", "artist", "album", "app", "
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscordSettings(navController: NavController, scrollTo: String? = null) {
-    val playerConnection = LocalPlayerConnection.current ?: return
+    val playerConnection = LocalPlayerConnection.current
 
     val headerHaze = rememberScreenHeaderHaze()
     val systemBarsTopPadding = LocalStableSystemBarsTopPadding.current
-    val song by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
+    val song by (playerConnection?.currentSong ?: kotlinx.coroutines.flow.flowOf(null)).collectAsStateWithLifecycle(initialValue = null)
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -531,7 +531,7 @@ fun DiscordSettings(navController: NavController, scrollTo: String? = null) {
                                         coroutineScope.launch {
                                             isRefreshing = true
                                             val success =
-                                                playerConnection.service.refreshDiscordNow()
+                                                playerConnection?.service?.refreshDiscordNow() ?: false
                                             isRefreshing = false
                                             snackbarHostState.showSnackbar(
                                                 message =
@@ -714,7 +714,7 @@ fun DiscordSettings(navController: NavController, scrollTo: String? = null) {
 
             RichPresence(
                 song = song,
-                currentPlaybackTimeMillis = playerConnection.player.currentPosition,
+                currentPlaybackTimeMillis = playerConnection?.player?.currentPosition ?: 0L,
                 nameSource = nameSource,
                 detailsSource = detailsSource,
                 stateSource = stateSource,
@@ -733,7 +733,7 @@ fun DiscordSettings(navController: NavController, scrollTo: String? = null) {
                 button2Enabled = button2Enabled,
                 button2UrlSource = button2UrlSource,
                 button2CustomUrl = button2CustomUrl,
-                isPlaying = playerConnection.player.isPlaying,
+                isPlaying = playerConnection?.player?.isPlaying ?: false,
             )
         }
 

@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.utils.startActivitySafely
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -127,7 +128,7 @@ fun LogcatScreen(
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, effect.text)
                         }
-                    context.startActivity(
+                    context.startActivitySafely(
                         Intent.createChooser(
                             shareIntent,
                             context.getString(R.string.share_logs),
@@ -143,7 +144,7 @@ fun LogcatScreen(
                             putExtra(Intent.EXTRA_STREAM, effect.uri)
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
-                    context.startActivity(
+                    context.startActivitySafely(
                         Intent.createChooser(
                             exportIntent,
                             context.getString(R.string.export_logs),

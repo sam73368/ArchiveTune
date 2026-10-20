@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.tv.rememberTvForcedLock
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.background
@@ -152,6 +153,7 @@ fun LyricsSettings(
             deserializeLyricsProviderOrder(providerOrderStr)
         }
     val (lyricsLineBlur, onLyricsLineBlurChange) = rememberPreference(LyricsLineBlurKey, defaultValue = false)
+    val lyricsLineBlurLocked = rememberTvForcedLock(LyricsLineBlurKey)
     val (lyricsRomanizeJapanese, onLyricsRomanizeJapaneseChange) = rememberPreference(LyricsRomanizeJapaneseKey, defaultValue = false)
     val (lyricsRomanizeKorean, onLyricsRomanizeKoreanChange) = rememberPreference(LyricsRomanizeKoreanKey, defaultValue = true)
     val (lyricsRomanizeChinese, onLyricsRomanizeChineseChange) = rememberPreference(LyricsRomanizeChineseKey, defaultValue = true)
@@ -512,9 +514,11 @@ fun LyricsSettings(
                 SwitchPreference(
                     modifier = positions.modifierFor("lyrics_line_blur"),
                     title = { Text(stringResource(R.string.lyrics_line_blur)) },
+                    description = if (lyricsLineBlurLocked) stringResource(R.string.tv_forced_by_performance) else null,
                     icon = { Icon(painterResource(R.drawable.lyrics), null) },
                     checked = lyricsLineBlur,
                     onCheckedChange = onLyricsLineBlurChange,
+                    isEnabled = !lyricsLineBlurLocked,
                 )
             }
 
@@ -714,14 +718,12 @@ internal fun LyricsProviderOrderDialog(
                                 color = contentColor,
                                 modifier = Modifier.weight(1f),
                             )
-                            Icon(
-                                painter = painterResource(R.drawable.drag_handle),
-                                contentDescription = null,
+                            ReorderHandle(
+                                index = index,
+                                count = providers.size,
                                 tint = contentColor.copy(alpha = 0.6f),
-                                modifier =
-                                    Modifier
-                                        .size(20.dp)
-                                        .draggableHandle(),
+                                dragModifier = Modifier.size(20.dp).draggableHandle(),
+                                onMove = { from, to -> providers.add(to, providers.removeAt(from)) },
                             )
                         }
                     }

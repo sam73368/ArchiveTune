@@ -34,11 +34,11 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import moe.rukamori.archivetune.utils.rememberSafeUriHandler
 import moe.rukamori.archivetune.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,7 +48,7 @@ fun StarDialog(
     onSupport: () -> Unit,
     onLater: () -> Unit,
 ) {
-    val uriHandler = LocalUriHandler.current
+    val uriHandler = rememberSafeUriHandler()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
