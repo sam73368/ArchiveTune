@@ -79,7 +79,7 @@ fun TvNavigationRail(
     contentFocusRequester: FocusRequester? = null,
     settingsSelected: Boolean = false,
     onSettingsClick: (() -> Unit)? = null,
-    nowPlaying: (@Composable (FocusRequester?) -> Unit)? = null,
+    nowPlaying: (@Composable (FocusRequester?, Float) -> Unit)? = null,
     onItemClick: (Screens) -> Unit,
 ) {
     LaunchedEffect(firstItemFocusRequester) {
@@ -115,25 +115,30 @@ fun TvNavigationRail(
                     .fillMaxHeight()
                     .wrapContentWidth(Alignment.Start, unbounded = true)
                     .width(panelWidth)
-                    .background(TvTokens.RailBackground)
                     .drawBehind {
-                        drawLine(
-                            color = Color.White.copy(alpha = 0.06f),
-                            start = Offset(size.width, 0f),
-                            end = Offset(size.width, size.height),
-                            strokeWidth = 1f,
-                        )
-                        val fade = 56.dp.toPx()
+                        val solidEnd = TvTokens.RailWidth.toPx().coerceAtMost(size.width)
+                        val fadeStart = (size.width - 72.dp.toPx() * expand).coerceAtLeast(solidEnd)
                         drawRect(
                             brush =
                                 Brush.horizontalGradient(
-                                    colors = listOf(Color.Black.copy(alpha = 0.55f * expand), Color.Transparent),
-                                    startX = size.width,
-                                    endX = size.width + fade,
+                                    colorStops =
+                                        arrayOf(
+                                            0f to TvTokens.RailBackground,
+                                            (fadeStart / size.width) to TvTokens.RailBackground,
+                                            1f to TvTokens.RailBackground.copy(alpha = if (expand > 0f) 0.12f else 1f),
+                                        ),
+                                    startX = 0f,
+                                    endX = size.width,
                                 ),
-                            topLeft = Offset(size.width, 0f),
-                            size = Size(fade, size.height),
                         )
+                        if (expand <= 0f) {
+                            drawLine(
+                                color = Color.White.copy(alpha = 0.06f),
+                                start = Offset(size.width, 0f),
+                                end = Offset(size.width, size.height),
+                                strokeWidth = 1f,
+                            )
+                        }
                     },
         )
         Column(
@@ -184,7 +189,7 @@ fun TvNavigationRail(
             }
             Spacer(Modifier.weight(1f))
             if (nowPlaying != null) {
-                nowPlaying(contentFocusRequester)
+                nowPlaying(contentFocusRequester, expand)
             }
             if (onSettingsClick != null) {
                 TvNavigationRailItem(

@@ -2760,10 +2760,11 @@ class MainActivity : ComponentActivity() {
                                                 contentAreaFocusRequester
                                             },
                                         settingsSelected = navBackStackEntry?.destination?.route?.startsWith("settings") == true,
-                                        nowPlaying = { rightTarget ->
+                                        nowPlaying = { rightTarget, railExpand ->
                                             moe.rukamori.archivetune.ui.tv.TvRailNowPlaying(
                                                 onOpenPlayer = { playerBottomSheetState.expandSoft() },
                                                 rightTarget = rightTarget,
+                                                expand = railExpand,
                                             )
                                         },
                                         onSettingsClick = {

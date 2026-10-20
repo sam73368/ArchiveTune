@@ -141,7 +141,7 @@ MINI_KEYS = ["TAP:Play", "DISMISS", "EXPAND", "LEFT", "LEFT", "LEFT", "LEFT", "L
 
 TOP_SONGS_ITEMS_KEYS = ["TAP:Top songs", "DISMISS", "DOWN", "DOWN", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "UP", "DOWN", "DOWN", "DOWN", "LEFT"]
 
-SETTINGS_DRILL_KEYS = ["RIGHT", "DOWN", "DOWN", "RIGHT", "DOWN", "DOWN", "DOWN", "LEFT", "DOWN", "RIGHT", "DOWN", "BACK", "DOWN", "RIGHT", "BACK", "BACK", "UP"]
+SETTINGS_DRILL_KEYS = ["RIGHT", "DOWN", "DOWN", "RIGHT", "DOWN", "DOWN", "DOWN", "LEFT", "DOWN", "DOWN", "RIGHT", "CENTER", "DOWN", "DOWN", "BACK", "BACK", "BACK", "UP"]
 
 SCENARIOS = [
     ("settings_drill", "settings", SETTINGS_DRILL_KEYS, "all"),

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -71,6 +72,7 @@ fun TvRailNowPlaying(
     onOpenPlayer: () -> Unit,
     modifier: Modifier = Modifier,
     rightTarget: FocusRequester? = null,
+    expand: Float = 0f,
 ) {
     val rightModifier =
         if (rightTarget != null) {
@@ -81,7 +83,10 @@ fun TvRailNowPlaying(
     val playerConnection = LocalPlayerConnection.current ?: return
     val metadata by playerConnection.mediaMetadata.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
+    val shuffleEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val current = metadata ?: return
+    val wide = expand > 0.5f
+    val panelWidth = 88.dp + (TvTokens.RailExpandedWidth - 16.dp - 88.dp) * expand
     val accent = MaterialTheme.colorScheme.primary
     var progress by remember { mutableFloatStateOf(0f) }
     var positionMs by remember { mutableLongStateOf(0L) }
@@ -99,101 +104,169 @@ fun TvRailNowPlaying(
         }
     }
 
-    Column(
-        modifier =
-            modifier
-                .width(88.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White.copy(alpha = 0.06f))
-                .padding(vertical = 8.dp, horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        TvRailNowPlayingButton(
-            size = 52.dp,
-            corner = 10.dp,
-            modifier = rightModifier,
-            contentDescription = stringResource(R.string.tv_open_player),
-            onClick = onOpenPlayer,
-            onLongClick = { queueOpen = true },
-        ) {
-            AsyncImage(
-                model = current.thumbnailUrl?.resize(160, 160, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(52.dp),
-            )
-        }
-        Text(
-            text = current.title,
-            style = TvTokens.Caption,
-            color = TvTokens.OnSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        current.artists.joinToString { it.name }.takeIf { it.isNotBlank() }?.let { artistNames ->
-            Text(
-                text = artistNames,
-                style = TvTokens.Caption,
-                color = TvTokens.OnSurfaceMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Box(
+    Box(modifier = modifier.fillMaxWidth().wrapContentWidth(Alignment.Start, unbounded = true).padding(start = 4.dp)) {
+        Column(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(TvTokens.OnSurface.copy(alpha = 0.16f)),
+                    .width(panelWidth)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White.copy(alpha = 0.06f))
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
+            horizontalAlignment = if (wide) Alignment.Start else Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            Row(
+                modifier = if (wide) Modifier.padding(horizontal = 4.dp) else Modifier,
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                TvRailNowPlayingButton(
+                    size = 52.dp,
+                    corner = 10.dp,
+                    modifier = if (wide) Modifier else rightModifier,
+                    contentDescription = stringResource(R.string.tv_open_player),
+                    onClick = onOpenPlayer,
+                    onLongClick = { queueOpen = true },
+                ) {
+                    AsyncImage(
+                        model = current.thumbnailUrl?.resize(160, 160, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(52.dp),
+                    )
+                }
+                if (wide) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = current.title,
+                            style = TvTokens.BodyBold,
+                            color = TvTokens.OnSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        current.artists.joinToString { it.name }.takeIf { it.isNotBlank() }?.let { artistNames ->
+                            Text(
+                                text = artistNames,
+                                style = TvTokens.Caption,
+                                color = TvTokens.OnSurfaceMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        current.album?.title?.takeIf { it.isNotBlank() }?.let { albumTitle ->
+                            Text(
+                                text = albumTitle,
+                                style = TvTokens.Caption,
+                                color = TvTokens.OnSurfaceFaint,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+            if (!wide) {
+                Text(
+                    text = current.title,
+                    style = TvTokens.Caption,
+                    color = TvTokens.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                current.artists.joinToString { it.name }.takeIf { it.isNotBlank() }?.let { artistNames ->
+                    Text(
+                        text = artistNames,
+                        style = TvTokens.Caption,
+                        color = TvTokens.OnSurfaceMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .height(3.dp)
-                        .drawBehind { drawRect(accent, size = size.copy(width = size.width * progress)) },
-            )
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(makeTimeString(positionMs), style = TvTokens.Caption, color = TvTokens.OnSurfaceMuted, maxLines = 1)
-            Text(
-                if (durationMs > 0L) makeTimeString(durationMs) else "",
-                style = TvTokens.Caption,
-                color = TvTokens.OnSurfaceMuted,
-                maxLines = 1,
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            TvRailNowPlayingButton(
-                size = 24.dp,
-                corner = 12.dp,
-                contentDescription = stringResource(R.string.tv_previous),
-                onClick = { playerConnection.seekToPrevious() },
-            ) { tint ->
-                Icon(painterResource(R.drawable.skip_previous), null, tint = tint, modifier = Modifier.size(14.dp))
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(TvTokens.OnSurface.copy(alpha = 0.16f)),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .drawBehind { drawRect(accent, size = size.copy(width = size.width * progress)) },
+                )
             }
-            TvRailNowPlayingButton(
-                size = 24.dp,
-                corner = 12.dp,
-                contentDescription = stringResource(if (isPlaying) R.string.tv_pause else R.string.tv_resume),
-                onClick = { playerConnection.player.togglePlayPause() },
-            ) { tint ->
-                if (isPlaying) {
-                    TvPauseGlyph(tint = tint, modifier = Modifier.size(14.dp))
-                } else {
-                    Icon(painterResource(R.drawable.play), null, tint = tint, modifier = Modifier.size(14.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(makeTimeString(positionMs), style = TvTokens.Caption, color = TvTokens.OnSurfaceMuted, maxLines = 1)
+                Text(
+                    if (durationMs > 0L) makeTimeString(durationMs) else "",
+                    style = TvTokens.Caption,
+                    color = TvTokens.OnSurfaceMuted,
+                    maxLines = 1,
+                )
+            }
+            val buttonSize = if (wide) 32.dp else 24.dp
+            val iconSize = if (wide) 18.dp else 14.dp
+            Row(
+                modifier = if (wide) Modifier.fillMaxWidth() else Modifier,
+                horizontalArrangement = if (wide) Arrangement.SpaceEvenly else Arrangement.spacedBy(3.dp),
+            ) {
+                TvRailNowPlayingButton(
+                    size = buttonSize,
+                    corner = buttonSize / 2,
+                    contentDescription = stringResource(R.string.tv_previous),
+                    onClick = { playerConnection.seekToPrevious() },
+                ) { tint ->
+                    Icon(painterResource(R.drawable.skip_previous), null, tint = tint, modifier = Modifier.size(iconSize))
                 }
-            }
-            TvRailNowPlayingButton(
-                size = 24.dp,
-                corner = 12.dp,
-                modifier = rightModifier,
-                contentDescription = null,
-                onClick = { playerConnection.seekToNext() },
-            ) { tint ->
-                Icon(painterResource(R.drawable.skip_next), null, tint = tint, modifier = Modifier.size(14.dp))
+                TvRailNowPlayingButton(
+                    size = buttonSize,
+                    corner = buttonSize / 2,
+                    contentDescription = stringResource(if (isPlaying) R.string.tv_pause else R.string.tv_resume),
+                    onClick = { playerConnection.player.togglePlayPause() },
+                ) { tint ->
+                    if (isPlaying) {
+                        TvPauseGlyph(tint = tint, modifier = Modifier.size(iconSize))
+                    } else {
+                        Icon(painterResource(R.drawable.play), null, tint = tint, modifier = Modifier.size(iconSize))
+                    }
+                }
+                TvRailNowPlayingButton(
+                    size = buttonSize,
+                    corner = buttonSize / 2,
+                    modifier = if (wide) Modifier else rightModifier,
+                    contentDescription = null,
+                    onClick = { playerConnection.seekToNext() },
+                ) { tint ->
+                    Icon(painterResource(R.drawable.skip_next), null, tint = tint, modifier = Modifier.size(iconSize))
+                }
+                if (wide) {
+                    TvRailNowPlayingButton(
+                        size = buttonSize,
+                        corner = buttonSize / 2,
+                        contentDescription = null,
+                        onClick = { playerConnection.player.shuffleModeEnabled = !shuffleEnabled },
+                    ) { tint ->
+                        Icon(
+                            painterResource(if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle),
+                            null,
+                            tint = tint,
+                            modifier = Modifier.size(iconSize),
+                        )
+                    }
+                    TvRailNowPlayingButton(
+                        size = buttonSize,
+                        corner = buttonSize / 2,
+                        modifier = rightModifier,
+                        contentDescription = stringResource(R.string.tv_up_next),
+                        onClick = { queueOpen = true },
+                    ) { tint ->
+                        Icon(painterResource(R.drawable.queue_music), null, tint = tint, modifier = Modifier.size(iconSize))
+                    }
+                }
             }
         }
     }
@@ -254,9 +327,10 @@ private fun TvRailUpNextPopup(onDismiss: () -> Unit) {
             if (runCatching { firstFocus.requestFocus() }.isSuccess) return@LaunchedEffect
         }
     }
+    val popupOffsetX = with(androidx.compose.ui.platform.LocalDensity.current) { (TvTokens.RailExpandedWidth + 8.dp).roundToPx() }
     Popup(
         alignment = Alignment.BottomStart,
-        offset = IntOffset(170, -40),
+        offset = IntOffset(popupOffsetX, -40),
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true),
     ) {

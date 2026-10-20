@@ -5917,3 +5917,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification.
+
+---
+Task ID: TV-15
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Translucent rail edge, mini player that follows the expanded rail, focus lost when opening a sub-sub-page in the settings drill-down.
+
+Work Log:
+- `TvNavigationRail`: the expanded panel is drawn with a horizontal gradient that fades to about 12% alpha over its last 72 dp, so content stays visible under the edge. `nowPlaying` now receives the expand fraction.
+- `TvRailNowPlaying`: new `expand` parameter. The panel widens with the rail (up to `RailExpandedWidth - 16 dp`); when wide it lays out artwork beside title, artist and album, and adds shuffle and up-next buttons. Focusable nodes keep the same position in the composition so focus survives the switch. The up-next popup offset follows the wider rail. It returns to the compact size as soon as the rail loses focus.
+- `TvSettingsHome`: after the nested NavHost changes entry (for example Appearance to Theme) the content focus is re-requested for 1.6 s without stopping at the first success, because the old page still held focus for the first 180 ms and the old one-shot loop returned early, letting the global guard move the focus to the rail.
+- `scripts/tv_scenarios.py`: the drill-down scenario now opens Appearance then Theme.
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification.

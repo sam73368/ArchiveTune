@@ -248,12 +248,11 @@ fun TvSettingsHome(
         }
     }
 
-    LaunchedEffect(previewEntry?.id) {
+    LaunchedEffect(previewEntry?.id, entered) {
         if (!entered) return@LaunchedEffect
-        repeat(12) {
-            delay(110)
-            if (contentHasFocus) return@LaunchedEffect
-            runCatching { contentRequester.requestFocus() }
+        repeat(16) {
+            delay(100)
+            if (!leaving && !contentHasFocus) runCatching { contentRequester.requestFocus() }
         }
     }
 
