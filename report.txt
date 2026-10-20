@@ -1,0 +1,1251 @@
+## settings_drill (settings)
+   start: focus='Account' bounds=[232, 163, 840, 259] interactive=15
+   01 RIGHT: focus='Login' bounds=[456, 316, 651, 412] interactive=17
+   02 DOWN: focus='Sign in with a code | Enter a short code on your phone, no t' bounds=[416, 324, 1832, 468] interactive=18
+   03 DOWN: focus='Sign in with browser | Full account: library, playlists, upl' bounds=[416, 324, 1832, 468] interactive=19
+   04 RIGHT: focus='Sign in with browser | Full account: library, playlists, upl' bounds=[416, 324, 1832, 468] interactive=19
+   05 DOWN: focus='Hidden playlists | Playlists hidden from library appear here' bounds=[416, 372, 1832, 516] interactive=17
+   06 DOWN: focus='Login with token | This is an ADVANCED login method. As an a' bounds=[416, 520, 1832, 709] interactive=17
+   07 DOWN: focus='PO Token Generation | Playback verification and visitor data' bounds=[416, 713, 1832, 857] interactive=17
+   08 LEFT: focus='Account' bounds=[232, 163, 840, 259] interactive=17
+   09 DOWN: focus='Listening Stats' bounds=[232, 267, 840, 363] interactive=12
+   10 DOWN: focus='Appearance' bounds=[232, 324, 840, 420] interactive=16
+   11 RIGHT: focus='Theme | Theme, colours, fonts and app icon' bounds=[416, 251, 1832, 387] interactive=18
+   12 CENTER: focus='Performance mode | Turns off blur, liquid glass and animated' bounds=[416, 251, 1832, 424] interactive=20
+   13 DOWN: focus='Player background | Gradient' bounds=[416, 324, 1832, 512] interactive=20
+   14 DOWN: focus='Word-by-word lyrics | Highlights each word as it is sung. Pr' bounds=[416, 324, 1832, 497] interactive=23
+   15 BACK: focus='Theme | Theme, colours, fonts and app icon' bounds=[416, 251, 1832, 387] interactive=18
+   16 BACK: focus='Appearance' bounds=[232, 324, 840, 420] interactive=16
+   17 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   18 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   LOG settings hub created
+   LOG settings state entered=false leaving=false entering=false sel=account route=tv_settings_blank
+   LOG settings state entered=false leaving=false entering=false sel=account route=tv_settings_blank
+   LOG settings row focused key=account entered=false leaving=false
+   LOG settings state entered=false leaving=false entering=false sel=account route=settings/account
+   LOG settings state entered=false leaving=false entering=true sel=account route=settings/account
+   LOG settings state entered=true leaving=false entering=false sel=account route=settings/account
+   LOG settings exit direction=Left entered=true
+   LOG settings exit direction=Left entered=true
+   LOG settings state entered=true leaving=true entering=false sel=account route=settings/account
+   LOG settings exit direction=Enter entered=true
+   LOG settings row focused key=account entered=true leaving=true
+   LOG settings state entered=false leaving=false entering=false sel=account route=settings/account
+   LOG settings row focused key=stats entered=false leaving=false
+   LOG settings state entered=false leaving=false entering=false sel=stats route=settings/account
+   LOG settings row focused key=appearance entered=false leaving=false
+   LOG settings state entered=false leaving=false entering=false sel=appearance route=settings/account
+   LOG settings state entered=false leaving=false entering=false sel=appearance route=settings/appearance?scrollTo={scrollTo}&section={section}
+   LOG settings state entered=false leaving=false entering=true sel=appearance route=settings/appearance?scrollTo={scrollTo}&section={section}
+   LOG settings state entered=true leaving=false entering=false sel=appearance route=settings/appearance?scrollTo={scrollTo}&section={section}
+   LOG settings state entered=true leaving=true entering=false sel=appearance route=settings/appearance?scrollTo={scrollTo}&section={section}
+   LOG settings exit direction=Enter entered=true
+   LOG settings row focused key=appearance entered=true leaving=true
+   LOG settings state entered=false leaving=false entering=false sel=appearance route=settings/appearance?scrollTo={scrollTo}&section={section}
+   LOG settings hub disposed
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## top_songs_page (artist/UCedvOgsKFzcK3hA5taf3KoQ)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=22
+   01 RIGHT: focus='Play' bounds=[243, 815, 443, 915] interactive=22
+   02 DOWN: focus='Subscribe' bounds=[243, 907, 460, 1007] interactive=22
+   03 DOWN: focus='The Real Slim Shady | Eminem • 373M views' bounds=[784, 324, 1856, 468] interactive=30
+   04 UP: focus='Without Me | Eminem • 380M views' bounds=[784, 324, 1856, 468] interactive=31
+   05 UP: focus='Superman (feat. Dina Rae) | Eminem • 449M views' bounds=[784, 324, 1856, 468] interactive=29
+   06 UP: focus='Till I Collapse (feat. Nate Dogg) | Eminem • 476M views' bounds=[784, 324, 1856, 468] interactive=25
+   07 UP: focus='Top songs' bounds=[792, 324, 1864, 437] interactive=24
+   08 UP: focus='LATEST RELEASE | MADARA (feat. Neil Kaplan & Hideyoshi) | Al' bounds=[824, 192, 1832, 464] interactive=22
+   09 UP: focus='More options' bounds=[1760, 64, 1856, 160] interactive=22
+   10 UP: focus='More options' bounds=[1760, 64, 1856, 160] interactive=22
+   11 UP: focus='More options' bounds=[1760, 64, 1856, 160] interactive=22
+   12 CENTER: focus='Shuffle' bounds=[1648, 172, 1920, 261] interactive=11
+   13 DOWN: focus='Start radio' bounds=[1648, 261, 1920, 350] interactive=11
+   14 DOWN: focus='Block artist' bounds=[1648, 350, 1920, 446] interactive=11
+   15 DOWN: focus='Block artist' bounds=[1648, 350, 1920, 446] interactive=11
+   16 UP: focus='Start radio' bounds=[1648, 261, 1920, 350] interactive=11
+   17 UP: focus='Shuffle' bounds=[1648, 172, 1920, 261] interactive=11
+   18 UP: focus='Shuffle' bounds=[1648, 172, 1920, 261] interactive=11
+   19 UP: focus='Shuffle' bounds=[1648, 172, 1920, 261] interactive=11
+   20 UP: focus='Shuffle' bounds=[1648, 172, 1920, 261] interactive=11
+   21 UP: focus='Shuffle' bounds=[1648, 172, 1920, 261] interactive=11
+   22 UP: focus='Shuffle' bounds=[1648, 172, 1920, 261] interactive=11
+   23 DOWN: focus='Start radio' bounds=[1648, 261, 1920, 350] interactive=11
+   24 DOWN: focus='Block artist' bounds=[1648, 350, 1920, 446] interactive=11
+   25 DOWN: focus='Block artist' bounds=[1648, 350, 1920, 446] interactive=11
+   26 LEFT: focus='Block artist' bounds=[1648, 350, 1920, 446] interactive=11
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## top_songs_items (artist/UCedvOgsKFzcK3hA5taf3KoQ)
+   start: focus=None interactive=25
+   01 TAP:Top songs tapped=True: focus=None interactive=22
+   02 DISMISS: focus=None interactive=22
+   03 DOWN: focus='The Real Slim Shady | Eminem • 373M views' bounds=[192, 324, 1864, 468] interactive=24
+   04 DOWN: focus='Mockingbird | Eminem • 371M views' bounds=[192, 324, 1864, 468] interactive=24
+   05 UP: focus='The Real Slim Shady | Eminem • 373M views' bounds=[192, 324, 1864, 468] interactive=24
+   06 UP: focus='Without Me | Eminem • 380M views' bounds=[192, 324, 1864, 468] interactive=22
+   07 UP: focus='Superman (feat. Dina Rae) | Eminem • 449M views' bounds=[192, 320, 1864, 464] interactive=21
+   08 UP: focus='Till I Collapse (feat. Nate Dogg) | Eminem • 476M views' bounds=[192, 176, 1864, 320] interactive=21
+   09 UP: focus='' bounds=[1664, 64, 1760, 160] interactive=21
+   10 UP: focus='' bounds=[1664, 64, 1760, 160] interactive=21
+   11 UP: focus='' bounds=[1664, 64, 1760, 160] interactive=21
+   12 UP: focus='' bounds=[1664, 64, 1760, 160] interactive=21
+   13 DOWN: focus='' bounds=[1752, 200, 1848, 296] interactive=21
+   14 DOWN: focus='Superman (feat. Dina Rae) | Eminem • 449M views' bounds=[192, 320, 1864, 464] interactive=21
+   15 DOWN: focus='Without Me | Eminem • 380M views' bounds=[192, 324, 1864, 468] interactive=22
+   16 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=22
+   LOG enterContent offscreen=false scope=2 usable=2 result=false first=Rect.fromLTRB(200.0, 64.0, 296.0, 160.0)
+   LOG enterContent offscreen=true scope=2 usable=2 result=false first=Rect.fromLTRB(200.0, 64.0, 296.0, 160.0)
+   LOG enterContent offscreen=false scope=2 usable=2 result=false first=Rect.fromLTRB(200.0, 64.0, 296.0, 160.0)
+   LOG enterContent offscreen=true scope=2 usable=2 result=false first=Rect.fromLTRB(200.0, 64.0, 296.0, 160.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## artist_main_full (artist/UCedvOgsKFzcK3hA5taf3KoQ)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=22
+   01 RIGHT: focus='Play' bounds=[243, 815, 443, 915] interactive=22
+   02 DOWN: focus='Subscribe' bounds=[243, 907, 460, 1007] interactive=22
+   03 DOWN: focus='The Real Slim Shady | Eminem • 373M views' bounds=[784, 324, 1856, 468] interactive=30
+   04 DOWN: focus='Mockingbird | Eminem • 371M views' bounds=[784, 324, 1856, 468] interactive=28
+   05 DOWN: focus='Albums' bounds=[792, 324, 1864, 437] interactive=30
+   06 DOWN: focus='The Marshall Mathers LP (25th Anniversary) | 2025' bounds=[1104, 324, 1408, 736] interactive=31
+   07 DOWN: focus='Animals (Pt. I) | 2025' bounds=[1104, 324, 1408, 736] interactive=30
+   08 DOWN: focus='Lose Yourself | YouTube Music' bounds=[1104, 324, 1408, 736] interactive=26
+   09 DOWN: focus='Music Videos | 10M views' bounds=[1104, 324, 1408, 736] interactive=23
+   10 UP: focus='Lose Yourself | YouTube Music' bounds=[1104, 324, 1408, 736] interactive=26
+   11 UP: focus='Animals (Pt. I) | 2025' bounds=[1104, 324, 1408, 736] interactive=30
+   12 UP: focus='The Marshall Mathers LP (25th Anniversary) | 2025' bounds=[1104, 324, 1408, 736] interactive=31
+   13 UP: focus='Albums' bounds=[792, 324, 1864, 437] interactive=30
+   14 UP: focus='Mockingbird | Eminem • 371M views' bounds=[784, 324, 1856, 468] interactive=28
+   15 UP: focus='The Real Slim Shady | Eminem • 373M views' bounds=[784, 324, 1856, 468] interactive=30
+   16 UP: focus='Without Me | Eminem • 380M views' bounds=[784, 324, 1856, 468] interactive=31
+   17 UP: focus='Superman (feat. Dina Rae) | Eminem • 449M views' bounds=[784, 324, 1856, 468] interactive=29
+   18 UP: focus='Till I Collapse (feat. Nate Dogg) | Eminem • 476M views' bounds=[784, 324, 1856, 468] interactive=25
+   19 LEFT: focus='Start radio' bounds=[540, 815, 640, 909] interactive=25
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings (settings)
+   start: focus='Account' bounds=[232, 163, 840, 259] interactive=15
+   01 RIGHT: focus='Login' bounds=[456, 316, 651, 412] interactive=17
+   02 DOWN: focus='Sign in with a code | Enter a short code on your phone, no t' bounds=[416, 324, 1832, 468] interactive=18
+   03 DOWN: focus='Sign in with browser | Full account: library, playlists, upl' bounds=[416, 324, 1832, 468] interactive=19
+   04 DOWN: focus='Hidden playlists | Playlists hidden from library appear here' bounds=[416, 372, 1832, 516] interactive=17
+   05 DOWN: focus='Login with token | This is an ADVANCED login method. As an a' bounds=[416, 520, 1832, 709] interactive=17
+   06 UP: focus='Hidden playlists | Playlists hidden from library appear here' bounds=[416, 372, 1832, 516] interactive=17
+   07 UP: focus='Sign in with browser | Full account: library, playlists, upl' bounds=[416, 324, 1832, 468] interactive=19
+   08 CENTER: focus='Drag handle' bounds=[912, 0, 1008, 96] interactive=3
+   09 DOWN: focus='' bounds=[1012, 456, 1508, 560] interactive=9
+   10 BACK: focus='Login' bounds=[456, 316, 651, 412] interactive=17
+   11 UP: focus='Login' bounds=[456, 316, 651, 412] interactive=17
+   12 LEFT: focus='Account' bounds=[232, 163, 840, 259] interactive=16
+   LOG settings hub created
+   LOG settings state entered=false leaving=false entering=false sel=account route=tv_settings_blank
+   LOG settings state entered=false leaving=false entering=false sel=account route=tv_settings_blank
+   LOG settings state entered=false leaving=false entering=false sel=account route=settings/account
+   LOG settings row focused key=account entered=false leaving=false
+   LOG settings state entered=false leaving=false entering=true sel=account route=settings/account
+   LOG settings state entered=true leaving=false entering=false sel=account route=settings/account
+   LOG settings state entered=true leaving=false entering=false sel=account route=login?url={url}
+   LOG settings state entered=true leaving=false entering=false sel=account route=settings/account
+   LOG settings exit direction=Up entered=true
+   LOG settings exit direction=Left entered=true
+   LOG settings exit direction=Left entered=true
+   LOG settings state entered=true leaving=true entering=false sel=account route=settings/account
+   LOG settings exit direction=Enter entered=true
+   LOG settings row focused key=account entered=true leaving=true
+   LOG settings state entered=false leaving=false entering=false sel=account route=settings/account
+   FATAL --------- beginning of system
+   FATAL --------- beginning of main
+## settings_account (settings/account)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='Login' bounds=[264, 316, 459, 412] interactive=9
+   02 DOWN: focus='Sign in with a code | Enter a short code on your phone, no t' bounds=[224, 324, 1832, 468] interactive=10
+   03 DOWN: focus='Sign in with browser | Full account: library, playlists, upl' bounds=[224, 324, 1832, 468] interactive=11
+   04 DOWN: focus='Hidden playlists | Playlists hidden from library appear here' bounds=[224, 372, 1832, 516] interactive=9
+   05 DOWN: focus='Login with token | This is an ADVANCED login method. As an a' bounds=[224, 520, 1832, 709] interactive=9
+   06 UP: focus='Hidden playlists | Playlists hidden from library appear here' bounds=[224, 372, 1832, 516] interactive=9
+   07 UP: focus='Sign in with browser | Full account: library, playlists, upl' bounds=[224, 324, 1832, 468] interactive=11
+   08 CENTER: focus='' bounds=[1010, 454, 1510, 562] interactive=9
+   09 DOWN: focus='' bounds=[1012, 456, 1508, 560] interactive=9
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=11
+   11 UP: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=11
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=11
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_appearance (settings/appearance)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   01 RIGHT: focus='Theme | Theme, colours, fonts and app icon' bounds=[224, 251, 1832, 387] interactive=10
+   02 DOWN: focus='Minimal mode | Hide all home sections except Keep listening,' bounds=[224, 324, 1832, 534] interactive=11
+   03 DOWN: focus='Default open tab | Home' bounds=[224, 369, 1832, 557] interactive=11
+   04 DOWN: focus='Show view counts | Display the YouTube Music view count unde' bounds=[224, 632, 1832, 805] interactive=11
+   05 DOWN: focus='Extras | Toggles for home chips, library tags, and library m' bounds=[224, 880, 1832, 1016] interactive=11
+   06 UP: focus='Show view counts | Display the YouTube Music view count unde' bounds=[224, 632, 1832, 805] interactive=11
+   07 UP: focus='Default open tab | Home' bounds=[224, 369, 1832, 557] interactive=11
+   08 CENTER: focus='Drag handle' bounds=[912, 270, 1008, 368] interactive=5
+   09 DOWN: focus='Home' bounds=[372, 845, 1548, 989] interactive=4
+   10 BACK: focus='Default open tab | Home' bounds=[224, 369, 1832, 557] interactive=11
+   11 UP: focus='Minimal mode | Hide all home sections except Keep listening,' bounds=[224, 324, 1832, 534] interactive=11
+   12 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=11
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_appearance_extras (settings/appearance/extras)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=16
+   01 RIGHT: focus='Show home category chips | Show category filter chips on the' bounds=[224, 251, 1832, 387] interactive=16
+   02 DOWN: focus='Show tags in library | Show tag filter chips in the library' bounds=[224, 324, 1832, 460] interactive=18
+   03 DOWN: focus='Hide Liked songs card | Hide the Liked songs quick-access ca' bounds=[224, 332, 1832, 468] interactive=18
+   04 DOWN: focus='Hide Offline card | Hide the Offline quick-access card on th' bounds=[224, 469, 1832, 605] interactive=18
+   05 DOWN: focus='Hide Cached card | Hide the Cached quick-access card on the ' bounds=[224, 606, 1832, 742] interactive=18
+   06 UP: focus='Hide Offline card | Hide the Offline quick-access card on th' bounds=[224, 469, 1832, 605] interactive=18
+   07 UP: focus='Hide Liked songs card | Hide the Liked songs quick-access ca' bounds=[224, 332, 1832, 468] interactive=18
+   08 CENTER: focus='Hide Liked songs card | Hide the Liked songs quick-access ca' bounds=[224, 332, 1832, 468] interactive=18
+   09 DOWN: focus='Hide Offline card | Hide the Offline quick-access card on th' bounds=[224, 469, 1832, 605] interactive=18
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_appearance_navigation_bar (settings/appearance/navigation_bar)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='' bounds=[224, 251, 1832, 675] interactive=8
+   02 DOWN: focus='Mini player and bar behavior | When the mini player and navi' bounds=[224, 324, 1832, 553] interactive=10
+   03 DOWN: focus='Frosted navigation bar | Apply a frosted blur behind the nav' bounds=[224, 324, 1832, 460] interactive=11
+   04 DOWN: focus='Tint navigation bar | Navigation bar tinted with the accent ' bounds=[224, 324, 1832, 497] interactive=13
+   05 DOWN: focus='Enable BitChord Navigation bar | The BitChord frosted-pill n' bounds=[224, 324, 1832, 497] interactive=14
+   06 UP: focus='Tint navigation bar | Navigation bar tinted with the accent ' bounds=[224, 324, 1832, 497] interactive=13
+   07 UP: focus='Frosted navigation bar | Apply a frosted blur behind the nav' bounds=[224, 324, 1832, 460] interactive=11
+   08 CENTER: focus='Frosted navigation bar | Apply a frosted blur behind the nav' bounds=[224, 324, 1832, 460] interactive=11
+   09 DOWN: focus='Tint navigation bar | Navigation bar tinted with the accent ' bounds=[224, 324, 1832, 497] interactive=13
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_appearance_palette_picker (settings/appearance/palette_picker)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=6
+   01 RIGHT: focus='' bounds=[234, 734, 406, 900] interactive=16
+   02 DOWN: focus='' bounds=[1438, 800, 1832, 912] interactive=16
+   03 DOWN: focus='' bounds=[1458, 936, 1832, 1048] interactive=16
+   04 DOWN: focus='' bounds=[1458, 936, 1832, 1048] interactive=16
+   05 DOWN: focus='' bounds=[1458, 936, 1832, 1048] interactive=16
+   06 UP: focus='' bounds=[1438, 800, 1832, 912] interactive=16
+   07 UP: focus='' bounds=[1438, 800, 1832, 912] interactive=16
+   08 CENTER: focus='' bounds=[1038, 936, 1412, 1048] interactive=8
+   09 DOWN: focus='' bounds=[1038, 936, 1412, 1048] interactive=8
+   10 BACK: focus='' bounds=[1438, 800, 1832, 912] interactive=16
+   11 UP: focus='' bounds=[1438, 800, 1832, 912] interactive=16
+   12 LEFT: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=16
+   LOG enterContent offscreen=false scope=5 usable=5 result=true first=Rect.fromLTRB(1038.0, 936.0, 1412.0, 1048.0)
+   LOG enterContent offscreen=false scope=13 usable=13 result=true first=Rect.fromLTRB(233.6, 740.0, 406.4, 900.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_appearance_icon (settings/appearance/icon)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='Search | Search' bounds=[308, 324, 1748, 443] interactive=9
+   02 DOWN: focus='Search | Search' bounds=[308, 324, 1748, 443] interactive=9
+   03 DOWN: focus='Search | Search' bounds=[308, 324, 1748, 443] interactive=9
+   04 DOWN: focus='Search | Search' bounds=[308, 324, 1748, 443] interactive=9
+   05 DOWN: focus='Search | Search' bounds=[308, 324, 1748, 443] interactive=9
+   06 UP: focus='Search | Search' bounds=[308, 324, 1748, 443] interactive=9
+   07 UP: focus='Search | Search' bounds=[308, 324, 1748, 443] interactive=9
+   08 CENTER: focus='a | a | Search | Clear' bounds=[308, 292, 1748, 411] interactive=10
+   09 DOWN: focus='a | a | Search | Clear' bounds=[308, 292, 1748, 411] interactive=10
+   10 BACK: focus='a | a | Search | Clear' bounds=[308, 292, 1748, 411] interactive=10
+   11 UP: focus=None interactive=9
+   12 LEFT: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=9
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_player (settings/player)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   01 RIGHT: focus='Sources | Streaming sources, priority and quality' bounds=[224, 251, 1832, 387] interactive=10
+   02 DOWN: focus='Lyrics | Lyrics providers, preloading, and translation' bounds=[224, 324, 1832, 460] interactive=10
+   03 DOWN: focus='Audiophile | DSP engines, float pipeline and USB-exclusive o' bounds=[224, 324, 1832, 460] interactive=11
+   04 DOWN: focus='Player | Crossfade, Automix, silence, seeking, mute and Blue' bounds=[224, 469, 1832, 605] interactive=11
+   05 DOWN: focus='Artwork | Canvas, animated covers and artwork sources' bounds=[224, 606, 1832, 742] interactive=11
+   06 UP: focus='Player | Crossfade, Automix, silence, seeking, mute and Blue' bounds=[224, 469, 1832, 605] interactive=11
+   07 UP: focus='Audiophile | DSP engines, float pipeline and USB-exclusive o' bounds=[224, 324, 1832, 460] interactive=11
+   08 CENTER: focus='Dolby decoder (FFmpeg) | Decode Dolby AC-4, DTS and other fo' bounds=[224, 251, 1832, 461] interactive=12
+   09 DOWN: focus='Bit-Perfect Output | Bypass every DSP processor and hand the' bounds=[224, 324, 1832, 534] interactive=14
+   10 BACK: focus='Lyrics | Lyrics providers, preloading, and translation' bounds=[224, 324, 1832, 460] interactive=10
+   11 UP: focus='Sources | Streaming sources, priority and quality' bounds=[224, 251, 1832, 387] interactive=10
+   12 LEFT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=10
+   LOG enterContent offscreen=false scope=9 usable=9 result=true first=Rect.fromLTRB(224.0, 251.0, 1832.0, 461.0)
+   LOG enterContent offscreen=false scope=8 usable=8 result=true first=Rect.fromLTRB(224.0, 187.0, 1832.0, 323.0)
+   FATAL --------- beginning of system
+   FATAL --------- beginning of main
+## settings_player_audiophile (settings/player/audiophile)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   01 RIGHT: focus='Dolby decoder (FFmpeg) | Decode Dolby AC-4, DTS and other fo' bounds=[224, 251, 1832, 461] interactive=12
+   02 DOWN: focus='Bit-Perfect Output | Bypass every DSP processor and hand the' bounds=[224, 324, 1832, 534] interactive=14
+   03 DOWN: focus='32-bit float DSP | Native 32-bit float processing (DC blocke' bounds=[224, 324, 1832, 497] interactive=15
+   04 DOWN: focus='Enable Tryptify Audio Processing | Ported from Tryptify: the' bounds=[224, 324, 1832, 571] interactive=15
+   05 DOWN: focus='Enable Lastwave Audio Processing | Ported from LastWave-nati' bounds=[224, 324, 1832, 571] interactive=13
+   06 UP: focus='Enable Tryptify Audio Processing | Ported from Tryptify: the' bounds=[224, 324, 1832, 571] interactive=15
+   07 UP: focus='32-bit float DSP | Native 32-bit float processing (DC blocke' bounds=[224, 324, 1832, 497] interactive=15
+   08 CENTER: focus='32-bit float DSP | Native 32-bit float processing (DC blocke' bounds=[224, 324, 1832, 497] interactive=15
+   09 DOWN: focus='Enable Tryptify Audio Processing | Ported from Tryptify: the' bounds=[224, 324, 1832, 571] interactive=15
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_player_canvas (settings/player/canvas)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=14
+   01 RIGHT: focus='ArchiveTune Canvas | Animate album artwork while playing (Po' bounds=[224, 251, 1832, 387] interactive=14
+   02 DOWN: focus='Spotify Canvas | Play the official looping Canvas video for ' bounds=[224, 324, 1832, 460] interactive=14
+   03 DOWN: focus='Enable canvas in album, playlist and artist page | Play the ' bounds=[224, 324, 1832, 497] interactive=16
+   04 DOWN: focus='Canvas Check | Check whether every canvas source — your Spot' bounds=[224, 358, 1832, 531] interactive=16
+   05 DOWN: focus='Use Tidal artwork | Fall back to Tidal cover art when no art' bounds=[224, 532, 1832, 668] interactive=16
+   06 UP: focus='Canvas Check | Check whether every canvas source — your Spot' bounds=[224, 358, 1832, 531] interactive=16
+   07 UP: focus='Enable canvas in album, playlist and artist page | Play the ' bounds=[224, 324, 1832, 497] interactive=16
+   08 CENTER: focus='Enable canvas in album, playlist and artist page | Play the ' bounds=[224, 324, 1832, 497] interactive=16
+   09 DOWN: focus='Canvas Check | Check whether every canvas source — your Spot' bounds=[224, 358, 1832, 531] interactive=16
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_lyrics (settings/lyrics)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=11
+   01 RIGHT: focus='Language packs | Optional language data and downloads' bounds=[224, 251, 1832, 387] interactive=11
+   02 DOWN: focus='Providers | Choose which lyrics providers are active and set' bounds=[224, 324, 1832, 460] interactive=13
+   03 DOWN: focus='Romanization | Romanise foreign-language lyrics (Japanese, K' bounds=[224, 324, 1832, 460] interactive=16
+   04 DOWN: focus='Change lyrics on click' bounds=[224, 324, 1832, 436] interactive=18
+   05 DOWN: focus='Auto scroll lyrics' bounds=[224, 324, 1832, 436] interactive=18
+   06 UP: focus='Change lyrics on click' bounds=[224, 324, 1832, 436] interactive=18
+   07 UP: focus='Romanization | Romanise foreign-language lyrics (Japanese, K' bounds=[224, 324, 1832, 460] interactive=16
+   08 CENTER: focus='Romanize korean lyrics' bounds=[224, 388, 1832, 500] interactive=12
+   09 DOWN: focus='Romanize chinese lyrics' bounds=[224, 501, 1832, 613] interactive=12
+   10 BACK: focus='Romanization | Romanise foreign-language lyrics (Japanese, K' bounds=[224, 324, 1832, 460] interactive=16
+   11 UP: focus='Providers | Choose which lyrics providers are active and set' bounds=[224, 324, 1832, 460] interactive=13
+   12 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=13
+   LOG enterContent offscreen=false scope=9 usable=9 result=true first=Rect.fromLTRB(224.0, 388.0, 1832.0, 500.0)
+   LOG enterContent offscreen=false scope=13 usable=13 result=true first=Rect.fromLTRB(224.0, 324.0, 1832.0, 460.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_lyrics_providers (settings/lyrics/providers)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=19
+   01 RIGHT: focus='Prioritize Word Synced Lyrics | Only accept word-synced lyri' bounds=[224, 251, 1832, 387] interactive=19
+   02 DOWN: focus='Enable BetterLyrics' bounds=[224, 388, 1832, 500] interactive=19
+   03 DOWN: focus='Enable BetterLyrics Portato' bounds=[224, 447, 1832, 559] interactive=20
+   04 DOWN: focus='Enable YouLyPlus lyrics' bounds=[224, 447, 1832, 559] interactive=22
+   05 DOWN: focus='Enable LrcLib lyrics provider' bounds=[224, 447, 1832, 559] interactive=22
+   06 UP: focus='Enable YouLyPlus lyrics' bounds=[224, 447, 1832, 559] interactive=22
+   07 UP: focus='Enable BetterLyrics Portato' bounds=[224, 447, 1832, 559] interactive=20
+   08 CENTER: focus='Enable BetterLyrics Portato' bounds=[224, 447, 1832, 559] interactive=20
+   09 DOWN: focus='Enable YouLyPlus lyrics' bounds=[224, 447, 1832, 559] interactive=22
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_content (settings/content)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=11
+   01 RIGHT: focus='Default content language | System default' bounds=[224, 251, 1832, 439] interactive=11
+   02 DOWN: focus='Default content country | System default' bounds=[224, 324, 1832, 512] interactive=13
+   03 DOWN: focus='Playlist recommendation source | Playlist title and content' bounds=[224, 324, 1832, 512] interactive=15
+   04 DOWN: focus='Hide explicit content' bounds=[224, 324, 1832, 436] interactive=16
+   05 DOWN: focus='Music videos | Clips are only offered in search results. Eve' bounds=[224, 324, 1832, 497] interactive=17
+   06 UP: focus='Hide explicit content' bounds=[224, 324, 1832, 436] interactive=16
+   07 UP: focus='Playlist recommendation source | Playlist title and content' bounds=[224, 324, 1832, 512] interactive=15
+   08 CENTER: focus='Drag handle' bounds=[912, 270, 1008, 368] interactive=5
+   09 DOWN: focus='Playlist title' bounds=[372, 845, 1548, 989] interactive=4
+   10 BACK: focus='Playlist recommendation source | Playlist title and content' bounds=[224, 324, 1832, 512] interactive=15
+   11 UP: focus='Default content country | System default' bounds=[224, 324, 1832, 512] interactive=13
+   12 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=13
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_privacy (settings/privacy)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   01 RIGHT: focus='Pause listen history' bounds=[224, 251, 1832, 363] interactive=12
+   02 DOWN: focus='Clear listen history' bounds=[224, 364, 1832, 476] interactive=12
+   03 DOWN: focus='Pause search history' bounds=[224, 551, 1832, 663] interactive=12
+   04 DOWN: focus='Clear search history' bounds=[224, 664, 1832, 776] interactive=12
+   05 DOWN: focus='Low Data Mode | On metered networks, drop to low quality and' bounds=[224, 851, 1832, 987] interactive=12
+   06 UP: focus='Clear search history' bounds=[224, 664, 1832, 776] interactive=12
+   07 UP: focus='Pause search history' bounds=[224, 551, 1832, 663] interactive=12
+   08 CENTER: focus='Pause search history' bounds=[224, 551, 1832, 663] interactive=12
+   09 DOWN: focus='Clear search history' bounds=[224, 664, 1832, 776] interactive=12
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_storage (settings/storage)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=9
+   01 RIGHT: focus='Internal storage | 5.18 GB free' bounds=[248, 275, 1808, 411] interactive=9
+   02 DOWN: focus='Smart Trimmer | Prune old image and song cache entries to sa' bounds=[248, 324, 1808, 460] interactive=9
+   03 DOWN: focus='Max song cache size | 0 B / 1 GB | 1 GB' bounds=[248, 324, 1808, 553] interactive=10
+   04 DOWN: focus='Clear song cache' bounds=[248, 324, 1808, 436] interactive=9
+   05 DOWN: focus='Max image cache size | 2.3 MB / 512 MB | 512 MB' bounds=[248, 324, 1808, 553] interactive=8
+   06 UP: focus='Clear song cache' bounds=[248, 324, 1808, 436] interactive=9
+   07 UP: focus='Max song cache size | 0 B / 1 GB | 1 GB' bounds=[248, 324, 1808, 553] interactive=10
+   08 CENTER: focus='Drag handle' bounds=[912, 0, 1008, 98] interactive=7
+   09 DOWN: focus='Disable' bounds=[372, 737, 1548, 881] interactive=4
+   10 BACK: focus='Max song cache size | 0 B / 1 GB | 1 GB' bounds=[248, 324, 1808, 553] interactive=10
+   11 UP: focus='Smart Trimmer | Prune old image and song cache entries to sa' bounds=[248, 324, 1808, 460] interactive=9
+   12 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=9
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_downloads (settings/downloads)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=11
+   01 RIGHT: focus='Clear all downloads | Are you sure you want to clear all dow' bounds=[224, 251, 1832, 387] interactive=11
+   02 DOWN: focus='Export | Save a copy of all downloaded songs to a chosen fol' bounds=[224, 324, 1832, 460] interactive=13
+   03 DOWN: focus='Auto download on like | Automatically download songs when yo' bounds=[224, 324, 1832, 460] interactive=13
+   04 DOWN: focus='Download on Wi-Fi only | Downloads wait for an unmetered con' bounds=[224, 395, 1832, 531] interactive=13
+   05 DOWN: focus='Download source priority | Qobuz → Qobuz Backup → Tidal → De' bounds=[224, 532, 1832, 668] interactive=13
+   06 UP: focus='Download on Wi-Fi only | Downloads wait for an unmetered con' bounds=[224, 395, 1832, 531] interactive=13
+   07 UP: focus='Auto download on like | Automatically download songs when yo' bounds=[224, 324, 1832, 460] interactive=13
+   08 CENTER: focus='Auto download on like | Automatically download songs when yo' bounds=[224, 324, 1832, 460] interactive=13
+   09 DOWN: focus='Download on Wi-Fi only | Downloads wait for an unmetered con' bounds=[224, 395, 1832, 531] interactive=13
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_backup_restore (settings/backup_restore)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='Enable scheduled backup | Automatic backups are paused.' bounds=[224, 251, 1832, 387] interactive=8
+   02 DOWN: focus='Backup schedule | Choose how often ArchiveTune creates a bac' bounds=[224, 324, 1832, 553] interactive=9
+   03 DOWN: focus='Backup directory | Choose a folder to enable scheduled backu' bounds=[224, 324, 1832, 460] interactive=9
+   04 DOWN: focus='Drive folder | Not set — tap to pick a Drive folder' bounds=[224, 324, 1832, 460] interactive=5
+   05 DOWN: focus='Backup | Export library, settings, and account details.' bounds=[224, 332, 1832, 468] interactive=9
+   06 UP: focus='Drive folder | Not set — tap to pick a Drive folder' bounds=[224, 324, 1832, 460] interactive=5
+   07 UP: focus='Backup directory | Choose a folder to enable scheduled backu' bounds=[224, 324, 1832, 460] interactive=9
+   08 CENTER: focus='' bounds=[1720, 16, 1816, 112] interactive=3
+   09 DOWN: focus=None interactive=3
+   10 BACK: focus='Home | Home' bounds=[296, 64, 438, 104] interactive=24
+   11 UP: focus='Home | Home' bounds=[296, 64, 438, 104] interactive=24
+   12 LEFT: focus='Click to speak' bounds=[119, 48, 205, 127] interactive=25
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+   FATAL --------- beginning of crash
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: FATAL EXCEPTION: main
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: Process: moe.rukamori.archivetune.debug, PID: 2981
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: android.content.ActivityNotFoundException: No Activity found to handle Intent { act=android.intent.action.OPEN_DOCUMENT_TREE }
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: 	at android.app.Instrumentation.checkStartActivityResult(Instrumentation.java:2067)
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: 	at android.app.Instrumentation.execStartActivity(Instrumentation.java:1727)
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: 	at android.app.Activity.startActivityForResult(Activity.java:5320)
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: 	at androidx.activity.ComponentActivity.startActivityForResult(SourceFile:707)
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: 	at androidx.core.app.ActivityCompat.startActivityForResult(SourceFile:248)
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: 	at androidx.activity.ComponentActivity$activityResultRegistry$1.onLaunch(SourceFile:226)
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: 	at androidx.activity.result.ActivityResultRegistry$register$3.launch(SourceFile:191)
+   FATAL 10-20 02:01:49.161  2981  2981 E AndroidRuntime: 	at androidx.activity.compose.ActivityResultLauncherHolder.launch(SourceFile:150)
+## settings_sources (settings/sources)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='Preferred sources | Tidal' bounds=[224, 251, 1832, 387] interactive=8
+   02 DOWN: focus='Default metadata source | Choose which catalog supplies titl' bounds=[224, 324, 1832, 553] interactive=9
+   03 DOWN: focus='Default search source | Choose which online catalog the Sear' bounds=[224, 324, 1832, 553] interactive=11
+   04 DOWN: focus='Spotify catalog | Use Spotify for metadata and search only; ' bounds=[224, 324, 1832, 460] interactive=10
+   05 DOWN: focus='Audio quality | YouTube fallback quality. Other services use' bounds=[224, 324, 1832, 553] interactive=11
+   06 UP: focus='Spotify catalog | Use Spotify for metadata and search only; ' bounds=[224, 324, 1832, 460] interactive=10
+   07 UP: focus='Default search source | Choose which online catalog the Sear' bounds=[224, 324, 1832, 553] interactive=11
+   08 CENTER: focus='Drag handle' bounds=[912, 102, 1008, 200] interactive=6
+   09 DOWN: focus='YouTube Music' bounds=[372, 778, 1548, 922] interactive=4
+   10 BACK: focus='Default search source | Choose which online catalog the Sear' bounds=[224, 324, 1832, 553] interactive=11
+   11 UP: focus='Default metadata source | Choose which catalog supplies titl' bounds=[224, 324, 1832, 553] interactive=9
+   12 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=9
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_integration (settings/integration)
+   start: focus=None interactive=9
+   01 RIGHT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=9
+   02 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=9
+   03 DOWN: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=9
+   04 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=9
+   05 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=9
+   06 UP: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=9
+   07 UP: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=9
+   08 CENTER: focus='A' bounds=[226, 299, 330, 403] interactive=54
+   09 DOWN: focus='G' bounds=[226, 383, 330, 487] interactive=54
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   11 UP: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_internet (settings/internet)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   01 RIGHT: focus='YouTube Music region | Spoof your country for the home feed,' bounds=[224, 324, 1832, 553] interactive=11
+   02 DOWN: focus='DNS over HTTPS | Use DNS over HTTPS (DoH) to resolve hostnam' bounds=[224, 482, 1832, 618] interactive=11
+   03 DOWN: focus='Enable proxy' bounds=[224, 693, 1832, 805] interactive=11
+   04 DOWN: focus='IP Rotation | Rotate the current IP when playback or content' bounds=[224, 880, 1832, 1016] interactive=11
+   05 DOWN: focus='IP Rotation | Rotate the current IP when playback or content' bounds=[224, 880, 1832, 1016] interactive=11
+   06 UP: focus='Enable proxy' bounds=[224, 693, 1832, 805] interactive=11
+   07 UP: focus='DNS over HTTPS | Use DNS over HTTPS (DoH) to resolve hostnam' bounds=[224, 482, 1832, 618] interactive=11
+   08 CENTER: focus='DNS over HTTPS | Use DNS over HTTPS (DoH) to resolve hostnam' bounds=[224, 482, 1832, 618] interactive=11
+   09 DOWN: focus='DNS Provider | Cloudflare' bounds=[224, 430, 1832, 618] interactive=12
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_tidal (settings/tidal)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='Sign in with Tidal (web)' bounds=[224, 251, 1832, 363] interactive=8
+   02 DOWN: focus='Paste token instead | Paste a Tidal o2_refresh token (the lo' bounds=[224, 364, 1832, 574] interactive=8
+   03 DOWN: focus='Manage instances | 0 configured · 0 online · 0 deprecated · ' bounds=[224, 649, 1832, 785] interactive=8
+   04 DOWN: focus='Test instances' bounds=[224, 786, 1832, 898] interactive=8
+   05 DOWN: focus='Test instances' bounds=[224, 786, 1832, 898] interactive=8
+   06 UP: focus='Manage instances | 0 configured · 0 online · 0 deprecated · ' bounds=[224, 649, 1832, 785] interactive=8
+   07 UP: focus='Paste token instead | Paste a Tidal o2_refresh token (the lo' bounds=[224, 364, 1832, 574] interactive=8
+   08 CENTER: focus='Refresh token' bounds=[96, 190, 1824, 302] interactive=2
+   09 DOWN: focus='Refresh token' bounds=[96, 190, 1824, 302] interactive=2
+   10 BACK: focus='Refresh token' bounds=[96, 430, 1824, 542] interactive=2
+   11 UP: focus='Refresh token' bounds=[96, 430, 1824, 542] interactive=2
+   12 LEFT: focus='Refresh token' bounds=[96, 430, 1824, 542] interactive=2
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_qobuz (settings/qobuz)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='Enable Qobuz source | Route playback through your Qobuz prox' bounds=[224, 251, 1832, 387] interactive=8
+   02 DOWN: focus='Sign in with Qobuz (web)' bounds=[224, 443, 1832, 555] interactive=9
+   03 DOWN: focus='Manage accounts | 0 configured · 0 online · 0 deprecated · 0' bounds=[224, 556, 1832, 692] interactive=9
+   04 DOWN: focus='Manage instances | 0 configured · 0 online · 0 deprecated · ' bounds=[224, 880, 1832, 1016] interactive=9
+   05 DOWN: focus='Manage instances | 0 configured · 0 online · 0 deprecated · ' bounds=[224, 880, 1832, 1016] interactive=9
+   06 UP: focus='Manage accounts | 0 configured · 0 online · 0 deprecated · 0' bounds=[224, 556, 1832, 692] interactive=9
+   07 UP: focus='Sign in with Qobuz (web)' bounds=[224, 443, 1832, 555] interactive=9
+   08 CENTER: focus='Drag handle' bounds=[912, 0, 1008, 96] interactive=3
+   09 DOWN: focus='Qobuz | Qobuz' bounds=[360, 244, 1560, 1040] interactive=3
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=9
+   11 UP: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=9
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=9
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_deezer (settings/deezer)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   01 RIGHT: focus='Sign in to Deezer | Use your own Deezer account instead of t' bounds=[224, 251, 1832, 387] interactive=7
+   02 DOWN: focus='Sign in with ARL | Paste the arl cookie from a signed-in dee' bounds=[224, 388, 1832, 524] interactive=7
+   03 DOWN: focus='API instances | None added. Add a self-hosted Deezer instanc' bounds=[224, 599, 1832, 735] interactive=7
+   04 DOWN: focus='API instances | None added. Add a self-hosted Deezer instanc' bounds=[224, 599, 1832, 735] interactive=7
+   05 DOWN: focus='API instances | None added. Add a self-hosted Deezer instanc' bounds=[224, 599, 1832, 735] interactive=7
+   06 UP: focus='Sign in with ARL | Paste the arl cookie from a signed-in dee' bounds=[224, 388, 1832, 524] interactive=7
+   07 UP: focus='Sign in to Deezer | Use your own Deezer account instead of t' bounds=[224, 251, 1832, 387] interactive=7
+   08 CENTER: focus='Deezer login: Sign in to your Deezer account | Deezer login:' bounds=[360, 244, 1560, 696] interactive=6
+   09 DOWN: focus='Deezer logo | Deezer logo | Deezer logo' bounds=[376, 292, 590, 352] interactive=11
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   11 UP: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=false scope=0 usable=0 result=false first=null
+   LOG enterContent offscreen=true scope=0 usable=0 result=false first=null
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_lastfm (settings/lastfm)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=9
+   01 RIGHT: focus='Connect with Last.fm | Opens a one-tap Last.fm web sign-in. ' bounds=[224, 251, 1832, 387] interactive=9
+   02 DOWN: focus='Connect with Libre.fm | One-tap Libre.fm web sign-in. Uses t' bounds=[224, 324, 1832, 460] interactive=9
+   03 DOWN: focus='Custom endpoint | Self-hosted GNU FM / ListenBrainz-compatib' bounds=[224, 324, 1832, 460] interactive=10
+   04 DOWN: focus='Prefer YouTube thumbnails | Use 16:9 YouTube artwork instead' bounds=[224, 395, 1832, 531] interactive=10
+   05 DOWN: focus='Minimum Track Duration | 30s' bounds=[224, 606, 1832, 742] interactive=10
+   06 UP: focus='Prefer YouTube thumbnails | Use 16:9 YouTube artwork instead' bounds=[224, 395, 1832, 531] interactive=10
+   07 UP: focus='Custom endpoint | Self-hosted GNU FM / ListenBrainz-compatib' bounds=[224, 324, 1832, 460] interactive=10
+   08 CENTER: focus='Custom endpoint | https://my-scrobbler.example.com/2.0/' bounds=[448, 346, 1472, 474] interactive=5
+   09 DOWN: focus='Custom endpoint | https://my-scrobbler.example.com/2.0/' bounds=[448, 346, 1472, 474] interactive=5
+   10 BACK: focus='Custom endpoint | https://my-scrobbler.example.com/2.0/' bounds=[448, 346, 1472, 474] interactive=5
+   11 UP: focus='Custom endpoint | https://my-scrobbler.example.com/2.0/' bounds=[448, 346, 1472, 474] interactive=5
+   12 LEFT: focus='Custom endpoint | https://my-scrobbler.example.com/2.0/' bounds=[448, 346, 1472, 474] interactive=5
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_discord (settings/discord)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=6
+   01 RIGHT: focus='Open Discord authorization' bounds=[264, 324, 1792, 436] interactive=8
+   02 DOWN: focus='Activity Status | Online' bounds=[224, 324, 1832, 512] interactive=9
+   03 DOWN: focus='Platform | Android' bounds=[224, 324, 1832, 512] interactive=10
+   04 DOWN: focus='Activity name | ArchiveTune Debug' bounds=[224, 324, 1832, 512] interactive=13
+   05 DOWN: focus='Activity details | Song title' bounds=[224, 324, 1832, 512] interactive=12
+   06 UP: focus='Activity name | ArchiveTune Debug' bounds=[224, 324, 1832, 512] interactive=13
+   07 UP: focus='Platform | Android' bounds=[224, 324, 1832, 512] interactive=10
+   08 CENTER: focus='Drag handle' bounds=[912, 0, 1008, 98] interactive=7
+   09 DOWN: focus='Desktop' bounds=[372, 737, 1548, 881] interactive=4
+   10 BACK: focus='Platform | Android' bounds=[224, 324, 1832, 512] interactive=10
+   11 UP: focus='Activity Status | Online' bounds=[224, 324, 1832, 512] interactive=9
+   12 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=9
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_ai_integration (settings/ai_integration)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   01 RIGHT: focus='AI provider | Choose the AI service. | None (Disabled)' bounds=[224, 251, 1832, 480] interactive=7
+   02 DOWN: focus='Hide AI Mix | Hide the AI-generated mixes section in your li' bounds=[224, 458, 1832, 594] interactive=7
+   03 DOWN: focus='Hide AI Mix | Hide the AI-generated mixes section in your li' bounds=[224, 458, 1832, 594] interactive=7
+   04 DOWN: focus='Hide AI Mix | Hide the AI-generated mixes section in your li' bounds=[224, 458, 1832, 594] interactive=7
+   05 DOWN: focus='Hide AI Mix | Hide the AI-generated mixes section in your li' bounds=[224, 458, 1832, 594] interactive=7
+   06 UP: focus='AI provider | Choose the AI service. | None (Disabled)' bounds=[224, 251, 1832, 480] interactive=7
+   07 UP: focus='AI provider | Choose the AI service. | None (Disabled)' bounds=[224, 251, 1832, 480] interactive=7
+   08 CENTER: focus='Drag handle' bounds=[912, 0, 1008, 98] interactive=7
+   09 DOWN: focus='Gemini' bounds=[372, 737, 1548, 881] interactive=4
+   10 BACK: focus='AI provider | Choose the AI service. | None (Disabled)' bounds=[224, 251, 1832, 480] interactive=7
+   11 UP: focus='AI provider | Choose the AI service. | None (Disabled)' bounds=[224, 251, 1832, 480] interactive=7
+   12 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=7
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_android_auto (settings/android_auto)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=11
+   01 RIGHT: focus='App permissions' bounds=[224, 324, 1832, 436] interactive=13
+   02 DOWN: focus='Online recommendations | Show suggested songs, mixes and rad' bounds=[224, 324, 1832, 460] interactive=15
+   03 DOWN: focus='Online voice search | Include online results when you ask fo' bounds=[224, 324, 1832, 460] interactive=16
+   04 DOWN: focus='Device songs | Include audio stored on this device' bounds=[224, 324, 1832, 460] interactive=15
+   05 DOWN: focus='Stream on metered networks | Allow online playback over mobi' bounds=[224, 324, 1832, 460] interactive=14
+   06 UP: focus='Device songs | Include audio stored on this device' bounds=[224, 324, 1832, 460] interactive=15
+   07 UP: focus='Online voice search | Include online results when you ask fo' bounds=[224, 324, 1832, 460] interactive=16
+   08 CENTER: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=16
+   09 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=16
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_language_packs (settings/language_packs)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=5
+   01 RIGHT: focus='Download' bounds=[1588, 482, 1800, 578] interactive=5
+   02 DOWN: focus='Download' bounds=[1588, 482, 1800, 578] interactive=5
+   03 DOWN: focus='Download' bounds=[1588, 482, 1800, 578] interactive=5
+   04 DOWN: focus='Download' bounds=[1588, 482, 1800, 578] interactive=5
+   05 DOWN: focus='Download' bounds=[1588, 482, 1800, 578] interactive=5
+   06 UP: focus='Download' bounds=[1588, 482, 1800, 578] interactive=5
+   07 UP: focus='Download' bounds=[1588, 482, 1800, 578] interactive=5
+   08 CENTER: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=5
+   09 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_hidden_playlists (settings/hidden_playlists)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=4
+   01 RIGHT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=4
+   02 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=4
+   03 DOWN: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=4
+   04 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=4
+   05 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=4
+   06 UP: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=4
+   07 UP: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=4
+   08 CENTER: focus='A' bounds=[226, 299, 330, 403] interactive=54
+   09 DOWN: focus='G' bounds=[226, 383, 330, 487] interactive=54
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   11 UP: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   LOG enterContent offscreen=false scope=1 usable=1 result=false first=Rect.fromLTRB(216.0, 64.0, 312.0, 160.0)
+   LOG enterContent offscreen=true scope=1 usable=1 result=false first=Rect.fromLTRB(216.0, 64.0, 312.0, 160.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_misc (settings/misc)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=13
+   01 RIGHT: focus='Show Debug UI | Enable debug settings lines' bounds=[224, 251, 1832, 387] interactive=13
+   02 DOWN: focus='Show nerd stats | Display real-time playback statistics (cod' bounds=[224, 388, 1832, 524] interactive=13
+   03 DOWN: focus='Display Codec on Player | Show current audio codec informati' bounds=[224, 525, 1832, 661] interactive=13
+   04 DOWN: focus='Manual source sign-in | Show the advanced Tidal/Qobuz instan' bounds=[224, 662, 1832, 835] interactive=13
+   05 DOWN: focus='Debug Logs | View and filter application logs' bounds=[224, 836, 1832, 972] interactive=13
+   06 UP: focus='Manual source sign-in | Show the advanced Tidal/Qobuz instan' bounds=[224, 662, 1832, 835] interactive=13
+   07 UP: focus='Display Codec on Player | Show current audio codec informati' bounds=[224, 525, 1832, 661] interactive=13
+   08 CENTER: focus='Display Codec on Player | Show current audio codec informati' bounds=[224, 525, 1832, 661] interactive=13
+   09 DOWN: focus='Manual source sign-in | Show the advanced Tidal/Qobuz instan' bounds=[224, 662, 1832, 835] interactive=13
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_update (settings/update)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   01 RIGHT: focus='Check for Update' bounds=[264, 324, 968, 420] interactive=10
+   02 DOWN: focus='View Changelog' bounds=[264, 324, 968, 420] interactive=11
+   03 DOWN: focus='Stable' bounds=[1088, 316, 1441, 412] interactive=12
+   04 DOWN: focus='Recent Commits | 50 recent commits' bounds=[224, 324, 1832, 468] interactive=11
+   05 DOWN: focus='Merge PR #228: ArchiveTune 18.0 | 37824e2 | yuki - Oct 16' bounds=[224, 324, 1832, 485] interactive=9
+   06 UP: focus='Recent Commits | 50 recent commits' bounds=[224, 324, 1832, 468] interactive=11
+   07 UP: focus='Stable' bounds=[1088, 316, 1441, 412] interactive=12
+   08 CENTER: focus='Stable' bounds=[1088, 316, 1441, 412] interactive=12
+   09 DOWN: focus='Recent Commits | 50 recent commits' bounds=[224, 324, 1832, 468] interactive=11
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_about (settings/about)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=4
+   01 RIGHT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=4
+   02 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=4
+   03 DOWN: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=4
+   04 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=4
+   05 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=4
+   06 UP: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=4
+   07 UP: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=4
+   08 CENTER: focus='A' bounds=[226, 299, 330, 403] interactive=54
+   09 DOWN: focus='G' bounds=[226, 383, 330, 487] interactive=54
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   11 UP: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   LOG enterContent offscreen=false scope=1 usable=1 result=false first=Rect.fromLTRB(240.0, 64.0, 336.0, 160.0)
+   LOG enterContent offscreen=true scope=1 usable=1 result=false first=Rect.fromLTRB(240.0, 64.0, 336.0, 160.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_po_token (settings/po_token)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=6
+   01 RIGHT: focus='Web Client PO Token | Enable PO token generation for web-bas' bounds=[224, 176, 1832, 312] interactive=6
+   02 DOWN: focus='Web Client PO Token | Enable PO token generation for web-bas' bounds=[224, 176, 1832, 312] interactive=6
+   03 DOWN: focus='Web Client PO Token | Enable PO token generation for web-bas' bounds=[224, 176, 1832, 312] interactive=6
+   04 DOWN: focus='Web Client PO Token | Enable PO token generation for web-bas' bounds=[224, 176, 1832, 312] interactive=6
+   05 DOWN: focus='Web Client PO Token | Enable PO token generation for web-bas' bounds=[224, 176, 1832, 312] interactive=6
+   06 UP: focus='Web Client PO Token | Enable PO token generation for web-bas' bounds=[224, 176, 1832, 312] interactive=6
+   07 UP: focus='Web Client PO Token | Enable PO token generation for web-bas' bounds=[224, 176, 1832, 312] interactive=6
+   08 CENTER: focus='Web Client PO Token | Enable PO token generation for web-bas' bounds=[224, 176, 1832, 312] interactive=8
+   09 DOWN: focus='Visitor Data | CgtMeGw3T1VOcFg1USiEjNvWBjIKCgJVUxIEGgAgEWK5A' bounds=[224, 704, 1832, 888] interactive=8
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_jiosaavn (settings/jiosaavn)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   01 RIGHT: focus='Enable JioSaavn source | Route playback through JioSaavn's p' bounds=[224, 376, 1832, 549] interactive=7
+   02 DOWN: focus='JioSaavn (via vivimusic) | Streaming powered by Vivi Music. ' bounds=[224, 813, 1832, 949] interactive=7
+   03 DOWN: focus='JioSaavn (via vivimusic) | Streaming powered by Vivi Music. ' bounds=[224, 813, 1832, 949] interactive=7
+   04 DOWN: focus='JioSaavn (via vivimusic) | Streaming powered by Vivi Music. ' bounds=[224, 813, 1832, 949] interactive=7
+   05 DOWN: focus='JioSaavn (via vivimusic) | Streaming powered by Vivi Music. ' bounds=[224, 813, 1832, 949] interactive=7
+   06 UP: focus='Enable JioSaavn source | Route playback through JioSaavn's p' bounds=[224, 376, 1832, 549] interactive=7
+   07 UP: focus='Enable JioSaavn source | Route playback through JioSaavn's p' bounds=[224, 376, 1832, 549] interactive=7
+   08 CENTER: focus='Enable JioSaavn source | Route playback through JioSaavn's p' bounds=[224, 376, 1832, 549] interactive=8
+   09 DOWN: focus='Audio quality | 320 kbps' bounds=[224, 550, 1832, 738] interactive=8
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## settings_telegram (settings/telegram)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='Sign in with Telegram | Enter your phone number — a login co' bounds=[224, 447, 1832, 583] interactive=8
+   02 DOWN: focus='Lossless files only | Only list FLAC, WAV, AIFF and other lo' bounds=[224, 669, 1832, 805] interactive=8
+   03 DOWN: focus='Lossless files only | Only list FLAC, WAV, AIFF and other lo' bounds=[224, 669, 1832, 805] interactive=8
+   04 DOWN: focus='Lossless files only | Only list FLAC, WAV, AIFF and other lo' bounds=[224, 669, 1832, 805] interactive=8
+   05 DOWN: focus='Lossless files only | Only list FLAC, WAV, AIFF and other lo' bounds=[224, 669, 1832, 805] interactive=8
+   06 UP: focus='Sign in with Telegram | Enter your phone number — a login co' bounds=[224, 447, 1832, 583] interactive=8
+   07 UP: focus='Download' bounds=[1572, 291, 1800, 387] interactive=8
+   08 CENTER: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   09 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=7
+   10 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 UP: focus='Account' bounds=[220, 64, 316, 160] interactive=12
+   12 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## home (home)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   01 RIGHT: focus='Choosin' Texas | Ella Langley' bounds=[214, 309, 482, 716] interactive=16
+   02 DOWN: focus='Throwback 2000s Hits' bounds=[214, 309, 482, 716] interactive=22
+   03 DOWN: focus='phonk 2026' bounds=[214, 309, 482, 716] interactive=22
+   04 DOWN: focus='Blue Moon | Zara Larsson' bounds=[214, 309, 482, 716] interactive=22
+   05 UP: focus='phonk 2026' bounds=[214, 309, 482, 716] interactive=24
+   06 UP: focus='Throwback 2000s Hits' bounds=[214, 309, 482, 716] interactive=24
+   07 RIGHT: focus='white girl music' bounds=[490, 309, 758, 716] interactive=24
+   08 LEFT: focus='Throwback 2000s Hits' bounds=[214, 309, 482, 716] interactive=24
+   09 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=24
+   10 CENTER: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=12
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=24
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=24
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## search (search)
+   start: focus='A' bounds=[226, 169, 330, 273] interactive=51
+   01 RIGHT: focus='B' bounds=[314, 169, 418, 257] interactive=51
+   02 DOWN: focus='H' bounds=[314, 253, 418, 341] interactive=51
+   03 DOWN: focus='N' bounds=[314, 337, 418, 425] interactive=51
+   04 DOWN: focus='T' bounds=[314, 421, 418, 509] interactive=51
+   05 UP: focus='N' bounds=[314, 337, 418, 425] interactive=51
+   06 UP: focus='H' bounds=[314, 253, 418, 341] interactive=51
+   07 RIGHT: focus='I' bounds=[402, 253, 505, 341] interactive=51
+   08 LEFT: focus='H' bounds=[314, 253, 418, 341] interactive=51
+   09 LEFT: focus='G' bounds=[226, 253, 330, 357] interactive=51
+   10 CENTER: focus='G' bounds=[226, 253, 330, 357] interactive=58
+   11 BACK: focus='G' bounds=[226, 253, 330, 357] interactive=51
+   12 DOWN: focus='M' bounds=[226, 337, 330, 441] interactive=51
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## library (library)
+   start: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=12
+   01 RIGHT: focus='Playlists' bounds=[232, 224, 1824, 336] interactive=12
+   02 DOWN: focus='Artists' bounds=[232, 337, 1824, 449] interactive=12
+   03 DOWN: focus='Offline' bounds=[232, 372, 1824, 484] interactive=12
+   04 DOWN: focus='Cached' bounds=[232, 324, 1824, 436] interactive=13
+   05 UP: focus='Offline' bounds=[232, 324, 1824, 436] interactive=12
+   06 UP: focus='Artists' bounds=[232, 324, 1824, 436] interactive=12
+   07 RIGHT: focus='Play' bounds=[1590, 376, 1776, 472] interactive=10
+   08 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=9
+   09 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=9
+   10 CENTER: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=9
+   11 BACK: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=12
+   12 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## local_songs (local_songs)
+   start: focus=None interactive=7
+   01 RIGHT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   02 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=7
+   03 DOWN: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=7
+   04 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=7
+   05 UP: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=7
+   06 UP: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=7
+   07 RIGHT: focus='Settings' bounds=[230, 442, 326, 538] interactive=7
+   08 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=7
+   09 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=7
+   10 CENTER: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=12
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## history (history)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='Play' bounds=[232, 450, 1018, 546] interactive=8
+   02 DOWN: focus='Play' bounds=[232, 466, 1018, 562] interactive=8
+   03 DOWN: focus='Play' bounds=[232, 468, 1018, 564] interactive=8
+   04 DOWN: focus='Play' bounds=[232, 468, 1018, 564] interactive=8
+   05 UP: focus='' bounds=[1720, 16, 1816, 112] interactive=8
+   06 UP: focus='' bounds=[1720, 16, 1816, 112] interactive=8
+   07 RIGHT: focus='' bounds=[1720, 16, 1816, 112] interactive=8
+   08 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   09 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   10 CENTER: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 BACK: focus='Home | Home' bounds=[296, 64, 438, 104] interactive=24
+   12 DOWN: focus='Start Watching | YouTube | Experience what the world’s watch' bounds=[60, 412, 1812, 812] interactive=13
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## library_playlists (library_playlists)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   01 RIGHT: focus='Custom order' bounds=[240, 416, 582, 512] interactive=10
+   02 DOWN: focus='All' bounds=[236, 530, 400, 628] interactive=10
+   03 DOWN: focus='All' bounds=[236, 530, 400, 628] interactive=10
+   04 DOWN: focus='All' bounds=[236, 530, 400, 628] interactive=10
+   05 UP: focus='Custom order' bounds=[240, 416, 582, 512] interactive=10
+   06 UP: focus='Custom order' bounds=[240, 416, 582, 512] interactive=10
+   07 RIGHT: focus='' bounds=[1512, 416, 1608, 512] interactive=10
+   08 LEFT: focus='Custom order' bounds=[240, 416, 582, 512] interactive=10
+   09 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=10
+   10 CENTER: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=12
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## library_artists (library_artists)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   01 RIGHT: focus='Newest first' bounds=[240, 416, 547, 512] interactive=7
+   02 DOWN: focus='Newest first' bounds=[240, 416, 547, 512] interactive=7
+   03 DOWN: focus='Newest first' bounds=[240, 416, 547, 512] interactive=7
+   04 DOWN: focus='Newest first' bounds=[240, 416, 547, 512] interactive=7
+   05 UP: focus='Newest first' bounds=[240, 416, 547, 512] interactive=7
+   06 UP: focus='Newest first' bounds=[240, 416, 547, 512] interactive=7
+   07 RIGHT: focus='Descending' bounds=[547, 416, 643, 512] interactive=7
+   08 LEFT: focus='Newest first' bounds=[240, 416, 547, 512] interactive=7
+   09 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=7
+   10 CENTER: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=12
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## stats (stats)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=5
+   01 RIGHT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=5
+   02 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   03 DOWN: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=5
+   04 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=5
+   05 UP: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=5
+   06 UP: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   07 RIGHT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   08 LEFT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   09 LEFT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   10 CENTER: focus='A' bounds=[226, 299, 330, 403] interactive=54
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=10
+   LOG enterContent offscreen=false scope=2 usable=2 result=false first=Rect.fromLTRB(224.0, 16.0, 320.0, 112.0)
+   LOG enterContent offscreen=true scope=2 usable=2 result=false first=Rect.fromLTRB(224.0, 16.0, 320.0, 112.0)
+   LOG enterContent offscreen=false scope=2 usable=2 result=false first=Rect.fromLTRB(224.0, 16.0, 320.0, 112.0)
+   LOG enterContent offscreen=true scope=2 usable=2 result=false first=Rect.fromLTRB(224.0, 16.0, 320.0, 112.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## news (news)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=6
+   01 RIGHT: focus='Search' bounds=[1664, 16, 1760, 112] interactive=6
+   02 DOWN: focus='Search' bounds=[1664, 16, 1760, 112] interactive=6
+   03 DOWN: focus='Search' bounds=[1664, 16, 1760, 112] interactive=6
+   04 DOWN: focus='Search' bounds=[1664, 16, 1760, 112] interactive=6
+   05 UP: focus='Search' bounds=[1664, 16, 1760, 112] interactive=6
+   06 UP: focus='Search' bounds=[1664, 16, 1760, 112] interactive=6
+   07 RIGHT: focus='Retry' bounds=[1760, 16, 1856, 112] interactive=6
+   08 LEFT: focus='Search' bounds=[1664, 16, 1760, 112] interactive=6
+   09 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=6
+   10 CENTER: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 BACK: focus='Home | Home' bounds=[296, 64, 438, 104] interactive=24
+   12 DOWN: focus='Start Watching | YouTube | Experience what the world’s watch' bounds=[60, 412, 1812, 812] interactive=13
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## account (account)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=6
+   01 RIGHT: focus='Playlists' bounds=[216, 192, 449, 288] interactive=7
+   02 DOWN: focus='Playlists' bounds=[216, 192, 449, 288] interactive=7
+   03 DOWN: focus='Playlists' bounds=[216, 192, 449, 288] interactive=7
+   04 DOWN: focus='Playlists' bounds=[216, 192, 449, 288] interactive=7
+   05 UP: focus='Playlists' bounds=[216, 192, 449, 288] interactive=7
+   06 UP: focus='Playlists' bounds=[216, 192, 449, 288] interactive=7
+   07 RIGHT: focus='Albums' bounds=[465, 192, 654, 288] interactive=7
+   08 LEFT: focus='Playlists' bounds=[216, 192, 449, 288] interactive=7
+   09 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=6
+   10 CENTER: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 BACK: focus='Home | Home' bounds=[296, 64, 438, 104] interactive=24
+   12 DOWN: focus='Start Watching | YouTube | Experience what the world’s watch' bounds=[60, 412, 1812, 812] interactive=13
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## new_release (new_release)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=24
+   01 RIGHT: focus='' bounds=[200, 16, 296, 112] interactive=24
+   02 DOWN: focus='All | All' bounds=[232, 216, 376, 312] interactive=30
+   03 DOWN: focus='MIAU MIAU MIAU BAILE FUNK | NZXT, HALO ZER0, FUKLAB' bounds=[200, 316, 504, 728] interactive=35
+   04 DOWN: focus='The Aura Farmer | Horror Skunx' bounds=[200, 324, 504, 736] interactive=38
+   05 UP: focus='MIAU MIAU MIAU BAILE FUNK | NZXT, HALO ZER0, FUKLAB' bounds=[200, 436, 504, 848] interactive=30
+   06 UP: focus='All | All' bounds=[232, 320, 376, 416] interactive=24
+   07 RIGHT: focus='Albums | Albums' bounds=[392, 320, 621, 416] interactive=24
+   08 LEFT: focus='All | All' bounds=[232, 320, 376, 416] interactive=24
+   09 LEFT: focus='' bounds=[200, 16, 296, 112] interactive=24
+   10 CENTER: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   11 BACK: focus='Home | Home' bounds=[296, 64, 438, 104] interactive=24
+   12 DOWN: focus='Start Watching | YouTube | Experience what the world’s watch' bounds=[60, 412, 1812, 812] interactive=13
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## charts_screen (charts_screen)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=5
+   01 RIGHT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=5
+   02 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   03 DOWN: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=5
+   04 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=5
+   05 UP: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=5
+   06 UP: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   07 RIGHT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   08 LEFT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   09 LEFT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   10 CENTER: focus='A' bounds=[226, 299, 330, 403] interactive=54
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=10
+   LOG enterContent offscreen=false scope=2 usable=2 result=false first=Rect.fromLTRB(224.0, 16.0, 320.0, 112.0)
+   LOG enterContent offscreen=true scope=2 usable=2 result=false first=Rect.fromLTRB(224.0, 16.0, 320.0, 112.0)
+   LOG enterContent offscreen=false scope=2 usable=2 result=false first=Rect.fromLTRB(224.0, 16.0, 320.0, 112.0)
+   LOG enterContent offscreen=true scope=2 usable=2 result=false first=Rect.fromLTRB(224.0, 16.0, 320.0, 112.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## mood_and_genres (mood_and_genres)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=21
+   01 RIGHT: focus='Chill' bounds=[216, 301, 604, 501] interactive=21
+   02 DOWN: focus='Focus' bounds=[216, 324, 604, 524] interactive=25
+   03 DOWN: focus='Romance' bounds=[216, 324, 604, 524] interactive=28
+   04 DOWN: focus='African' bounds=[216, 324, 604, 524] interactive=28
+   05 UP: focus='Romance' bounds=[216, 324, 604, 524] interactive=28
+   06 UP: focus='Focus' bounds=[216, 324, 604, 524] interactive=25
+   07 RIGHT: focus='Gaming' bounds=[628, 324, 1016, 524] interactive=25
+   08 LEFT: focus='Focus' bounds=[216, 324, 604, 524] interactive=25
+   09 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=25
+   10 CENTER: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=12
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## smart_playlists (smart_playlists)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   01 RIGHT: focus='Rediscover | Songs you liked but haven't heard in 3 months, ' bounds=[192, 268, 1864, 412] interactive=10
+   02 DOWN: focus='Never played | Songs in your library you have never listened' bounds=[192, 414, 1864, 558] interactive=10
+   03 DOWN: focus='Added this month | Everything added to your library in the l' bounds=[192, 560, 1864, 704] interactive=10
+   04 DOWN: focus='On repeat | Songs you have played 5 times or more, most play' bounds=[192, 706, 1864, 850] interactive=10
+   05 UP: focus='Added this month | Everything added to your library in the l' bounds=[192, 560, 1864, 704] interactive=10
+   06 UP: focus='Never played | Songs in your library you have never listened' bounds=[192, 414, 1864, 558] interactive=10
+   07 RIGHT: focus='Never played | Songs in your library you have never listened' bounds=[192, 414, 1864, 558] interactive=10
+   08 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=10
+   09 LEFT: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=10
+   10 CENTER: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=12
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## listen_together (listen_together)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=7
+   01 RIGHT: focus='Connect' bounds=[256, 324, 1800, 427] interactive=8
+   02 DOWN: focus='Username' bounds=[264, 274, 1792, 411] interactive=9
+   03 DOWN: focus='Username' bounds=[264, 274, 1792, 411] interactive=9
+   04 DOWN: focus='Username' bounds=[264, 274, 1792, 411] interactive=9
+   05 UP: focus='Username' bounds=[264, 274, 1792, 411] interactive=9
+   06 UP: focus='Username' bounds=[264, 274, 1792, 411] interactive=9
+   07 RIGHT: focus='Username' bounds=[264, 274, 1792, 411] interactive=9
+   08 LEFT: focus='Username' bounds=[264, 274, 1792, 411] interactive=9
+   09 LEFT: focus='Username' bounds=[264, 274, 1792, 411] interactive=9
+   10 CENTER: focus='p | p | Username' bounds=[264, 274, 1792, 411] interactive=11
+   11 BACK: focus='p | p | Username' bounds=[264, 274, 1792, 411] interactive=11
+   12 DOWN: focus='Room name | Optional — shown to everyone you invite' bounds=[264, 362, 1792, 499] interactive=11
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## customize_background (customize_background)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=4
+   01 RIGHT: focus=None interactive=4
+   02 DOWN: focus=None interactive=4
+   03 DOWN: focus=None interactive=4
+   04 DOWN: focus=None interactive=4
+   05 UP: focus=None interactive=4
+   06 UP: focus=None interactive=4
+   07 RIGHT: focus=None interactive=4
+   08 LEFT: focus=None interactive=4
+   09 LEFT: focus=None interactive=4
+   10 CENTER: focus=None interactive=4
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=12
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=12
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## artist_UCedvOgsKFzcK3hA5taf3KoQ_songs (artist/UCedvOgsKFzcK3hA5taf3KoQ/songs)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=8
+   01 RIGHT: focus='Date added' bounds=[312, 189, 519, 285] interactive=8
+   02 DOWN: focus='' bounds=[1576, 936, 1832, 1048] interactive=8
+   03 DOWN: focus='' bounds=[1576, 936, 1832, 1048] interactive=8
+   04 DOWN: focus='' bounds=[1576, 936, 1832, 1048] interactive=8
+   05 UP: focus='Descending' bounds=[527, 188, 623, 284] interactive=8
+   06 UP: focus='Descending' bounds=[527, 188, 623, 284] interactive=8
+   07 RIGHT: focus='' bounds=[1576, 936, 1832, 1048] interactive=8
+   08 LEFT: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=8
+   09 LEFT: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=8
+   10 CENTER: focus='Account' bounds=[232, 163, 840, 259] interactive=15
+   11 BACK: focus='' bounds=[1576, 936, 1832, 1048] interactive=8
+   12 DOWN: focus='' bounds=[1576, 936, 1832, 1048] interactive=8
+   LOG settings hub created
+   LOG settings state entered=false leaving=false entering=false sel=account route=tv_settings_blank
+   LOG settings state entered=false leaving=false entering=false sel=account route=tv_settings_blank
+   LOG settings state entered=false leaving=false entering=false sel=account route=settings/account
+   LOG settings row focused key=account entered=false leaving=false
+   LOG settings hub disposed
+   LOG enterContent offscreen=false scope=5 usable=5 result=true first=Rect.fromLTRB(312.0, 196.0, 519.0, 277.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## artist_UCedvOgsKFzcK3hA5taf3KoQ_albums (artist/UCedvOgsKFzcK3hA5taf3KoQ/albums)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=5
+   01 RIGHT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=5
+   02 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   03 DOWN: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=5
+   04 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=5
+   05 UP: focus='Library | Library' bounds=[40, 351, 484, 457] interactive=5
+   06 UP: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   07 RIGHT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   08 LEFT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   09 LEFT: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=5
+   10 CENTER: focus='A' bounds=[226, 299, 330, 403] interactive=54
+   11 BACK: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=10
+   12 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=10
+   LOG enterContent offscreen=false scope=2 usable=2 result=false first=Rect.fromLTRB(200.0, 64.0, 296.0, 160.0)
+   LOG enterContent offscreen=true scope=2 usable=2 result=false first=Rect.fromLTRB(200.0, 64.0, 296.0, 160.0)
+   LOG enterContent offscreen=false scope=2 usable=2 result=false first=Rect.fromLTRB(200.0, 64.0, 296.0, 160.0)
+   LOG enterContent offscreen=true scope=2 usable=2 result=false first=Rect.fromLTRB(200.0, 64.0, 296.0, 160.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## mini_player_rail (artist/UCedvOgsKFzcK3hA5taf3KoQ)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=22
+   01 TAP:Play tapped=True: focus=None interactive=29
+   02 DISMISS: focus=None interactive=29
+   03 EXPAND: focus='' bounds=[320, 730, 960, 762] interactive=47
+   04 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=47
+   05 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=47
+   06 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=47
+   07 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=47
+   08 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=47
+   09 DOWN: focus='' bounds=[578, 825, 702, 949] interactive=47
+   10 DOWN: focus='Lyrics' bounds=[617, 949, 771, 1049] interactive=47
+   11 DOWN: focus='Lyrics' bounds=[617, 949, 771, 1049] interactive=47
+   12 DOWN: focus='Lyrics' bounds=[617, 949, 771, 1049] interactive=47
+   13 RIGHT: [dialog closed] focus=None interactive=47
+   14 RIGHT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=47
+   15 RIGHT: focus='Encore | Encore' bounds=[320, 588, 438, 635] interactive=47
+   16 RIGHT: focus='But hey, what daddy always tell you?' bounds=[1072, 118, 1809, 291] interactive=49
+   17 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=46
+   18 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=46
+   19 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=46
+   20 RIGHT: focus='' bounds=[320, 730, 960, 762] interactive=48
+   LOG player entry attempt=0 seek->down moved=false
+   LOG player entry attempt=1 seek->down moved=false
+   LOG sheet focus request result=Success(true)
+   LOG player entry attempt=2 seek->down moved=false
+   LOG player entry attempt=3 seek->down moved=false
+   LOG player entry attempt=4 seek->down moved=false
+   LOG player entry attempt=5 seek->down moved=false
+   LOG player entry attempt=6 seek->down moved=false
+   LOG player entry attempt=7 seek->down moved=false
+   LOG player entry attempt=8 seek->down moved=false
+   LOG player entry attempt=9 seek->down moved=false
+   LOG player entry attempt=10 seek->down moved=false
+   LOG player entry attempt=11 seek->down moved=false
+   LOG player entry attempt=12 seek->down moved=false
+   LOG player entry attempt=13 seek->down moved=false
+   LOG player entry attempt=14 seek->down moved=false
+   LOG player entry attempt=15 seek->down moved=false
+   LOG player entry attempt=16 seek->down moved=false
+   LOG player entry attempt=17 seek->down moved=false
+   LOG player entry attempt=18 seek->down moved=false
+   LOG player entry attempt=19 seek->down moved=false
+   LOG player entry attempt=20 seek->down moved=false
+   LOG player entry attempt=21 seek->down moved=false
+   LOG player entry attempt=22 seek->down moved=false
+   LOG player entry attempt=23 seek->down moved=false
+   LOG pane Down origin=Rect.fromLTRB(320.0, 730.0, 960.0, 762.0) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(578.4, 825.4, 701.6, 948.6) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(617.4, 969.6, 770.7, 1028.4) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(617.4, 969.6, 770.7, 1028.4) rail=false player=true scope=false
+   LOG pane Right origin=Rect.fromLTRB(617.4, 969.6, 770.7, 1028.4) rail=false player=true scope=false
+   LOG pane Right origin=Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) rail=true player=false scope=false
+   LOG rail->player from Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) candidates=11 target=Rect.fromLTRB(320.0, 616.0, 438.0, 655.0)
+   LOG rail->player requestFocus=true landed=Rect.fromLTRB(320.0, 616.0, 438.0, 655.0)
+   LOG pane Right origin=Rect.fromLTRB(320.0, 616.0, 438.0, 655.0) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(1072.0, 133.0, 1809.0, 291.0) rail=false player=true scope=false
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## player_nav (artist/UCedvOgsKFzcK3hA5taf3KoQ)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=28
+   01 TAP:Play tapped=False: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=28
+   02 DISMISS: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=28
+   03 EXPAND: focus='Resume' bounds=[578, 825, 702, 949] interactive=45
+   04 UP: focus='' bounds=[320, 730, 960, 762] interactive=45
+   05 UP: focus='Eminem | Eminem' bounds=[320, 635, 454, 730] interactive=45
+   06 UP: focus='Encore | Encore' bounds=[320, 588, 438, 635] interactive=45
+   07 DOWN: focus='Eminem | Eminem' bounds=[320, 635, 454, 730] interactive=45
+   08 DOWN: focus='' bounds=[320, 730, 960, 762] interactive=45
+   09 DOWN: focus='Resume' bounds=[578, 825, 702, 949] interactive=45
+   10 DOWN: focus='Lyrics' bounds=[617, 949, 771, 1049] interactive=45
+   11 DOWN: focus='Lyrics' bounds=[617, 949, 771, 1049] interactive=45
+   12 LEFT: focus='Queue' bounds=[454, 949, 613, 1049] interactive=45
+   13 LEFT: focus='Like' bounds=[317, 949, 449, 1049] interactive=45
+   14 LEFT: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=44
+   15 LEFT: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=44
+   16 LEFT: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=44
+   17 RIGHT: focus='Like' bounds=[317, 949, 449, 1049] interactive=45
+   18 RIGHT: focus='Queue' bounds=[454, 949, 613, 1049] interactive=45
+   19 UP: focus='Resume' bounds=[578, 825, 702, 949] interactive=45
+   20 UP: focus='' bounds=[320, 730, 960, 762] interactive=45
+   21 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=44
+   22 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=44
+   23 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=44
+   24 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=44
+   25 LEFT: focus='' bounds=[320, 730, 960, 762] interactive=44
+   26 RIGHT: focus='' bounds=[320, 730, 960, 762] interactive=45
+   27 DOWN: focus='' bounds=[578, 825, 702, 949] interactive=45
+   28 DOWN: focus='Lyrics' bounds=[617, 949, 771, 1049] interactive=45
+   29 RIGHT: focus='More' bounds=[776, 949, 920, 1049] interactive=45
+   30 LEFT: focus='Lyrics' bounds=[617, 949, 771, 1049] interactive=45
+   31 LEFT: focus='Queue' bounds=[454, 949, 613, 1049] interactive=45
+   32 LEFT: focus='Like' bounds=[317, 949, 449, 1049] interactive=45
+   33 LEFT: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=44
+   34 LEFT: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=44
+   35 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=44
+   36 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=44
+   37 DOWN: focus='Settings | Settings' bounds=[40, 943, 484, 1049] interactive=44
+   38 RIGHT: focus='Like' bounds=[317, 949, 449, 1049] interactive=45
+   39 RIGHT: focus='Queue' bounds=[454, 949, 613, 1049] interactive=45
+   40 RIGHT: focus='Lyrics' bounds=[617, 949, 771, 1049] interactive=45
+   LOG player entry attempt=0 result=Success(true)
+   LOG sheet focus request result=Success(true)
+   LOG player entry attempt=2 result=Success(true)
+   LOG pane Up origin=Rect.fromLTRB(578.4, 825.4, 701.6, 948.6) rail=false player=true scope=false
+   LOG pane Up origin=Rect.fromLTRB(320.0, 730.0, 960.0, 762.0) rail=false player=true scope=false
+   LOG pane Up origin=Rect.fromLTRB(320.0, 663.0, 454.0, 702.0) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(320.0, 616.0, 438.0, 655.0) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(320.0, 663.0, 454.0, 702.0) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(320.0, 730.0, 960.0, 762.0) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(578.4, 825.4, 701.6, 948.6) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(617.4, 969.6, 770.7, 1028.4) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(617.4, 969.6, 770.7, 1028.4) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(454.2, 969.6, 612.8, 1028.4) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(316.9, 969.6, 449.2, 1028.4) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) rail=true player=false scope=false
+   LOG pane Left origin=Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) rail=true player=false scope=false
+   LOG pane Right origin=Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) rail=true player=false scope=false
+   LOG rail->player from Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) candidates=11 target=Rect.fromLTRB(320.0, 971.0, 446.0, 1027.0)
+   LOG rail->player requestFocus=true landed=Rect.fromLTRB(320.0, 971.0, 446.0, 1027.0)
+   LOG pane Right origin=Rect.fromLTRB(316.9, 969.6, 449.2, 1028.4) rail=false player=true scope=false
+   LOG pane Up origin=Rect.fromLTRB(454.2, 969.6, 612.8, 1028.4) rail=false player=true scope=false
+   LOG pane Up origin=Rect.fromLTRB(578.4, 825.4, 701.6, 948.6) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(320.0, 730.0, 960.0, 762.0) rail=false player=true scope=false
+   LOG pane Down origin=Rect.fromLTRB(578.4, 825.4, 701.6, 948.6) rail=false player=true scope=false
+   LOG pane Right origin=Rect.fromLTRB(617.4, 969.6, 770.7, 1028.4) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(775.6, 969.6, 920.5, 1028.4) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(617.4, 969.6, 770.7, 1028.4) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(454.2, 969.6, 612.8, 1028.4) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(316.9, 969.6, 449.2, 1028.4) rail=false player=true scope=false
+   LOG pane Left origin=Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) rail=true player=false scope=false
+   LOG pane Down origin=Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) rail=true player=false scope=false
+   LOG pane Down origin=Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) rail=true player=false scope=false
+   LOG pane Down origin=Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) rail=true player=false scope=false
+   LOG pane Right origin=Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) rail=true player=false scope=false
+   LOG rail->player from Rect.fromLTRB(39.8, 956.4, 484.2, 1035.6) candidates=11 target=Rect.fromLTRB(320.0, 971.0, 446.0, 1027.0)
+   LOG rail->player requestFocus=true landed=Rect.fromLTRB(320.0, 971.0, 446.0, 1027.0)
+   LOG pane Right origin=Rect.fromLTRB(316.9, 969.6, 449.2, 1028.4) rail=false player=true scope=false
+   LOG pane Right origin=Rect.fromLTRB(454.2, 969.6, 612.8, 1028.4) rail=false player=true scope=false
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## player_lyrics (artist/UCedvOgsKFzcK3hA5taf3KoQ)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=28
+   01 TAP:Play tapped=False: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=28
+   02 DISMISS: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=28
+   03 EXPAND: focus='' bounds=[578, 825, 702, 949] interactive=45
+   04 TAP:Lyrics tapped=True: focus=None interactive=38
+   05 DOWN: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=40
+   06 DOWN: [dialog closed] focus=None interactive=38
+   07 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=40
+   08 RIGHT: focus='Shuffle' bounds=[747, 847, 853, 953] interactive=38
+   09 RIGHT: focus='' bounds=[879, 847, 985, 953] interactive=38
+   10 TAP:Lyrics tapped=True: focus=None interactive=45
+   11 DOWN: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=45
+   12 UP: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=45
+   13 UP: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=45
+   14 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=45
+   15 LEFT: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=45
+   16 RIGHT: focus='Encore | Encore' bounds=[320, 588, 438, 635] interactive=45
+   LOG player entry attempt=0 result=Success(true)
+   LOG sheet focus request result=Success(true)
+   LOG player entry attempt=2 result=Success(true)
+   LOG pane Down origin=Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) rail=true player=false scope=false
+   LOG pane Right origin=Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) rail=true player=false scope=false
+   LOG rail->player from Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) candidates=11 target=Rect.fromLTRB(768.0, 868.0, 832.0, 932.0)
+   LOG rail->player requestFocus=true landed=Rect.fromLTRB(768.0, 868.0, 832.0, 932.0)
+   LOG pane Right origin=Rect.fromLTRB(764.8, 864.8, 835.2, 935.2) rail=false player=true scope=false
+   LOG pane Up origin=Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) rail=true player=false scope=false
+   LOG pane Up origin=Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) rail=true player=false scope=false
+   LOG pane Left origin=Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) rail=true player=false scope=false
+   LOG pane Left origin=Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) rail=true player=false scope=false
+   LOG pane Right origin=Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) rail=true player=false scope=false
+   LOG rail->player from Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) candidates=11 target=Rect.fromLTRB(320.0, 616.0, 438.0, 655.0)
+   LOG rail->player requestFocus=true landed=Rect.fromLTRB(320.0, 616.0, 438.0, 655.0)
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
+## player_queue (artist/UCedvOgsKFzcK3hA5taf3KoQ)
+   start: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=28
+   01 TAP:Play tapped=False: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=28
+   02 DISMISS: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=28
+   03 EXPAND: focus='Resume' bounds=[578, 825, 702, 949] interactive=45
+   04 TAP:Queue tapped=True: focus=None interactive=55
+   05 DOWN: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=55
+   06 DOWN: focus='Search | Search' bounds=[40, 255, 484, 361] interactive=55
+   07 UP: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=55
+   08 CENTER: focus='Home | Home' bounds=[40, 159, 484, 265] interactive=21
+   09 BACK: focus='Home | Home' bounds=[296, 64, 438, 104] interactive=24
+   10 DOWN: focus='Start Watching | YouTube | Experience what the world’s watch' bounds=[60, 412, 1812, 812] interactive=13
+   11 LEFT: focus='Browse Movies and Shows | Google Play Movies and TV | Buy or' bounds=[60, 412, 1812, 812] interactive=13
+   12 BACK: focus='Home | Home' bounds=[296, 64, 438, 104] interactive=24
+   13 BACK: focus='Home | Home' bounds=[296, 64, 438, 104] interactive=24
+   LOG player entry attempt=0 result=Success(true)
+   LOG sheet focus request result=Success(true)
+   LOG player entry attempt=2 result=Success(true)
+   LOG pane Down origin=Rect.fromLTRB(39.8, 172.4, 484.2, 251.6) rail=true player=false scope=false
+   LOG pane Up origin=Rect.fromLTRB(39.8, 268.4, 484.2, 347.6) rail=true player=false scope=false
+   FATAL --------- beginning of main
+   FATAL --------- beginning of system
