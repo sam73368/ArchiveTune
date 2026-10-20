@@ -5932,3 +5932,16 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile, emulator run and on-device verification.
+
+---
+Task ID: TV-16
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: Settings sub-sub-pages sent the focus back to the first category (diagnostic build a7e3ad897 reproduced it).
+
+Work Log:
+- The `TvFocus` logs showed that after the click on Theme the Account row received focus while `entered` was still true, i.e. the blocked list still took focus after the focused page element was removed. Each category row now has its own `focusProperties { canFocus = !(entered && !leaving) }`, and if a row still gains focus while a page is open, it hands the focus back to the content instead of changing the selection.
+- `TvSettingsHome` keeps stable `FocusRequester`s per row (they were recreated on every recomposition of `SettingsScreen`).
+
+Stage Summary:
+- Pending CI compile, emulator run and on-device verification.

@@ -327,12 +327,19 @@ fun TvSettingsHome(
                                     item = row.item,
                                     selected = key == selected?.key,
                                     labelAlpha = labelAlpha,
-                                    modifier = Modifier.focusRequester(requester),
+                                    modifier =
+                                        Modifier
+                                            .focusRequester(requester)
+                                            .focusProperties { canFocus = !(entered && !leaving) },
                                     onFocused = {
-                                        Log.d("TvFocus", "settings row focused key=$key entered=$entered")
-                                        selectedKey = key
-                                        if (entered) entered = false
-                                        leaving = false
+                                        Log.d("TvFocus", "settings row focused key=$key entered=$entered leaving=$leaving")
+                                        if (entered && !leaving) {
+                                            runCatching { contentRequester.requestFocus() }
+                                        } else {
+                                            selectedKey = key
+                                            if (entered) entered = false
+                                            leaving = false
+                                        }
                                     },
                                     onEnter = { enter(row.item) },
                                 )
