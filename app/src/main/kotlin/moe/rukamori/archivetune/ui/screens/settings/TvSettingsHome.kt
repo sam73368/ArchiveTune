@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -142,12 +143,10 @@ fun TvSettingsHome(
     val selected =
         rows.firstNotNullOfOrNull { row -> (row as? TvSettingsRow.Entry)?.item?.takeIf { it.key == selectedKey } }
             ?: rows.firstNotNullOfOrNull { (it as? TvSettingsRow.Entry)?.item }
-    val rowRequesters =
-        remember(rows) {
-            rows
-                .filterIsInstance<TvSettingsRow.Entry>()
-                .associate { it.item.key to FocusRequester() }
-        }
+    val rowRequesters = remember { HashMap<String, FocusRequester>() }
+    rows.forEach { row ->
+        if (row is TvSettingsRow.Entry) rowRequesters.getOrPut(row.item.key) { FocusRequester() }
+    }
     val contentRequester = remember { FocusRequester() }
     val initialFocusKey = remember { selected?.key }
     val listState = rememberLazyListState()
@@ -172,6 +171,14 @@ fun TvSettingsHome(
 
     val previewNav = rememberNavController()
     val previewEntry by previewNav.currentBackStackEntryAsState()
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        Log.d("TvFocus", "settings hub created")
+        onDispose { Log.d("TvFocus", "settings hub disposed") }
+    }
+    LaunchedEffect(entered, leaving, entering, selected?.key, previewEntry?.destination?.route) {
+        Log.d("TvFocus", "settings state entered=$entered leaving=$leaving entering=$entering sel=${selected?.key} route=${previewEntry?.destination?.route}")
+    }
 
     LaunchedEffect(previewRoute) {
         val route = previewRoute ?: return@LaunchedEffect
@@ -322,6 +329,7 @@ fun TvSettingsHome(
                                     labelAlpha = labelAlpha,
                                     modifier = Modifier.focusRequester(requester),
                                     onFocused = {
+                                        Log.d("TvFocus", "settings row focused key=$key entered=$entered")
                                         selectedKey = key
                                         if (entered) entered = false
                                         leaving = false
@@ -348,6 +356,7 @@ fun TvSettingsHome(
                                 },
                             ).focusProperties {
                                 exit = { direction ->
+                                    Log.d("TvFocus", "settings exit direction=$direction entered=$entered")
                                     if (direction == FocusDirection.Left && entered) {
                                         leaving = true
                                         FocusRequester.Cancel

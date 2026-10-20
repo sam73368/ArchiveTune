@@ -234,6 +234,9 @@ def run_scenario(name, route, keys, shots="all"):
     for entry in logs.splitlines():
         if "TvFocus" in entry:
             say("   LOG " + entry.split("TvFocus", 1)[-1].strip(": ")[:200])
+    fatal = adb("logcat", "-d", "-s", "AndroidRuntime:E")
+    for entry in fatal.splitlines()[:14]:
+        say("   FATAL " + entry[-200:])
     adb("logcat", "-c")
     for _ in range(3):
         key("KEYCODE_BACK", 0.8)
