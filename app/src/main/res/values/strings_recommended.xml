@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recommended_settings_group">Recommended settings</string>
+    <string name="recommended_settings_title">Developer\'s recommended settings</string>
+    <string name="recommended_settings_desc">Developer-recommended settings for a better experience</string>
+    <string name="recommended_settings_dialog_title">Apply the recommended settings?</string>
+    <string name="recommended_settings_dialog_body">These settings were chosen and tested by the developer, so you do not have to go through every page. Only the settings below change. Your account, library and every other setting stay as they are. The app restarts afterwards.</string>
+    <string name="recommended_item_dark_theme">Dark theme always on</string>
+    <string name="recommended_item_player">Player design V9</string>
+    <string name="recommended_item_refresh_rate">High refresh rate forced</string>
+    <string name="recommended_item_low_data">Low data mode off</string>
+    <string name="recommended_item_cache">Smart cache cleanup on, song and image caches 128 MB</string>
+    <string name="recommended_item_misc">Update notifications on, codec hidden on the player, Apple Music experience off</string>
+    <string name="recommended_settings_apply">Apply</string>
+    <string name="recommended_settings_applying">Applying recommended settings</string>
+    <string name="recommended_settings_done">Recommended settings applied</string>
+    <string name="recommended_settings_failed">Could not apply the recommended settings: %1$s</string>
+</resources>

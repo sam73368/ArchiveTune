@@ -46,6 +46,7 @@ import moe.rukamori.archivetune.backup.TvBackupFile
 import moe.rukamori.archivetune.backup.TvBackupStorage
 import moe.rukamori.archivetune.backup.CreateBackupUseCase
 import moe.rukamori.archivetune.backup.LyricsBackup
+import moe.rukamori.archivetune.backup.RecommendedSettings
 import moe.rukamori.archivetune.backup.mergeLyricsIntoDatabase
 import moe.rukamori.archivetune.backup.ObserveScheduledBackupSettingsUseCase
 import moe.rukamori.archivetune.backup.ScheduledBackupFrequency
@@ -607,6 +608,38 @@ class BackupRestoreViewModel
                 TvBackupStorage.delete(appContext, backup.name)
                 _tvBackups.value = TvBackupStorage.list(appContext)
                 _backupEvent.tryEmit(appContext.getString(R.string.tv_backup_deleted, backup.name))
+            }
+        }
+
+        fun applyRecommendedSettings(context: Context) {
+            if (_backupRestoreProgress.value != null) return
+            val appContext = context.applicationContext
+            viewModelScope.launch(Dispatchers.IO) {
+                emitProgress(appContext.getString(R.string.recommended_settings_applying), "", 0, true)
+                try {
+                    RecommendedSettings.apply(appContext)
+                } catch (cancellation: CancellationException) {
+                    _backupRestoreProgress.value = null
+                    throw cancellation
+                } catch (exception: Exception) {
+                    reportException(exception)
+                    _backupRestoreProgress.value = null
+                    _backupEvent.tryEmit(
+                        appContext.getString(
+                            R.string.recommended_settings_failed,
+                            exception.message ?: exception.javaClass.simpleName,
+                        ),
+                    )
+                    return@launch
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(appContext, R.string.recommended_settings_done, Toast.LENGTH_SHORT).show()
+                }
+                _backupRestoreProgress.value = null
+                appContext.startActivity(
+                    Intent(appContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+                exitProcess(0)
             }
         }
 

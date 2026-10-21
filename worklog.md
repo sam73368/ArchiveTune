@@ -5984,3 +5984,20 @@ Work Log:
 
 Stage Summary:
 - Not compiled locally (CI only). Pending CI compile and on-device verification.
+
+---
+Task ID: TV-19
+Agent: Claude (Samy's ArchiveTune fork, TV track)
+
+Task: "Recommended settings" button in the TV backup page, applying the developer's own tested settings in one step.
+
+Work Log:
+- Source: the developer's own `.tvbackup` (settings.xml). Only 10 of its 28 entries are real user settings; the rest is runtime state (update-check cache, onboarding, launch count, mini-player anchor, pending Discord auth, volume) and was deliberately left out.
+- `backup/RecommendedSettings.kt` writes the profile through `dataStore.edit` with the typed keys from `constants`: dark mode ON, player design V9, Apple Music experience off, update notifications on, low data mode off, forced high refresh rate on, smart cache trimmer on, song and image cache 128 MB, codec on player hidden. Every value was checked against its enum or the selectable list in StorageSettings.
+- It is an overlay: no other key is touched, so accounts, library and every other setting stay as they are.
+- `BackupRestoreViewModel.applyRecommendedSettings` shows the loading screen, applies the profile, then restarts the app the same way restore does (the caches are read at startup). Failures post a snackbar message.
+- `TvBackupAndRestore` has a new "Recommended settings" group (star icon, "Developer-recommended settings for a better experience") above the TV backup group, with a confirmation dialog listing exactly what will change. Phone backup page unchanged.
+- New strings in `strings_recommended.xml` (en, fr).
+
+Stage Summary:
+- Pending CI compile and on-device verification.

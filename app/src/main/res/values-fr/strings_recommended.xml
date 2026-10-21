@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recommended_settings_group">Paramètres recommandés</string>
+    <string name="recommended_settings_title">Paramètres recommandés du développeur</string>
+    <string name="recommended_settings_desc">Paramètres recommandés du développeur pour une meilleure expérience</string>
+    <string name="recommended_settings_dialog_title">Appliquer les paramètres recommandés ?</string>
+    <string name="recommended_settings_dialog_body">Ces paramètres ont été choisis et testés par le développeur, pour éviter de fouiller toutes les pages. Seuls les réglages ci-dessous changent. Votre compte, votre bibliothèque et tous les autres réglages restent comme ils sont. L\'application redémarre ensuite.</string>
+    <string name="recommended_item_dark_theme">Thème sombre toujours activé</string>
+    <string name="recommended_item_player">Design du lecteur V9</string>
+    <string name="recommended_item_refresh_rate">Fréquence d\'image élevée forcée</string>
+    <string name="recommended_item_low_data">Mode données faibles désactivé</string>
+    <string name="recommended_item_cache">Nettoyage intelligent du cache activé, caches des chansons et des images à 128 Mo</string>
+    <string name="recommended_item_misc">Notifications de mise à jour activées, codec masqué sur le lecteur, expérience Apple Music désactivée</string>
+    <string name="recommended_settings_apply">Appliquer</string>
+    <string name="recommended_settings_applying">Application des paramètres recommandés</string>
+    <string name="recommended_settings_done">Paramètres recommandés appliqués</string>
+    <string name="recommended_settings_failed">Impossible d\'appliquer les paramètres recommandés : %1$s</string>
+</resources>

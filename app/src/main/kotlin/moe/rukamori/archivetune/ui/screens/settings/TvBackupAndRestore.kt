@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalStableSystemBarsTopPadding
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.backup.RecommendedSettings
 import moe.rukamori.archivetune.backup.TvBackupFile
 import moe.rukamori.archivetune.ui.component.DefaultDialog
 import moe.rukamori.archivetune.ui.component.PreferenceEntry
@@ -90,6 +91,7 @@ fun TvBackupAndRestore(
     val progress by viewModel.backupRestoreProgress.collectAsStateWithLifecycle()
 
     var showBackupOptions by rememberSaveable { mutableStateOf(false) }
+    var showRecommendedSettings by rememberSaveable { mutableStateOf(false) }
     var selectedBackup by remember { mutableStateOf<TvBackupFile?>(null) }
     var restoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var restoreCategories by remember { mutableStateOf<Set<BackupCategory>>(emptySet()) }
@@ -175,6 +177,20 @@ fun TvBackupAndRestore(
                     .padding(bottom = bottomPadding + SettingsDimensions.ScreenBottomPadding),
             ) {
                 PreferenceGroup(
+                    modifier = positions.modifierFor("recommended_settings"),
+                    title = stringResource(R.string.recommended_settings_group),
+                ) {
+                    item {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.recommended_settings_title)) },
+                            description = stringResource(R.string.recommended_settings_desc),
+                            icon = { Icon(painterResource(R.drawable.star), null) },
+                            onClick = { showRecommendedSettings = true },
+                        )
+                    }
+                }
+
+                PreferenceGroup(
                     modifier = positions.modifierFor("backup", "restore"),
                     title = stringResource(R.string.tv_backup_group),
                 ) {
@@ -250,6 +266,44 @@ fun TvBackupAndRestore(
             },
             onDismiss = { showBackupOptions = false },
         )
+    }
+
+    if (showRecommendedSettings) {
+        val recommendedItems = RecommendedSettings.summaryResIds.map { stringResource(it) }
+        DefaultDialog(
+            onDismiss = { showRecommendedSettings = false },
+            title = { Text(stringResource(R.string.recommended_settings_dialog_title)) },
+            buttons = {
+                TextButton(
+                    onClick = {
+                        showRecommendedSettings = false
+                        viewModel.applyRecommendedSettings(context)
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(stringResource(R.string.recommended_settings_apply))
+                }
+                TextButton(
+                    onClick = { showRecommendedSettings = false },
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+            contentScrollable = true,
+            constrainContentHeight = true,
+        ) {
+            Text(
+                text = stringResource(R.string.recommended_settings_dialog_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = recommendedItems.joinToString(separator = "\n") { "• $it" },
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
     }
 
     selectedBackup?.let { backup ->
