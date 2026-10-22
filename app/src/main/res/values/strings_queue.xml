@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="play_song_keeps_queue">Playing a song keeps the queue</string>
+    <string name="play_song_keeps_queue_desc">Playing a song from search adds it right after the current one instead of replacing the whole queue.</string>
+    <string name="resume_queue">Resume</string>
+    <string name="resume_queue_song_count">%1$d songs</string>
+    <string name="resume_queue_dismiss">Dismiss</string>
+    <string name="start_new_queue">Start a new queue</string>
+    <string name="tv_queue_clear">Clear</string>
+    <string name="tv_queue_clear_confirm">Press again to clear</string>
+    <string name="clear_queue">Clear queue</string>
+    <string name="clear_queue_title">Clear the queue?</string>
+    <string name="clear_queue_message">Every song except the current one is removed from the queue.</string>
+</resources>

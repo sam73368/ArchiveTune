@@ -357,7 +357,8 @@ fun OnlineSearchScreen(
                                             if (item.id == mediaMetadata?.id) {
                                                 playerConnection.player.togglePlayPause()
                                             } else {
-                                                playerConnection.playQueue(
+                                                playerConnection.playSongKeepingQueue(
+                                                    item.toMediaMetadata(),
                                                     YouTubeQueue.radio(item.toMediaMetadata()),
                                                 )
                                                 onDismiss()

@@ -629,6 +629,42 @@ fun YouTubePlaylistMenu(
                     )
 
                     ListItem(
+                        headlineContent = { Text(text = stringResource(R.string.start_new_queue)) },
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.queue_music),
+                                contentDescription = null,
+                            )
+                        },
+                        modifier =
+                            Modifier.clickable {
+                                coroutineScope.launch {
+                                    songs
+                                        .ifEmpty {
+                                            withContext(Dispatchers.IO) {
+                                                YouTube
+                                                    .playlist(playlist.id)
+                                                    .completed()
+                                                    .getOrNull()
+                                                    ?.songs
+                                                    .orEmpty()
+                                            }
+                                        }.let { list ->
+                                            playerConnection.startNewQueue(list.map { it.toMediaItem() }, title = playlist.title)
+                                        }
+                                }
+                                onDismiss()
+                            },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+
+                    HorizontalDivider(
+                        modifier = dividerModifier,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        thickness = 0.5.dp,
+                    )
+
+                    ListItem(
                         headlineContent = { Text(text = addToPlaylistText) },
                         leadingContent = {
                             Icon(

@@ -6001,3 +6001,22 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification.
+
+---
+Task ID: Q-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Keep the queue (phone and TV): a "Resume" card on Home, playing a song from search no longer replaces the queue, clear-queue action everywhere, and "Start a new queue" in the three-dot menus.
+
+Work Log:
+- Why the queue used to vanish: only one queue was persisted (`persistent_queue.data`). It was deleted when restoring it failed at startup (for example a YouTube radio that needed the network) and it was overwritten as soon as another queue replaced it.
+- `MusicService` now keeps a second saved queue, `persistent_resume_queue.data` (`resumeQueue` StateFlow). It is written when a new queue replaces a live one with at least two songs (`playQueue`), when the player is dismissed or stopped on task clear (`stopAndClearPlayback(clearPersistentState = true)`, written synchronously), and when the startup restore fails (the persisted queue is rescued before the files are cleared). File writes go through one ordered job chain so a delete cannot be overtaken by an older write. The file is deleted on backup restore.
+- `resumeStashedQueue()` restarts the saved queue at its song and position (`ListQueue` with `keepMusicVideos = true`, so the clips already in it are not filtered; the real continuation queue is installed through the new `continuation` parameter of `playQueue`). The queue it replaces is stashed in turn, so the two queues swap.
+- Home (phone and TV share it): `ResumeQueueCard` above the feed, hidden when the saved queue's current song is the one already playing; tapping it resumes, the X discards the saved queue.
+- `playSongKeepingQueue`: song taps in YouTube, SoundCloud, Spotify and Apple Music search results insert the song right after the current one and jump to it (same shuffle-order handling as play next) instead of replacing the queue. It falls back to the old behaviour when the queue is empty, the artist is blocked, or the new setting "Playing a song keeps the queue" (Player > Queue, default on, searchable) is off.
+- `PlayerConnection.startNewQueue(items, title, keepMusicVideos)` and a "Start a new queue" row in the song, YouTube song, album, YouTube album, playlist and YouTube playlist menus. The replaced queue is stashed for Resume like any other.
+- Clear queue: the phone queue already had a trash button (keeps the current song, with undo). Added `clearQueueKeepingCurrent()`, used by a "Clear" pill with a press-again confirmation in the TV queue panel and by a trash icon with a confirmation dialog in the Apple Music style queue sheet.
+- New strings in `strings_queue.xml` (en, fr).
+
+Stage Summary:
+- Pending CI compile and on-device verification. Not changed: playing a song from lists, albums and playlists still starts that list as the queue (the old queue is stashed and offered under Resume).

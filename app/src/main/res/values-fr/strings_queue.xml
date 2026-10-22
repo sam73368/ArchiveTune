@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="play_song_keeps_queue">Lancer une chanson garde la file</string>
+    <string name="play_song_keeps_queue_desc">Lancer une chanson depuis la recherche l\'ajoute juste après celle en cours au lieu de remplacer toute la file d\'attente.</string>
+    <string name="resume_queue">Reprendre</string>
+    <string name="resume_queue_song_count">%1$d titres</string>
+    <string name="resume_queue_dismiss">Masquer</string>
+    <string name="start_new_queue">Commencer une nouvelle file</string>
+    <string name="tv_queue_clear">Vider</string>
+    <string name="tv_queue_clear_confirm">Rappuyer pour vider</string>
+    <string name="clear_queue">Vider la file</string>
+    <string name="clear_queue_title">Vider la file d\'attente ?</string>
+    <string name="clear_queue_message">Toutes les chansons sauf celle en cours sont retirées de la file.</string>
+</resources>

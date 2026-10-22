@@ -120,6 +120,7 @@ fun AppleMusicQueueSheet(
     var locked by rememberPreference(QueueEditLockKey, defaultValue = true)
 
     var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var showClearQueueDialog by remember { mutableStateOf(false) }
     val sleepTimerEnabled =
         remember(
             playerConnection.service.sleepTimer.triggerTime,
@@ -367,6 +368,15 @@ fun AppleMusicQueueSheet(
                         )
                     }
                 }
+                if (queueWindows.size > 1) {
+                    IconButton(onClick = { showClearQueueDialog = true }) {
+                        Icon(
+                            painter = painterResource(R.drawable.delete),
+                            contentDescription = stringResource(R.string.clear_queue),
+                            tint = adaptiveSecondary,
+                        )
+                    }
+                }
                 IconButton(onClick = { locked = !locked }) {
                     Icon(
                         painter = painterResource(if (locked) R.drawable.lock else R.drawable.lock_open),
@@ -562,6 +572,31 @@ fun AppleMusicQueueSheet(
             },
             initialValue = 30f,
         )
+    }
+
+    if (showClearQueueDialog) {
+        moe.rukamori.archivetune.ui.component.DefaultDialog(
+            onDismiss = { showClearQueueDialog = false },
+            title = { Text(stringResource(R.string.clear_queue_title)) },
+            buttons = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showClearQueueDialog = false
+                        playerConnection.clearQueueKeepingCurrent()
+                    },
+                ) {
+                    Text(stringResource(R.string.clear_queue))
+                }
+                androidx.compose.material3.TextButton(onClick = { showClearQueueDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        ) {
+            Text(
+                text = stringResource(R.string.clear_queue_message),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }
 

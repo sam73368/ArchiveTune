@@ -353,6 +353,16 @@ private fun HomeContent(
             ?.remoteQuickPicks
     val context = androidx.compose.ui.platform.LocalContext.current
     val isTvLayout = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
+    val resumeQueueFlow =
+        remember(playerConnection) {
+            playerConnection?.resumeQueue
+                ?: kotlinx.coroutines.flow.MutableStateFlow<moe.rukamori.archivetune.models.PersistQueue?>(null)
+        }
+    val resumeQueue by resumeQueueFlow.collectAsStateWithLifecycle()
+    val visibleResumeQueue =
+        resumeQueue?.takeIf { saved ->
+            saved.items.isNotEmpty() && saved.items.getOrNull(saved.mediaItemIndex)?.id != mediaMetadata?.id
+        }
     Box(modifier = modifier.fillMaxSize()) {
         val pullState = rememberPullToRefreshState()
         PullToRefreshBox(
@@ -455,6 +465,20 @@ private fun HomeContent(
                         } else {
                             HomeWelcomeHeader(
                                 accountName = uiState.accountName,
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                    }
+
+                    visibleResumeQueue?.let { saved ->
+                        item(
+                            key = "home_resume_queue",
+                            contentType = "resume_queue",
+                        ) {
+                            ResumeQueueCard(
+                                queue = saved,
+                                onResume = { playerConnection?.resumeStashedQueue() },
+                                onDismiss = { playerConnection?.discardResumeQueue() },
                                 modifier = Modifier.animateItem(),
                             )
                         }

@@ -690,7 +690,8 @@ private fun SuggestedResultRow(
                             if (item.id == currentMediaId) {
                                 playerConnection.player.togglePlayPause()
                             } else {
-                                playerConnection.playQueue(
+                                playerConnection.playSongKeepingQueue(
+                                    item.toMediaMetadata(),
                                     YouTubeQueue(
                                         item.endpoint ?: WatchEndpoint(videoId = item.id),
                                         item.toMediaMetadata(),

@@ -359,13 +359,11 @@ private fun AppleMusicSearchResultRow(
                                     AppleMusicPlaybackResolver.resolveTrack(item)
                                 }
                             if (song != null) {
-                                playerConnection.playQueue(
-                                    YouTubeQueue.radio(
-                                        song.toMediaMetadata().copy(
-                                            preferredSource = AudioSourceType.APPLE.name,
-                                        ),
-                                    ),
-                                )
+                                val appleSeed =
+                                    song.toMediaMetadata().copy(
+                                        preferredSource = AudioSourceType.APPLE.name,
+                                    )
+                                playerConnection.playSongKeepingQueue(appleSeed, YouTubeQueue.radio(appleSeed))
                             } else {
                                 Toast.makeText(
                                     context,

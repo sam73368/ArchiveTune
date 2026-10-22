@@ -467,6 +467,31 @@ fun YouTubeAlbumMenu(
                     )
 
                     ListItem(
+                        headlineContent = { Text(text = stringResource(R.string.start_new_queue)) },
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.queue_music),
+                                contentDescription = null,
+                            )
+                        },
+                        modifier =
+                            Modifier.clickable {
+                                onDismiss()
+                                album
+                                ?.songs
+                                ?.map { it.toMediaItem() }
+                                ?.let { playerConnection.startNewQueue(it, title = albumItem.title, keepMusicVideos = true) }
+                            },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+
+                    HorizontalDivider(
+                        modifier = dividerModifier,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        thickness = 0.5.dp,
+                    )
+
+                    ListItem(
                         headlineContent = { Text(text = stringResource(R.string.add_to_playlist)) },
                         leadingContent = {
                             Icon(

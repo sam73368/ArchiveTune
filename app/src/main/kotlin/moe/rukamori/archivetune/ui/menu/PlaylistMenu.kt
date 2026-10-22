@@ -698,6 +698,28 @@ public fun PlaylistMenu(
                     )
 
                     ListItem(
+                        headlineContent = { Text(text = stringResource(R.string.start_new_queue)) },
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.queue_music),
+                                contentDescription = null,
+                            )
+                        },
+                        modifier =
+                            Modifier.clickable {
+                                onDismiss()
+                                playerConnection.startNewQueue(songs.map { it.toMediaItem() }, title = playlist.playlist.name)
+                            },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+
+                    HorizontalDivider(
+                        modifier = dividerModifier,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        thickness = 0.5.dp,
+                    )
+
+                    ListItem(
                         headlineContent = {
                             Text(
                                 text =

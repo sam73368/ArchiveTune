@@ -311,7 +311,8 @@ fun OnlineSearchResult(
                                             }
                                         // A clip picked here is the one place a clip is played as a clip.
                                         if (playAsVideo) UserChosenClips.add(item.id)
-                                        playerConnection.playQueue(
+                                        playerConnection.playSongKeepingQueue(
+                                            seedMetadata,
                                             YouTubeQueue(
                                                 item.endpoint ?: WatchEndpoint(videoId = item.id),
                                                 seedMetadata,

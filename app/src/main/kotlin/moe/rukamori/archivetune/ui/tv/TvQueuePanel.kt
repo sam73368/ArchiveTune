@@ -81,6 +81,7 @@ fun TvQueuePanel(
     val shuffleEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
     var autoLoadMore by rememberPreference(AutoLoadMoreKey, defaultValue = true)
+    var confirmClear by remember { mutableStateOf(false) }
     val accent = MaterialTheme.colorScheme.primary
     val listState = rememberLazyListState()
     val currentFocus = remember { FocusRequester() }
@@ -98,6 +99,12 @@ fun TvQueuePanel(
         mode = TvQueueMode.Actions
     }
 
+    LaunchedEffect(confirmClear) {
+        if (confirmClear) {
+            kotlinx.coroutines.delay(4000)
+            confirmClear = false
+        }
+    }
     LaunchedEffect(mode) {
         if (mode != TvQueueMode.Actions && activeUid != null) {
             delay(60)
@@ -210,6 +217,28 @@ fun TvQueuePanel(
                     height = 28.dp,
                     horizontalPadding = 10.dp,
                 ) { color -> Text(stringResource(R.string.tv_queue_autoplay), style = TvTokens.Caption, color = color, maxLines = 1) }
+                if (windows.size > 1) {
+                    TvPillButton(
+                        onClick = {
+                            if (confirmClear) {
+                                confirmClear = false
+                                playerConnection.clearQueueKeepingCurrent()
+                            } else {
+                                confirmClear = true
+                            }
+                        },
+                        style = if (confirmClear) TvPillStyle.Primary else TvPillStyle.Tonal,
+                        height = 28.dp,
+                        horizontalPadding = 10.dp,
+                    ) { color ->
+                        Text(
+                            stringResource(if (confirmClear) R.string.tv_queue_clear_confirm else R.string.tv_queue_clear),
+                            style = TvTokens.Caption,
+                            color = color,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
             Text(
                 text =

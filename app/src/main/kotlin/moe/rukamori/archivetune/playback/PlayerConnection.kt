@@ -52,10 +52,12 @@ import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.canvas.models.CanvasArtwork
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.extensions.currentMetadata
+import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.extensions.getCurrentQueueIndex
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.models.MediaMetadata
 import moe.rukamori.archivetune.playback.MusicService.MusicBinder
+import moe.rukamori.archivetune.playback.queues.ListQueue
 import moe.rukamori.archivetune.playback.queues.Queue
 import moe.rukamori.archivetune.playback.queues.YouTubeQueue
 import moe.rukamori.archivetune.ui.player.refetchCanvasArtworkForPlayback
@@ -447,6 +449,43 @@ class PlayerConnection(
 
     fun playQueue(queue: Queue) {
         service.playQueue(queue)
+    }
+
+    val resumeQueue = service.resumeQueue
+
+    fun playSongKeepingQueue(
+        item: MediaItem,
+        fallback: Queue,
+    ) {
+        service.playSongKeepingQueue(item, fallback)
+    }
+
+    fun playSongKeepingQueue(
+        seed: MediaMetadata,
+        fallback: Queue,
+    ) {
+        service.playSongKeepingQueue(seed.toMediaItem(), fallback)
+    }
+
+    fun startNewQueue(
+        items: List<MediaItem>,
+        title: String? = null,
+        keepMusicVideos: Boolean = false,
+    ) {
+        if (items.isEmpty()) return
+        service.playQueue(ListQueue(title = title, items = items, keepMusicVideos = keepMusicVideos))
+    }
+
+    fun resumeStashedQueue() {
+        service.resumeStashedQueue()
+    }
+
+    fun discardResumeQueue() {
+        service.discardResumeQueue()
+    }
+
+    fun clearQueueKeepingCurrent() {
+        service.clearQueueKeepingCurrent()
     }
 
     fun startRadioSeamlessly() {

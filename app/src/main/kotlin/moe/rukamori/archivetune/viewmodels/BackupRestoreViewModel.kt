@@ -66,6 +66,7 @@ import moe.rukamori.archivetune.googledrive.ObserveGoogleDriveSyncSettingsUseCas
 import moe.rukamori.archivetune.googledrive.UpdateGoogleDriveSyncUseCase
 import moe.rukamori.archivetune.playback.MusicService
 import moe.rukamori.archivetune.playback.MusicService.Companion.PERSISTENT_QUEUE_FILE
+import moe.rukamori.archivetune.playback.MusicService.Companion.PERSISTENT_RESUME_FILE
 import moe.rukamori.archivetune.playlistexport.ExportPlaylistAsCsvUseCase
 import moe.rukamori.archivetune.playlistexport.ExportablePlaylist
 import moe.rukamori.archivetune.playlistexport.ObserveExportablePlaylistsUseCase
@@ -1106,6 +1107,7 @@ class BackupRestoreViewModel
 
                     try {
                         context.filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
+                        context.filesDir.resolve(PERSISTENT_RESUME_FILE).delete()
                     } catch (_: Exception) {
                     }
 

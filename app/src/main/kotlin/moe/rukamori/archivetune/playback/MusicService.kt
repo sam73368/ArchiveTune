@@ -225,6 +225,7 @@ import moe.rukamori.archivetune.constants.SyncPlaybackToYouTubeHistoryKey
 import moe.rukamori.archivetune.constants.PauseOnDeviceMuteKey
 import moe.rukamori.archivetune.constants.PermanentShuffleKey
 import moe.rukamori.archivetune.constants.PersistentQueueKey
+import moe.rukamori.archivetune.constants.PlaySongKeepsQueueKey
 import moe.rukamori.archivetune.constants.PlayerStreamClient
 import moe.rukamori.archivetune.constants.PlayerStreamClientKey
 import moe.rukamori.archivetune.constants.TidalAudioQuality
@@ -821,6 +822,7 @@ class MusicService :
 
     val currentMediaMetadata = MutableStateFlow<moe.rukamori.archivetune.models.MediaMetadata?>(null)
     val queueRestoreCompleted = MutableStateFlow(false)
+    val resumeQueue = MutableStateFlow<PersistQueue?>(null)
     val infiniteQueueLoading = MutableStateFlow(false)
     private val playerInitialized = MutableStateFlow(false)
     private val currentSong =
@@ -2330,6 +2332,8 @@ class MusicService :
         scope.launch(Dispatchers.IO) {
             runCatching {
                 if (dataStore.get(PersistentQueueKey, true)) {
+                    resumeQueue.value =
+                        readPersistentObject<PersistQueue>(PERSISTENT_RESUME_FILE)?.takeIf { it.items.isNotEmpty() }
                     playerInitialized.first { it }
                     val persistedQueue = readPersistentObject<PersistQueue>(PERSISTENT_QUEUE_FILE)
                     val persistedPlayerState = readPersistentObject<PersistPlayerState>(PERSISTENT_PLAYER_STATE_FILE)
@@ -2356,6 +2360,7 @@ class MusicService :
                 Timber.tag(TAG).w(error, "Failed to restore persisted queue, clearing data")
                 isRestoringPersistentState = false
                 cancelRestoredQueueHydration()
+                rescuePersistedQueueForResume()
                 clearPersistedQueueFiles()
             }
             withContext(Dispatchers.Main) {
@@ -5497,12 +5502,15 @@ class MusicService :
     fun playQueue(
         queue: Queue,
         playWhenReady: Boolean = true,
+        continuation: Queue? = null,
     ) {
         if (playWhenReady) {
             cancelIdleStop()
             promoteToStartedService()
             ensureStartedAsForeground()
         }
+        ensureScopesActive()
+        stashCurrentQueueForResume()
         cancelRestoredQueueHydration()
         ensureScopesActive()
         cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
@@ -5510,7 +5518,7 @@ class MusicService :
         suppressAutoPlayback = false
         val initialLoadGeneration = ++initialQueueLoadGeneration
         initialQueueLoadInProgress = true
-        currentQueue = queue
+        currentQueue = continuation ?: queue
         queueTitle = null
         val permanentShuffle = dataStore.get(PermanentShuffleKey, false)
         if (!permanentShuffle) {
@@ -5870,7 +5878,142 @@ class MusicService :
         infiniteQueueLoading.value = false
     }
 
+    private var resumeFileJob: Job? = null
+
+    private fun submitResumeFileOp(
+        blocking: Boolean = false,
+        op: () -> Unit,
+    ) {
+        val previous = resumeFileJob
+        if (blocking) {
+            runBlocking { previous?.join() }
+            op()
+            return
+        }
+        resumeFileJob =
+            scope.launch(Dispatchers.IO) {
+                previous?.join()
+                op()
+            }
+    }
+
+    private fun writeResumeFile(snapshot: PersistQueue) {
+        if (!dataStore.get(PersistentQueueKey, true)) return
+        writePersistentObject(PERSISTENT_RESUME_FILE, snapshot)
+    }
+
+    private fun deleteResumeFile() {
+        synchronized(persistentStateLock) {
+            runCatching {
+                filesDir.resolve(PERSISTENT_RESUME_FILE).delete()
+                filesDir.resolve("$PERSISTENT_RESUME_FILE.tmp").delete()
+            }
+        }
+    }
+
+    private fun stashCurrentQueueForResume(blocking: Boolean = false) {
+        if (player.mediaItemCount < 2) return
+        if (isRestoringPersistentState || isHydratingRestoredQueue) {
+            submitResumeFileOp(blocking) { rescuePersistedQueueForResume() }
+            return
+        }
+        val items = player.mediaItems.mapNotNull { it.toPersistableMetadata() }
+        if (items.size < 2) return
+        val snapshot =
+            currentQueue.toPersistQueue(
+                title = queueTitle,
+                items = items,
+                mediaItemIndex = player.currentMediaItemIndex.coerceIn(0, items.lastIndex),
+                position = player.currentPosition.coerceAtLeast(0L),
+            )
+        resumeQueue.value = snapshot
+        submitResumeFileOp(blocking) { writeResumeFile(snapshot) }
+    }
+
+    private fun rescuePersistedQueueForResume() {
+        runCatching {
+            val saved = readPersistentObject<PersistQueue>(PERSISTENT_QUEUE_FILE) ?: return
+            if (saved.items.size < 2) return
+            writeResumeFile(saved)
+            resumeQueue.value = saved
+        }
+    }
+
+    fun discardResumeQueue() {
+        resumeQueue.value = null
+        submitResumeFileOp { deleteResumeFile() }
+    }
+
+    fun resumeStashedQueue() {
+        val saved = resumeQueue.value ?: return
+        resumeQueue.value = null
+        submitResumeFileOp(blocking = true) { deleteResumeFile() }
+        playQueue(
+            queue =
+                ListQueue(
+                    title = saved.title,
+                    items = saved.items.map { it.toMediaItem() },
+                    startIndex = saved.mediaItemIndex,
+                    position = saved.position,
+                    keepMusicVideos = true,
+                ),
+            playWhenReady = true,
+            continuation = saved.toContinuationQueue(),
+        )
+    }
+
+    fun playSongKeepingQueue(
+        item: MediaItem,
+        fallback: Queue,
+    ) {
+        val allowed = listOf(item).filterBlockedArtists(blockedArtistIds)
+        if (
+            allowed.isEmpty() ||
+            player.mediaItemCount == 0 ||
+            !dataStore.get(PlaySongKeepsQueueKey, true)
+        ) {
+            playQueue(fallback)
+            return
+        }
+        cancelIdleStop()
+        promoteToStartedService()
+        ensureStartedAsForeground()
+        cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
+        suppressAutoPlayback = false
+        val currentIndex = player.currentMediaItemIndex
+        val insertionIndex =
+            if (currentIndex == C.INDEX_UNSET) player.mediaItemCount else currentIndex + 1
+        val shuffleOrder =
+            if (player.shuffleModeEnabled && currentIndex != C.INDEX_UNSET) {
+                buildPlayNextShuffleOrder(
+                    currentIndex = currentIndex,
+                    insertionIndex = insertionIndex,
+                    insertionCount = allowed.size,
+                )
+            } else {
+                null
+            }
+        player.addMediaItems(insertionIndex, allowed)
+        shuffleOrder?.let(localPlayer::setShuffleOrder)
+        player.seekTo(insertionIndex, 0L)
+        player.prepare()
+        player.playWhenReady = true
+    }
+
+    fun clearQueueKeepingCurrent() {
+        val count = player.mediaItemCount
+        val index = player.currentMediaItemIndex
+        if (count <= 1 || index !in 0 until count) return
+        cancelInfiniteQueueBootstrap()
+        if (index < count - 1) player.removeMediaItems(index + 1, count)
+        if (index > 0) player.removeMediaItems(0, index)
+        onInfiniteQueueDisabled()
+    }
+
     fun stopAndClearPlayback(clearPersistentState: Boolean = false) {
+        if (clearPersistentState) {
+            stashCurrentQueueForResume(blocking = true)
+        }
         cancelRestoredQueueHydration()
         cancelInfiniteQueueBootstrap()
         initialQueueLoadGeneration++
@@ -13271,6 +13414,7 @@ class MusicService :
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
         const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"
+        const val PERSISTENT_RESUME_FILE = "persistent_resume_queue.data"
 
         private val PERSISTENT_POSITION_SAVE_INTERVAL = 30.seconds
         const val MAX_CONSECUTIVE_ERR = 5

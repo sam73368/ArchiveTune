@@ -290,7 +290,7 @@ internal fun SoundCloudOnlineSearchResult(
                                                                 resolveSoundCloudTrackToMetadata(track)
                                                             }
                                                         if (metadata != null) {
-                                                            playerConnection.playQueue(YouTubeQueue.radio(metadata))
+                                                            playerConnection.playSongKeepingQueue(metadata, YouTubeQueue.radio(metadata))
                                                         } else {
                                                             Toast.makeText(
                                                                 context,

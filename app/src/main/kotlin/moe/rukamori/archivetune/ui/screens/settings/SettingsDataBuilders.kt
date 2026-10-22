@@ -80,6 +80,7 @@ import moe.rukamori.archivetune.constants.PauseOnDeviceMuteKey
 import moe.rukamori.archivetune.constants.PauseSearchHistoryKey
 import moe.rukamori.archivetune.constants.PermanentShuffleKey
 import moe.rukamori.archivetune.constants.PersistentQueueKey
+import moe.rukamori.archivetune.constants.PlaySongKeepsQueueKey
 import moe.rukamori.archivetune.constants.ProxyEnabledKey
 import moe.rukamori.archivetune.constants.RandomThemeOnStartupKey
 import moe.rukamori.archivetune.constants.SeekExtraSeconds
@@ -397,6 +398,7 @@ fun buildSettingsGroups(
                 SettingsChild("Audio-reactive animation", "canvas_audio_reactive", listOf("audio reactive", "bass", "beats", "music reactive", "experimental")) { SearchResultSwitch(CanvasAudioReactiveKey, false) },
                 SettingsChild("Tidal artwork fallback", "tidal_artwork_fallback", listOf("tidal artwork", "artwork fallback", "tidal cover", "hi-res artwork")) { SearchResultSwitch(TidalArtworkFallbackEnabledKey, false) },
                 SettingsChild("Persistent queue", "persistent_queue", listOf("queue", "persistent", "save queue", "resume")) { SearchResultSwitch(PersistentQueueKey, true) },
+                SettingsChild("Playing a song keeps the queue", "play_song_keeps_queue", listOf("queue", "play song", "insert", "keep queue", "replace queue")) { SearchResultSwitch(PlaySongKeepsQueueKey, true) },
                 SettingsChild("Permanent shuffle", "permanent_shuffle", listOf("shuffle", "random", "permanent")) { SearchResultSwitch(PermanentShuffleKey, false) },
                 SettingsChild("Auto skip on error", "auto_skip_error", listOf("skip", "error", "auto skip", "failed")) { SearchResultSwitch(AutoSkipNextOnErrorKey, false) },
                 SettingsChild("Stop music on task clear", "stop_task_clear", listOf("stop", "task clear", "background", "close app")) { SearchResultSwitch(StopMusicOnTaskClearKey, false) },

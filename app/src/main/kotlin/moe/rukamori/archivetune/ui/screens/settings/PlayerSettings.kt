@@ -85,6 +85,7 @@ import moe.rukamori.archivetune.constants.HistoryDuration
 import moe.rukamori.archivetune.constants.PauseOnDeviceMuteKey
 import moe.rukamori.archivetune.constants.PermanentShuffleKey
 import moe.rukamori.archivetune.constants.PersistentQueueKey
+import moe.rukamori.archivetune.constants.PlaySongKeepsQueueKey
 import moe.rukamori.archivetune.constants.SeekExtraSeconds
 import moe.rukamori.archivetune.constants.KaraokeModeKey
 import moe.rukamori.archivetune.constants.SkipSilenceKey
@@ -144,6 +145,11 @@ fun PlayerSettings(
     val (persistentQueue, onPersistentQueueChange) =
         rememberPreference(
             PersistentQueueKey,
+            defaultValue = true,
+        )
+    val (playSongKeepsQueue, onPlaySongKeepsQueueChange) =
+        rememberPreference(
+            PlaySongKeepsQueueKey,
             defaultValue = true,
         )
     val (permanentShuffle, onPermanentShuffleChange) =
@@ -722,6 +728,17 @@ fun PlayerSettings(
                 }
 
                 item {
+                    SwitchPreference(
+                        modifier = positions.modifierFor("play_song_keeps_queue"),
+                        title = { Text(stringResource(R.string.play_song_keeps_queue)) },
+                        description = stringResource(R.string.play_song_keeps_queue_desc),
+                        icon = { Icon(painterResource(R.drawable.playlist_play), null) },
+                        checked = playSongKeepsQueue,
+                        onCheckedChange = onPlaySongKeepsQueueChange,
+                    )
+                }
+
+                item {
                     Column(modifier = positions.modifierFor("permanent_shuffle")) {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.permanent_shuffle)) },
@@ -945,7 +962,7 @@ private val PlayerSectionKeys: Map<String, String> =
         listOf("enable_pip_mode", "enable_video_playback").forEach { put(it, "video") }
         listOf("automix", "automix_performance", "bluetooth_auto_start", "crossfade", "crossfade_gapless", "crossfade_gapless_title", "device_mute_recovery_volume", "history_duration", "low_data_mode", "pause_mute", "preload_songs", "seek_seconds", "seek_seconds_addup", "skip_silence", "karaoke_mode").forEach { put(it, "playback") }
         listOf("album_canvas_enabled", "archive_tune_canvas", "artwork_priority", "canvas_check", "canvas_resolvers", "spotify_canvas", "tidal_artwork_fallback").forEach { put(it, "artwork") }
-        listOf("auto_skip_error", "enable_swipe_thumbnail", "permanent_shuffle", "persistent_queue", "smart_shuffle", "smart_shuffle_every", "swipe_sensitivity", "swipe_to_song").forEach { put(it, "queue") }
+        listOf("auto_skip_error", "enable_swipe_thumbnail", "permanent_shuffle", "persistent_queue", "play_song_keeps_queue", "smart_shuffle", "smart_shuffle_every", "swipe_sensitivity", "swipe_to_song").forEach { put(it, "queue") }
         listOf("artist_separators", "audio_offload", "manage_playlist_tags", "stop_task_clear", "wakelock").forEach { put(it, "misc") }
     }
 
