@@ -65,11 +65,14 @@ import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.extensions.toggleRepeatMode
 import moe.rukamori.archivetune.innertube.YouTube
+import moe.rukamori.archivetune.innertube.models.AlbumItem
 import moe.rukamori.archivetune.innertube.models.PlaylistItem
 import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.filterExplicit
 import moe.rukamori.archivetune.innertube.models.filterVideo
 import moe.rukamori.archivetune.models.PersistQueue
+import moe.rukamori.archivetune.audiosource.TrackMatching
+import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
 import moe.rukamori.archivetune.playback.MusicService.Companion.PERSISTENT_QUEUE_FILE
 import moe.rukamori.archivetune.spotify.SpotifyLibraryRepository
 import moe.rukamori.archivetune.spotify.SpotifyMapper
@@ -1290,6 +1293,21 @@ class MediaLibrarySessionCallback
                 val isVoiceSearchRequest = firstItem.requestMetadata.searchQuery != null ||
                     firstItem.requestMetadata.extras?.containsKey(MediaStore.EXTRA_MEDIA_FOCUS) == true
                 if (voiceQuery.isNotBlank() || (isCarController && isVoiceSearchRequest)) {
+                    val albumQueue = if (firstItem.isVoiceAlbumRequest()) {
+                        resolveVoiceAlbumItems(firstItem, applyAndroidAutoPolicy = isCarController)
+                    } else {
+                        emptyList()
+                    }
+                    if (albumQueue.isNotEmpty()) {
+                        withContext(Dispatchers.Main.immediate) {
+                            mediaSession.player.shuffleModeEnabled = false
+                        }
+                        return@future MediaSession.MediaItemsWithStartPosition(
+                            albumQueue,
+                            0,
+                            startPositionMs,
+                        )
+                    }
                     val searchQueue = if (isCarController) {
                         resolveVoiceMediaItems(voiceQuery)
                     } else {
@@ -1558,6 +1576,16 @@ class MediaLibrarySessionCallback
                         val query = item.voiceSearchQuery()
                         if (query.isBlank()) {
                             listOf(item)
+                        } else if (item.isVoiceAlbumRequest()) {
+                            resolveVoiceAlbumItems(
+                                item,
+                                applyAndroidAutoPolicy = isCarController(mediaSession, controller),
+                            ).ifEmpty {
+                                resolveVoiceMediaItems(
+                                    query = query,
+                                    applyAndroidAutoPolicy = isCarController(mediaSession, controller),
+                                ).ifEmpty { listOf(item) }
+                            }
                         } else {
                             val resolved = resolveVoiceMediaItems(
                                 query = query,
@@ -2313,6 +2341,14 @@ class MediaLibrarySessionCallback
 
         private fun String.pathSegments(): List<String> = split("/").filter { it.isNotBlank() }
 
+        private fun MediaItem.isVoiceAlbumRequest(): Boolean {
+            val extras = requestMetadata.extras ?: return false
+            val focus = extras.getString(MediaStore.EXTRA_MEDIA_FOCUS)
+            val hasAlbum = !extras.getString(MediaStore.EXTRA_MEDIA_ALBUM).isNullOrBlank()
+            val hasTitle = !extras.getString(MediaStore.EXTRA_MEDIA_TITLE).isNullOrBlank()
+            return focus == MediaStore.Audio.Albums.ENTRY_CONTENT_TYPE || (hasAlbum && !hasTitle)
+        }
+
         private fun MediaItem.voiceSearchQuery(): String {
             val extras = requestMetadata.extras
             return listOfNotNull(
@@ -2609,6 +2645,138 @@ class MediaLibrarySessionCallback
             return interleaveMediaItems(offlineSongs.items, onlineSongs).take(previewSize)
         }
 
+        internal suspend fun resolveVoiceAlbumItems(
+            item: MediaItem,
+            applyAndroidAutoPolicy: Boolean = true,
+        ): List<MediaItem> {
+            val extras = item.requestMetadata.extras
+            val albumName =
+                extras?.getString(MediaStore.EXTRA_MEDIA_ALBUM)?.trim().orEmpty()
+                    .ifBlank { item.requestMetadata.searchQuery?.trim().orEmpty() }
+            if (albumName.isBlank()) return emptyList()
+            val artistName = extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST)?.trim().orEmpty()
+            val configuration = androidAutoSettings.currentConfiguration().takeIf { applyAndroidAutoPolicy }
+            val localSongsAllowed = configuration == null ||
+                (configuration.localSongs && androidAutoSettings.hasLocalAudioPermission())
+            val onlineContentAllowed = configuration == null || androidAutoSettings.isOnlinePlaybackAllowed(configuration)
+            val onlineSearchAllowed = configuration == null ||
+                (configuration.onlineVoiceSearch && onlineContentAllowed)
+            if (onlineSearchAllowed) {
+                val onlineAlbum = searchOnlineAlbumItems(albumName, artistName)
+                if (onlineAlbum.isNotEmpty()) {
+                    onlineAlbum.forEach { onlineSearchItemCache[it.mediaId] = it }
+                    return onlineAlbum
+                }
+            }
+            return searchLibraryAlbumItems(albumName, artistName, localSongsAllowed, onlineContentAllowed)
+        }
+
+        private suspend fun searchLibraryAlbumItems(
+            albumName: String,
+            artistName: String,
+            localSongsAllowed: Boolean,
+            onlineContentAllowed: Boolean,
+        ): List<MediaItem> {
+            val wantedArtist = TrackMatching.normalize(artistName)
+            val candidates = database.searchAlbums(albumName, previewSize = 20).first()
+            if (candidates.isEmpty()) return emptyList()
+            val wantedTitle = TrackMatching.normalizeTitle(albumName)
+            val album =
+                candidates.maxByOrNull { candidate ->
+                    val titleScore = if (TrackMatching.normalizeTitle(candidate.album.title) == wantedTitle) 2 else 0
+                    val artistScore =
+                        if (wantedArtist.isNotBlank() &&
+                            candidate.artists.any { TrackMatching.normalize(it.name).contains(wantedArtist) }
+                        ) {
+                            1
+                        } else {
+                            0
+                        }
+                    titleScore + artistScore
+                } ?: return emptyList()
+            val songs =
+                database.albumWithSongs(album.id).first()?.songs.orEmpty()
+                    .availableForCar(localSongsAllowed, onlineContentAllowed)
+            return songs.map { it.toMediaItem() }
+        }
+
+        private suspend fun searchOnlineAlbumItems(
+            albumName: String,
+            artistName: String,
+        ): List<MediaItem> {
+            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+            val query = listOf(albumName, artistName).filter(String::isNotBlank).joinToString(" ")
+            val albums =
+                YouTube
+                    .search(query, YouTube.SearchFilter.FILTER_ALBUM)
+                    .getOrNull()
+                    ?.items
+                    .orEmpty()
+                    .filterIsInstance<AlbumItem>()
+            if (albums.isEmpty()) return emptyList()
+
+            val wantedTitle = TrackMatching.normalizeTitle(albumName)
+            val wantedArtist = TrackMatching.normalize(artistName)
+
+            fun albumKey(album: AlbumItem) = TrackMatching.normalizeTitle(album.title)
+
+            fun matchScore(album: AlbumItem): Int {
+                val title = albumKey(album)
+                val titleScore =
+                    when {
+                        title == wantedTitle -> 4
+                        title.contains(wantedTitle) || wantedTitle.contains(title) -> 2
+                        else -> 0
+                    }
+                val artistScore =
+                    if (wantedArtist.isNotBlank() &&
+                        album.artists.orEmpty().any { TrackMatching.normalize(it.name).contains(wantedArtist) }
+                    ) {
+                        3
+                    } else {
+                        0
+                    }
+                return titleScore + artistScore
+            }
+
+            val best = albums.maxByOrNull(::matchScore) ?: return emptyList()
+            val bestKey = albumKey(best)
+            val bestArtist = TrackMatching.normalize(best.artists?.firstOrNull()?.name)
+            val editions =
+                albums
+                    .filter { albumKey(it) == bestKey && TrackMatching.normalize(it.artists?.firstOrNull()?.name) == bestArtist }
+                    .sortedByDescending { it.explicit }
+                    .take(MAX_ALBUM_EDITIONS)
+                    .ifEmpty { listOf(best) }
+
+            val editionSongs =
+                editions.mapNotNull { edition ->
+                    YouTube
+                        .album(edition.browseId)
+                        .getOrNull()
+                        ?.songs
+                        ?.takeIf { it.isNotEmpty() }
+                }
+            if (editionSongs.isEmpty()) return emptyList()
+
+            val chosen =
+                if (hideExplicit) {
+                    editionSongs.minWithOrNull(
+                        compareBy<List<SongItem>> { songs -> songs.count { it.explicit } }
+                            .thenByDescending { it.size },
+                    )
+                } else {
+                    editionSongs.maxWithOrNull(
+                        compareBy<List<SongItem>> { songs -> songs.count { it.explicit } }
+                            .thenBy { it.size },
+                    )
+                } ?: return emptyList()
+
+            return chosen
+                .filterExplicit(hideExplicit)
+                .map { it.toMediaItem() }
+        }
+
         private fun searchSongIdentity(item: MediaItem): String = item.mediaId.removePrefix("${MusicService.SONG}/")
 
         private suspend fun searchOnlineSongs(
@@ -2626,6 +2794,7 @@ class MediaLibrarySessionCallback
                 .orEmpty()
                 .filterExplicit(hideExplicit)
                 .filterVideo(hideVideo)
+                .dropCleanTwins()
                 .asSequence()
                 .filterIsInstance<SongItem>()
                 .distinctBy { it.id }
@@ -2644,6 +2813,7 @@ class MediaLibrarySessionCallback
             private const val CONTENT_STYLE_LIST_ITEM = 1
             private const val CONTENT_STYLE_GRID_ITEM = 2
             private const val AUTO_BROWSE_LIMIT = 100
+            private const val MAX_ALBUM_EDITIONS = 3
             private const val AUTO_HOME_PLAYLIST_LIMIT = 20
             private const val SPOTIFY_RESOLVE_BATCH_SIZE = 20
             private const val HOME_RECENT_WINDOW_MS = 86400000L * 14L

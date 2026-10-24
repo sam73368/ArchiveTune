@@ -6020,3 +6020,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification. Not changed: playing a song from lists, albums and playlists still starts that list as the queue (the old queue is stashed and offered under Resume).
+
+---
+Task ID: AA-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Android Auto voice assistant: "play the album X" must queue the whole album in track order, preferring the explicit edition.
+
+Work Log:
+- Cause: `MediaLibrarySessionCallback` only ever resolved a voice request as a list of songs (library + YouTube song search), so an album request became a mix of loose songs. The assistant's album intent (`EXTRA_MEDIA_FOCUS` = album, or `EXTRA_MEDIA_ALBUM` without a title) was ignored.
+- New `resolveVoiceAlbumItems`, used by `onSetMediaItems` and `onAddMediaItems`: searches YouTube Music albums (album + artist), picks the best title/artist match, loads up to three editions with the same title and artist (explicit editions first), keeps the one with the most explicit songs (or the fewest when "Hide explicit" is on, or the longest on ties), and queues its songs in album order starting at track 1 with shuffle turned off. Without online access (car online policy off, or no result) it falls back to the matching library album. If nothing is found the old song search still runs.
+- `searchOnlineSongs` (voice song requests) now drops a clean edition when its explicit twin is listed (`dropCleanTwins`), same rule as the search screens.
+
+Stage Summary:
+- Pending CI compile and on-device verification (needs a car or the Desktop Head Unit with a voice request such as "play the album X by Y").
