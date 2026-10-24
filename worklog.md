@@ -6034,3 +6034,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification (needs a car or the Desktop Head Unit with a voice request such as "play the album X by Y").
+
+---
+Task ID: Q-2
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: "Resume" shows ONE tile: the song the last queue had reached, and tapping it restores the whole queue from that song, including after a full close or an update that lost the queue.
+
+Work Log:
+- New mirror file `persistent_last_queue.data`: every queue save (`saveQueueToDisk`, now also repeated every 30 s while playing so the position stays fresh) also writes the queue to this file when it holds at least two songs. It is never cleared by the queue-clearing paths, so a lost or overwritten `persistent_queue.data` no longer loses the last real queue.
+- At startup, after the normal restore finished (`offerLastQueueIfLost`), if the mirrored queue's current song is not in the player, the mirror becomes the Resume offer (and is copied into the resume file). Queues replaced by "Start a new queue" or by playing another list are still stashed as before; the most recent lost queue wins the single tile.
+- Dismissing the tile (X) also deletes the mirror when it is the same queue, so it does not come back at the next launch. A backup restore deletes the mirror too.
+- `ResumeQueueCard` is now a section titled "Resume" with a single square tile: cover art of the song where the queue stopped, play badge, song title, "artist · queue title", and a small X. The wide card is gone.
+
+Stage Summary:
+- Pending CI compile and on-device verification.

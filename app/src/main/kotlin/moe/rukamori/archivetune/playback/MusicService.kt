@@ -2364,6 +2364,7 @@ class MusicService :
                 clearPersistedQueueFiles()
             }
             withContext(Dispatchers.Main) {
+                offerLastQueueIfLost()
                 queueRestoreCompleted.value = true
             }
         }
@@ -2374,6 +2375,7 @@ class MusicService :
                 val shouldSave = withContext(Dispatchers.IO) { dataStore.get(PersistentQueueKey, true) }
                 if (shouldSave && player.mediaItemCount > 0) {
                     savePlayerStateToDisk()
+                    if (player.isPlaying) saveQueueToDisk()
                 }
             }
         }
@@ -5930,6 +5932,24 @@ class MusicService :
         submitResumeFileOp(blocking) { writeResumeFile(snapshot) }
     }
 
+    private var lastQueueMirror: PersistQueue? = null
+
+    private fun offerLastQueueIfLost() {
+        if (!dataStore.get(PersistentQueueKey, true)) return
+        val mirror =
+            readPersistentObject<PersistQueue>(PERSISTENT_LAST_QUEUE_FILE)
+                ?.takeIf { it.items.size >= 2 && it.mediaItemIndex in it.items.indices }
+                ?: return
+        lastQueueMirror = mirror
+        val mirrorSongId = mirror.items[mirror.mediaItemIndex].id
+        val liveIds = player.mediaItems.mapTo(HashSet()) { it.mediaId }
+        if (mirrorSongId in liveIds) return
+        val stashed = resumeQueue.value
+        if (stashed != null && stashed.items.map { it.id } == mirror.items.map { it.id } && stashed.mediaItemIndex == mirror.mediaItemIndex) return
+        resumeQueue.value = mirror
+        submitResumeFileOp { writeResumeFile(mirror) }
+    }
+
     private fun rescuePersistedQueueForResume() {
         runCatching {
             val saved = readPersistentObject<PersistQueue>(PERSISTENT_QUEUE_FILE) ?: return
@@ -5940,8 +5960,23 @@ class MusicService :
     }
 
     fun discardResumeQueue() {
+        val discarded = resumeQueue.value
         resumeQueue.value = null
         submitResumeFileOp { deleteResumeFile() }
+        val mirror = lastQueueMirror
+        if (discarded != null && mirror != null && mirror.items.map { it.id } == discarded.items.map { it.id }) {
+            lastQueueMirror = null
+            submitResumeFileOp { deleteLastQueueFile() }
+        }
+    }
+
+    private fun deleteLastQueueFile() {
+        synchronized(persistentStateLock) {
+            runCatching {
+                filesDir.resolve(PERSISTENT_LAST_QUEUE_FILE).delete()
+                filesDir.resolve("$PERSISTENT_LAST_QUEUE_FILE.tmp").delete()
+            }
+        }
     }
 
     fun resumeStashedQueue() {
@@ -13129,6 +13164,10 @@ class MusicService :
             writePersistentObject(PERSISTENT_QUEUE_FILE, snapshot.first)
             if (saveGeneration != persistentSaveGeneration.get()) return@withContext
             writePersistentObject(PERSISTENT_PLAYER_STATE_FILE, snapshot.second)
+            if (snapshot.first.items.size >= 2) {
+                writePersistentObject(PERSISTENT_LAST_QUEUE_FILE, snapshot.first)
+                lastQueueMirror = snapshot.first
+            }
         }
     }
 
@@ -13415,6 +13454,7 @@ class MusicService :
         const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"
         const val PERSISTENT_RESUME_FILE = "persistent_resume_queue.data"
+        const val PERSISTENT_LAST_QUEUE_FILE = "persistent_last_queue.data"
 
         private val PERSISTENT_POSITION_SAVE_INTERVAL = 30.seconds
         const val MAX_CONSECUTIVE_ERR = 5
