@@ -826,7 +826,7 @@ object LyricsUtils {
                 unwrapped
             }
 
-        return normalized.trim { it.isWhitespace() || it == NBSP }
+        return LyricsUncensor.restore(normalized.trim { it.isWhitespace() || it == NBSP })
     }
 
     private fun unwrapJsonEnvelope(value: String): String {

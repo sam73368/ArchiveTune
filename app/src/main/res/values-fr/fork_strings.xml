@@ -124,6 +124,8 @@
     <string name="tv_queue">File d\'attente</string>
     <string name="tv_lyrics">Paroles</string>
     <string name="tv_more">Plus</string>
+    <string name="tv_ambient_screen">Écran d\'ambiance</string>
+    <string name="tv_ambient_screen_desc">Pochette, titre et heure en plein écran. N\'importe quel bouton pour quitter</string>
     <string name="tv_player_hint">◀ ▶ sur la barre : −10 s / +10 s  ·  Retour : réduire le lecteur</string>
     <string name="tv_key_space">Espace</string>
     <string name="tv_key_delete">Effacer</string>

@@ -1333,6 +1333,22 @@ fun PlayerMenu(
                                     },
                                 ),
                             )
+                            if (moe.rukamori.archivetune.utils.TvPerformance.isTelevision) add(
+                                PlayerMenuCardModel(
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.album),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    title = stringResource(R.string.tv_ambient_screen),
+                                    subtitle = stringResource(R.string.tv_ambient_screen_desc),
+                                    onClick = {
+                                        onDismiss()
+                                        moe.rukamori.archivetune.ui.tv.TvAmbientController.show()
+                                    },
+                                ),
+                            )
                             if (!moe.rukamori.archivetune.utils.TvPerformance.isTelevision) add(
                                 PlayerMenuCardModel(
                                     icon = {

@@ -270,7 +270,9 @@ class LyricsHelper
             // Skip word-synced files that stop long before the song ends: the normal flow below
             // will then compare every provider and keep the most complete one.
             val first =
-                results.firstOrNull { !LyricsUtils.isLikelyTruncated(it.second, mediaMetadata.duration) }
+                results
+                    .sortedBy { LyricsUncensor.maskedWordCount(it.second) }
+                    .firstOrNull { !LyricsUtils.isLikelyTruncated(it.second, mediaMetadata.duration) }
                     ?: return null
             return LyricsResult(providerName = first.first, lyrics = first.second)
         }
@@ -372,13 +374,16 @@ class LyricsHelper
                     listOf(results.maxBy { LyricsUtils.lastTimedLineMs(it.second) ?: -1L })
                 }
 
-            val wordSynced = pool.firstOrNull { LyricsUtils.hasWordSyncedLyrics(it.second) }
+            val leastCensored = pool.minOf { LyricsUncensor.maskedWordCount(it.second) }
+            val uncensoredPool = pool.filter { LyricsUncensor.maskedWordCount(it.second) == leastCensored }
+
+            val wordSynced = uncensoredPool.firstOrNull { LyricsUtils.hasWordSyncedLyrics(it.second) }
             if (wordSynced != null) return LyricsResult(providerName = wordSynced.first, lyrics = wordSynced.second)
 
-            val lineSynced = pool.firstOrNull { LyricsUtils.isLineSyncedLrc(it.second) }
+            val lineSynced = uncensoredPool.firstOrNull { LyricsUtils.isLineSyncedLrc(it.second) }
             if (lineSynced != null) return LyricsResult(providerName = lineSynced.first, lyrics = lineSynced.second)
 
-            val first = pool.first()
+            val first = uncensoredPool.first()
             return LyricsResult(providerName = first.first, lyrics = first.second)
         }
 

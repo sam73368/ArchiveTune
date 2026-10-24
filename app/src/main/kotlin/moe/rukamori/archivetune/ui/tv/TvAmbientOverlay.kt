@@ -44,6 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.ui.utils.YtimgResizePolicy
 import moe.rukamori.archivetune.ui.utils.resize
@@ -51,7 +54,18 @@ import moe.rukamori.archivetune.utils.makeTimeString
 import java.text.DateFormat
 import java.util.Date
 
-const val TvAmbientIdleMs = 180_000L
+object TvAmbientController {
+    private val shown = MutableStateFlow(false)
+    val visible: StateFlow<Boolean> = shown.asStateFlow()
+
+    fun show() {
+        shown.value = true
+    }
+
+    fun hide() {
+        shown.value = false
+    }
+}
 
 @Composable
 fun TvAmbientOverlay(visible: Boolean) {

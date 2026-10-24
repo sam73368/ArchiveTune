@@ -6061,3 +6061,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification.
+
+---
+Task ID: TV-20
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: TV lyrics no longer browsable, lyrics always uncensored, manual ambient ("Now playing") screen replacing the idle auto-trigger, audio normalization review.
+
+Work Log:
+- `TvPlayerContent`: the lyrics pane is display-only on TV. Removed the browse mode (focus entry, Back handling, "Resync" pill and hint); focus entry into the pane is cancelled with `focusProperties { enter = { FocusRequester.Cancel } }`, and `LyricsEnhanced` is no longer given `browseMode`.
+- New `LyricsUncensor` (lyrics package). `LyricsUtils.normalizeLyricsText`, which every parser and display path goes through (so already stored lyrics are fixed too), restores words masked with asterisks when a single profanity of the same length matches the visible letters (f***, sh*t, b****, f**king; "s***" resolves to the most frequent word). Fully masked or ambiguous tokens are left alone; `*emphasis*` is untouched. `LyricsHelper` now prefers, among the complete candidates, the provider text with the fewest remaining masked words before applying the word-synced/line-synced preference (also in the word-sync priority path). Unit tests in `LyricsUncensorTest`.
+- Ambient screen: the 3-minute idle trigger in `MainActivity` is gone. `TvAmbientController` (show/hide state flow) is driven by a new TV-only card in the player's More menu (`PlayerMenu`, "Ambient screen": cover, title, clock). Any key press leaves it: `MainActivity.dispatchKeyEvent` consumes the key down that dismisses it and its key up, and `onStop` hides it. The existing in-composition key handler stays as a second path.
+- Audio normalization review (no code change): the gain is one static factor per song (YouTube loudness or ReplayGain tags, clamped 0.25-1.414) applied to the player volume; ExoPlayer clamps volume to 1.0, so it only ever lowers loud tracks. It changes mid-song only when the stream info arrives late or an alternate stream replaces the first one (180/350 ms ramp). No compressor, limiter or auto-leveller is active by default (float DSP off, equalizer/loudness enhancer off, skip silence off, crossfade off); "Smart trimmer" is a cache cleaner. Ducking for audio focus drops the volume to 20% with the same ramp.
+
+Stage Summary:
+- Pending CI compile and on-device verification.

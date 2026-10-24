@@ -638,7 +638,25 @@ class MainActivity : ComponentActivity() {
         disposePlayerConnection()
     }
 
+    private var ambientDismissKeyCode: Int? = null
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (moe.rukamori.archivetune.ui.tv.TvAmbientController.visible.value) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                ambientDismissKeyCode = event.keyCode
+                moe.rukamori.archivetune.ui.tv.TvAmbientController.hide()
+            }
+            return true
+        }
+        if (event.action == android.view.KeyEvent.ACTION_UP && ambientDismissKeyCode == event.keyCode) {
+            ambientDismissKeyCode = null
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onStop() {
+        moe.rukamori.archivetune.ui.tv.TvAmbientController.hide()
         unregisterAodScreenOffReceiver()
         serviceBindingJob?.cancel()
         serviceBindingJob = null
@@ -2357,19 +2375,8 @@ class MainActivity : ComponentActivity() {
                     val tvTextEntryState = moe.rukamori.archivetune.ui.tv.rememberTvTextEntryState()
                     moe.rukamori.archivetune.ui.tv.TvTextEntryDialog(tvTextEntryState)
                     var tvLastInputAt by remember { mutableStateOf(android.os.SystemClock.uptimeMillis()) }
-                    var tvAmbientVisible by remember { mutableStateOf(false) }
+                    val tvAmbientVisible by moe.rukamori.archivetune.ui.tv.TvAmbientController.visible.collectAsState()
                     var tvSwallowKeyUp by remember { mutableStateOf(false) }
-                    val tvAmbientPlaying by (playerConnection?.isPlaying ?: kotlinx.coroutines.flow.MutableStateFlow(false)).collectAsState()
-                    LaunchedEffect(isTvDevice, tvAmbientPlaying) {
-                        if (!isTvDevice || !tvAmbientPlaying) return@LaunchedEffect
-                        while (true) {
-                            delay(5_000)
-                            val idle = android.os.SystemClock.uptimeMillis() - tvLastInputAt
-                            if (idle >= moe.rukamori.archivetune.ui.tv.TvAmbientIdleMs && tvTextEntryState.target == null) {
-                                tvAmbientVisible = true
-                            }
-                        }
-                    }
                     val tvShortcutPlaylists by remember(isTvDevice) {
                         if (isTvDevice) database.playlistsByCustomOrderAsc() else kotlinx.coroutines.flow.flowOf(emptyList<moe.rukamori.archivetune.db.entities.Playlist>())
                     }.collectAsState(initial = emptyList())
@@ -2664,7 +2671,7 @@ class MainActivity : ComponentActivity() {
                                                   val keyDown = event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown
                                                   if (tvAmbientVisible) {
                                                       if (keyDown) {
-                                                          tvAmbientVisible = false
+                                                          moe.rukamori.archivetune.ui.tv.TvAmbientController.hide()
                                                           tvSwallowKeyUp = true
                                                       }
                                                       return@onPreviewKeyEvent true
