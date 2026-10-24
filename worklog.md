@@ -6049,3 +6049,15 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification.
+
+---
+Task ID: H-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Remove the old "Jump back in" ("Reprendre") hero-card section from Home; the new Resume tile replaces it.
+
+Work Log:
+- `HomeScreen` no longer renders the `home_jump_back_in` item (hero cards from `uiState.heroPicks`). The view model still computes `heroPicks`; nothing else changed.
+
+Stage Summary:
+- Pending CI compile and on-device verification.

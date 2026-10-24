@@ -564,55 +564,6 @@ private fun HomeContent(
                         }
                     }
 
-                    if (uiState.heroPicks.isNotEmpty()) {
-                        item(
-                            key = "home_jump_back_in",
-                            contentType = "jump_back_in",
-                        ) {
-                            val heroSongs =
-                                remember(uiState.heroPicks) {
-                                    uiState.heroPicks.distinctBy { it.id }
-                                }
-                            Column(Modifier.animateItem()) {
-                                BitChordSectionHeader(title = stringResource(R.string.home_jump_back_in_badge))
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = BitChordPageGutter),
-                                    horizontalArrangement = Arrangement.spacedBy(BitChordShelfCardSpacing),
-                                ) {
-                                    items(heroSongs, key = { "hero_${it.id}" }) { song ->
-                                        BitChordHeroCard(
-                                            artworkUrl = song.thumbnailUrl,
-                                            title = song.song.title,
-                                            subtitle = song.artists.joinToString { it.name },
-                                            isCurrent = mediaMetadata?.id == song.id,
-                                            isPlaying = isPlaying,
-                                            modifier = Modifier.width(bitChordHeroCardWidth(availableWidth)),
-                                            onClick = {
-                                                onPlayQueue(
-                                                    moe.rukamori.archivetune.playback.queues.ListQueue(
-                                                        title = context.getString(R.string.home_jump_back_in_badge),
-                                                        items = heroSongs.map { it.toMediaItem() },
-                                                        startIndex = heroSongs.indexOf(song),
-                                                    ),
-                                                )
-                                            },
-                                            onLongClick = {
-                                                menuState.show {
-                                                    moe.rukamori.archivetune.ui.menu.SongMenu(
-                                                        originalSong = song,
-                                                        navController = navController,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            },
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.height(BitChordShelfBottomSpacing))
-                            }
-                        }
-                    }
-
                     if (remoteQuickPicks?.items?.isNotEmpty() == true) {
                         item(
                             key = "home_remote_quick_picks",
