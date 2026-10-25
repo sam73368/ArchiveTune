@@ -6076,3 +6076,21 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification.
+
+---
+Task ID: SP-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Songs and albums that exist on Spotify but not on YouTube Music are shown (badge "Spotify") in YouTube Music search and on artist pages, on phone and TV; playing them tries the other audio sources first, then Spotify direct. Genius lyrics scrape fix. Spotify code review.
+
+Work Log:
+- New `SpotifyOnly` (spotify package): synthetic ids (`spotify-only-track-<id>`, `spotify-only-album-<id>`), converters from `SpotifyTrack`/`SpotifyAlbum` to `SongItem`/`AlbumItem`/`MediaMetadata` (ISRC kept), a small in-memory registry so a tapped item keeps its ISRC, `albumRoute`, and `PlayerConnection.playSpotifyOnlyTrack`.
+- New `SpotifyGapFinder`: searches the Spotify catalog (only when a Spotify account is connected and the new "Show Spotify-only releases" switch, default on, is enabled), keeps results that cover every query word, and verifies each one is really missing on YouTube Music (first against the loaded YTM results, then with a targeted anonymous YTM search; a failed check counts as "present"). Spotify failures pause the feature for 60 s. Artist pages use a Spotify album search filtered to the artist name.
+- `OnlineSearchViewModel` inserts the missing songs/albums at position 3 of the Songs/Albums filters and summary sections (a section is appended in "All" when none exists). `ArtistViewModel` inserts missing albums into the first album section (or adds an "Albums" section) and keeps them when inline carousels are expanded.
+- UI: `SpotifyOnlyBadge` shown by `YouTubeListItem`/`YouTubeGridItem`; no swipe/long-press menu/play overlay for these items; album taps go to the new `SpotifyAlbumScreen` (`spotify_album/{albumId}`: cover, title, Play, track list). TV uses the same screens (back button focus helper included).
+- Playback: for `spotify-only-track-` ids `MusicService.resolveMultiSourceDataSpec` appends Spotify direct at the end of the chain (even if not enabled), ignores low-data skipping, and the YouTube fallback is replaced by a clear `PlaybackException` (also no YouTube prefetch for them). The Spotify tab, Spotify home, and Spotify playlist/track queues now fall back to Spotify-only items instead of dropping tracks missing on YTM.
+- Genius: `GeniusLyricsProvider` removed header/description blocks (`data-exclude-from-selection`, `LyricsHeader`, `SongDescription`, `LyricsFooter`) and new `GeniusPageNoise` strips a leftover "Title Lyrics + description" preface before the first `[Section]` marker (also applied in `normalizeLyricsText`, so stored bad lyrics are fixed); a glued header without markers is rejected so the next provider is used. Tests in `GeniusPageNoiseTest`.
+- Spotify review fixes: `SpotifyMapper` normalized titles with `[^a-z0-9]`, so every non-Latin title became empty and scored 1.0 against any other (wrong songs resolved for Japanese/Cyrillic/accented titles); now Unicode-aware with accent stripping, empty strings score 0, and its LRU caches are synchronized (used from several threads). `SpotifyWebStreamer`: dealer state fields are volatile, `connectDealer` is synchronized, and an old socket's close/failure no longer wipes the state of the new one. `searchSpotifyTrack` prefers the explicit edition when the song is explicit. Spotify tab click handlers no longer crash on exceptions.
+
+Stage Summary:
+- Pending CI compile and on-device verification.

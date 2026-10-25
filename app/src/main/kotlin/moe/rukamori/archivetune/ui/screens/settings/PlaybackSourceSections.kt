@@ -77,6 +77,7 @@ import moe.rukamori.archivetune.constants.SoundCloudAuthTokenKey
 import moe.rukamori.archivetune.constants.SoundCloudEnabledKey
 import moe.rukamori.archivetune.constants.SpotifyDirectEnabledKey
 import moe.rukamori.archivetune.constants.SpotifyDirectQuality
+import moe.rukamori.archivetune.constants.SpotifyFillGapsKey
 import moe.rukamori.archivetune.constants.SpotifyDirectQualityKey
 import moe.rukamori.archivetune.constants.SpotifyResolveMethod
 import moe.rukamori.archivetune.constants.SpotifyResolveMethodKey
@@ -177,6 +178,7 @@ internal fun PlaybackSourceSections(
         rememberEnumPreference(SoundCloudAudioQualityKey, SoundCloudAudioQuality.AAC_160)
     val (soundCloudAuthToken, onSoundCloudAuthTokenChange) = rememberPreference(SoundCloudAuthTokenKey, "")
     val (spotifyDirectEnabled, onSpotifyDirectEnabledChange) = rememberPreference(SpotifyDirectEnabledKey, false)
+    val (spotifyFillGaps, onSpotifyFillGapsChange) = rememberPreference(SpotifyFillGapsKey, true)
     val (spotifyDirectQuality, onSpotifyDirectQualityChange) =
         rememberEnumPreference(SpotifyDirectQualityKey, SpotifyDirectQuality.AAC_128)
     val (spotifyResolveMethod, onSpotifyResolveMethodChange) =
@@ -902,6 +904,17 @@ internal fun PlaybackSourceSections(
                 icon = { Icon(painterResource(R.drawable.spotify_icon), null) },
                 checked = spotifyDirectEnabled,
                 onCheckedChange = onSpotifyDirectEnabledChange,
+            )
+        }
+
+        item {
+            SwitchPreference(
+                modifier = positions.modifierFor("spotify_fill_gaps"),
+                title = { Text(stringResource(R.string.spotify_fill_gaps_title)) },
+                description = stringResource(R.string.spotify_fill_gaps_description),
+                icon = { Icon(painterResource(R.drawable.spotify_icon), null) },
+                checked = spotifyFillGaps,
+                onCheckedChange = onSpotifyFillGapsChange,
             )
         }
 

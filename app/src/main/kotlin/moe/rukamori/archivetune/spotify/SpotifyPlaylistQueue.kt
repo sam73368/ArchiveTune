@@ -101,12 +101,9 @@ class SpotifyPlaylistQueue(
                         chunk
                             .mapIndexed { index, track ->
                                 async {
-                                    SpotifyPlaybackResolver
-                                        .resolveToMediaItem(track)
-                                        ?.let { mediaItem -> chunkOffset + index to mediaItem }
+                                    chunkOffset + index to SpotifyPlaybackResolver.resolveOrSpotifyOnly(track)
                                 }
                             }.awaitAll()
-                            .filterNotNull()
                     }
                 addAll(resolvedChunk)
             }

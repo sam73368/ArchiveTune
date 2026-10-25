@@ -174,4 +174,9 @@
     <string name="tv_previous">Précédent</string>
     <string name="tv_word_sync_lyrics">Paroles mot à mot</string>
     <string name="tv_word_sync_lyrics_desc">Surligne chaque mot au moment où il est chanté. Plus joli mais plus lourd : à laisser désactivé sur les télés et box moins puissantes, les paroles suivent alors ligne par ligne</string>
+    <string name="spotify_only_badge">Spotify</string>
+    <string name="spotify_only_unavailable">Ce titre Spotify n\'a pu être lu depuis aucune source</string>
+    <string name="spotify_only_album_load_failed">Impossible de charger cet album Spotify</string>
+    <string name="spotify_fill_gaps_title">Afficher les sorties exclusives Spotify</string>
+    <string name="spotify_fill_gaps_description">Ajoute aux recherches et aux pages artiste les titres et albums absents de YouTube Music, avec un badge Spotify</string>
 </resources>

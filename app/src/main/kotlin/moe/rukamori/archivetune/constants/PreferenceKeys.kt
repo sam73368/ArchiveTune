@@ -1409,6 +1409,8 @@ val SoundCloudAuthTokenKey = stringPreferencesKey("soundcloudAuthToken")
 
 val SpotifyDirectEnabledKey = booleanPreferencesKey("spotifyDirectEnabled")
 
+val SpotifyFillGapsKey = booleanPreferencesKey("spotify_fill_catalog_gaps")
+
 val SpotifyDirectQualityKey = stringPreferencesKey("spotifyDirectQuality")
 
 enum class SpotifyDirectQuality {

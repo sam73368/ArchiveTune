@@ -18,7 +18,8 @@ object SpotifyMapper {
     private val BRACKET_PATTERN = Regex("\\[.*?]")
     private val REMASTER_PATTERN = Regex("\\(.*?remaster.*?\\)", RegexOption.IGNORE_CASE)
     private val REMIX_PATTERN = Regex("\\(.*?remix.*?\\)", RegexOption.IGNORE_CASE)
-    private val NON_ALNUM_PATTERN = Regex("[^a-z0-9\\s]")
+    private val NON_ALNUM_PATTERN = Regex("[^\\p{L}\\p{N}\\s]")
+    private val COMBINING_MARKS_PATTERN = Regex("\\p{Mn}+")
     private val MULTI_SPACE_PATTERN = Regex("\\s+")
 
     private const val NORM_CACHE_MAX_SIZE = 256
@@ -164,22 +165,23 @@ object SpotifyMapper {
     }
 
     private fun cachedNormalize(title: String): String {
-        normalizeCache[title]?.let { return it }
+        synchronized(normalizeCache) { normalizeCache[title] }?.let { return it }
         val normalized = normalizeTitle(title)
-        normalizeCache[title] = normalized
+        synchronized(normalizeCache) { normalizeCache[title] = normalized }
         return normalized
     }
 
     private fun cachedBigrams(normalized: String): Set<String> {
-        bigramCache[normalized]?.let { return it }
+        synchronized(bigramCache) { bigramCache[normalized] }?.let { return it }
         val bigrams = if (normalized.length < 2) emptySet() else normalized.windowed(2).toSet()
-        bigramCache[normalized] = bigrams
+        synchronized(bigramCache) { bigramCache[normalized] = bigrams }
         return bigrams
     }
 
     private fun normalizeTitle(title: String): String =
-        title
-            .lowercase()
+        java.text.Normalizer
+            .normalize(title.lowercase(), java.text.Normalizer.Form.NFD)
+            .replace(COMBINING_MARKS_PATTERN, "")
             .replace(FEAT_PATTERN, "")
             .replace(FT_PATTERN, "")
             .replace(BRACKET_PATTERN, "")
@@ -195,6 +197,7 @@ object SpotifyMapper {
         b: String,
         bigramsB: Set<String>,
     ): Double {
+        if (a.isEmpty() || b.isEmpty()) return 0.0
         if (a == b) return 1.0
         if (bigramsA.isEmpty() || bigramsB.isEmpty()) return 0.0
         val intersection = bigramsA.count { it in bigramsB }

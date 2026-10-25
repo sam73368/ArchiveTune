@@ -53,11 +53,10 @@ class SpotifyTracksQueue(
                                     val mediaItem = preloadItem
                                         ?.takeIf { it.spotifyTrackId == track.id }
                                         ?.toMediaItem()
-                                        ?: SpotifyPlaybackResolver.resolveToMediaItem(track)
-                                    mediaItem?.let { chunkOffset + index to it }
+                                        ?: SpotifyPlaybackResolver.resolveOrSpotifyOnly(track)
+                                    chunkOffset + index to mediaItem
                                 }
                             }.awaitAll()
-                            .filterNotNull()
                     }
                 addAll(resolvedChunk)
             }

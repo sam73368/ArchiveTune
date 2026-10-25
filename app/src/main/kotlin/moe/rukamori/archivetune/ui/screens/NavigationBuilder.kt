@@ -427,6 +427,17 @@ fun NavGraphBuilder.navigationBuilder(
         SpotifyPlaylistScreen(navController, scrollBehavior)
     }
     composable(
+        route = "spotify_album/{albumId}",
+        arguments =
+            listOf(
+                navArgument("albumId") {
+                    type = NavType.StringType
+                },
+            ),
+    ) {
+        SpotifyAlbumScreen(navController, scrollBehavior)
+    }
+    composable(
         route = "auto_playlist/{playlist}?tab={tab}",
         arguments =
             listOf(

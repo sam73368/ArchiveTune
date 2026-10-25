@@ -75,9 +75,16 @@ object SpotifyWebStreamer {
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
 
+    @Volatile
     private var activeWebSocket: WebSocket? = null
+
+    @Volatile
     private var dealerConnectionId: String? = null
+
+    @Volatile
     private var connectionIdDeferred: CompletableDeferred<String>? = null
+
+    @Volatile
     private var registeredDeviceId: String? = null
 
     private val audioFileMap = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -155,6 +162,7 @@ object SpotifyWebStreamer {
             }
         }.getOrNull()
 
+    @Synchronized
     private fun connectDealer(token: String) {
         if (activeWebSocket != null) return
         val deferred = CompletableDeferred<String>()
@@ -202,6 +210,7 @@ object SpotifyWebStreamer {
                         response: Response?,
                     ) {
                         Timber.tag(TAG).w(t, "Dealer websocket failed")
+                        if (activeWebSocket !== webSocket) return
                         activeWebSocket = null
                         dealerConnectionId = null
                         connectionIdDeferred = null
@@ -213,6 +222,7 @@ object SpotifyWebStreamer {
                         code: Int,
                         reason: String,
                     ) {
+                        if (activeWebSocket !== webSocket) return
                         activeWebSocket = null
                         dealerConnectionId = null
                         connectionIdDeferred = null

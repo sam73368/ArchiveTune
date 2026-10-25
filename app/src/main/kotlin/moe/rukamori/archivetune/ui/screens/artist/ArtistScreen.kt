@@ -9,6 +9,8 @@
 
 package moe.rukamori.archivetune.ui.screens.artist
 
+import moe.rukamori.archivetune.spotify.SpotifyOnly
+import moe.rukamori.archivetune.spotify.isSpotifyOnlyId
 import moe.rukamori.archivetune.ui.tv.tvSkipFocus
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
 import moe.rukamori.archivetune.ui.tv.tvNonFocusable
@@ -1121,7 +1123,7 @@ fun ArtistScreen(
                             contentColor = releaseCardContent,
                             mutedContentColor = releaseCardMutedContent,
                             accentColor = releaseCardAccent,
-                            onClick = { navController.navigate("album/${release.id}") },
+                            onClick = { navController.navigate(SpotifyOnly.albumRoute(release.id)) },
                         )
                     }
                 }
@@ -1524,7 +1526,7 @@ fun ArtistScreen(
                                                                 }
 
                                                                 is AlbumItem -> {
-                                                                    navController.navigate("album/${item.id}")
+                                                                    navController.navigate(SpotifyOnly.albumRoute(item.id))
                                                                 }
 
                                                                 is ArtistItem -> {
@@ -1549,7 +1551,8 @@ fun ArtistScreen(
                                                                 }
                                                             }
                                                         },
-                                                        onLongClick = {
+                                                        onLongClick = spotifyAware@{
+                                                            if (item.id.isSpotifyOnlyId()) return@spotifyAware
                                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                             menuState.show {
                                                                 when (item) {

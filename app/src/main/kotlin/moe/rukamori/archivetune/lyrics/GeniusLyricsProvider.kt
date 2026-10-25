@@ -185,9 +185,30 @@ object GeniusLyricsProvider : LyricsProvider {
         if (bodies.isEmpty()) return null
 
         val text =
-            bodies.joinToString("\n") { body -> containerText(body) }.trim()
+            bodies.joinToString("\n") { body -> containerText(removeExcludedBlocks(body)) }.trim()
         if (text.isEmpty()) return null
-        return stripArtifacts(text)
+        val cleaned = GeniusPageNoise.stripHeader(stripArtifacts(text))
+        if (GeniusPageNoise.hasGluedHeader(cleaned)) return null
+        return cleaned.takeIf { it.isNotEmpty() }
+    }
+
+    private fun removeExcludedBlocks(body: String): String {
+        var text = body
+        while (true) {
+            val start = EXCLUDED_BLOCK_START.find(text) ?: return text
+            val inner = balancedDivBody(text, start.range.last + 1)
+            val end =
+                inner
+                    ?.let { text.indexOf('>', start.range.last + 1 + it.length) }
+                    ?.takeIf { it >= 0 }
+                    ?.plus(1)
+            text =
+                if (end != null) {
+                    text.removeRange(start.range.first, end)
+                } else {
+                    text.removeRange(start.range)
+                }
+        }
     }
 
     private fun extractContainerBodies(html: String): List<String> {
@@ -281,6 +302,10 @@ object GeniusLyricsProvider : LyricsProvider {
     private val TRAILING_EMBED_LINE by lazy { Regex("""(?m)^\d*Embed\s*$""", RegexOption.IGNORE_CASE) }
 
     private val LYRICS_CONTAINER = Regex("""<div\b[^>]*\bdata-lyrics-container="true"[^>]*>""")
+    private val EXCLUDED_BLOCK_START =
+        Regex(
+            """<div\b[^>]*(?:data-exclude-from-selection="true"|class="[^"]*(?:LyricsHeader|SongDescription|LyricsFooter)[^"]*")[^>]*>""",
+        )
     private val LEGACY_LYRICS_DIV = Regex("""<div\b[^>]*\bclass="[^"]*\blyrics\b[^"]*"[^>]*>""")
 
     private val NOISE_BLOCKS =

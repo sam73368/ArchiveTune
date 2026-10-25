@@ -385,4 +385,9 @@
     <string name="tv_previous">Previous</string>
     <string name="tv_word_sync_lyrics">Word-by-word lyrics</string>
     <string name="tv_word_sync_lyrics_desc">Highlights each word as it is sung. Prettier but heavier: leave off on slower TVs and boxes, lyrics then follow line by line</string>
+    <string name="spotify_only_badge">Spotify</string>
+    <string name="spotify_only_unavailable">This Spotify track could not be played from any source</string>
+    <string name="spotify_only_album_load_failed">Could not load this Spotify album</string>
+    <string name="spotify_fill_gaps_title">Show Spotify-only releases</string>
+    <string name="spotify_fill_gaps_description">Add songs and albums missing from YouTube Music to search results and artist pages, with a Spotify badge</string>
 </resources>

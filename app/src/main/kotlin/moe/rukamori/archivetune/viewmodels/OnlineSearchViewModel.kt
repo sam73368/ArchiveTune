@@ -15,7 +15,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -32,12 +35,18 @@ import moe.rukamori.archivetune.innertube.YouTube.SearchFilter.Companion.FILTER_
 import moe.rukamori.archivetune.innertube.YouTube.SearchFilter.Companion.FILTER_SONG
 import moe.rukamori.archivetune.constants.SearchProvider
 import moe.rukamori.archivetune.innertube.YouTube.SearchFilter.Companion.FILTER_VIDEO
+import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.innertube.models.AlbumItem
 import moe.rukamori.archivetune.innertube.models.ArtistItem
 import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.YTItem
 import moe.rukamori.archivetune.innertube.models.filterExplicit
 import moe.rukamori.archivetune.innertube.models.filterVideo
+import moe.rukamori.archivetune.innertube.pages.SearchSummary
 import moe.rukamori.archivetune.innertube.pages.SearchSummaryPage
+import moe.rukamori.archivetune.spotify.SpotifyGapFinder
+import moe.rukamori.archivetune.spotify.SpotifyGaps
+import moe.rukamori.archivetune.spotify.withSpotifyGaps
 import moe.rukamori.archivetune.models.ItemsPage
 import moe.rukamori.archivetune.ui.screens.search.OnlineSearchProviderArgument
 import moe.rukamori.archivetune.ui.screens.search.OnlineSearchResultArgument
@@ -76,6 +85,7 @@ class OnlineSearchViewModel
         savedStateHandle: SavedStateHandle,
         private val loadAiContentFilterPolicy: LoadAiContentFilterPolicyUseCase,
         private val filterAiContent: FilterAiContentUseCase,
+        private val spotifyGapFinder: SpotifyGapFinder,
     ) : ViewModel() {
         val query =
             decodeOnlineSearchQuery(
@@ -99,6 +109,8 @@ class OnlineSearchViewModel
                 FILTER_FEATURED_PLAYLIST,
             )
         private var suggestedArtistsCache: List<ArtistItem>? = null
+        private var spotifyGapsCache: SpotifyGaps? = null
+        private val spotifyGapsMutex = Mutex()
         private var isSummaryLoading = false
         private val loadingFilters = mutableSetOf<String>()
 
@@ -142,6 +154,69 @@ class OnlineSearchViewModel
             }
         }
 
+        private suspend fun spotifyGaps(known: List<YTItem>): SpotifyGaps =
+            spotifyGapsMutex.withLock {
+                spotifyGapsCache?.let { return@withLock it }
+                val gaps =
+                    try {
+                        spotifyGapFinder.missingForSearch(
+                            query = query,
+                            known = known,
+                            hideExplicit = context.dataStore.get(HideExplicitKey, false),
+                        )
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        SpotifyGaps.EMPTY
+                    }
+                spotifyGapsCache = gaps
+                gaps
+            }
+
+        private suspend fun withSpotifyOnlyItems(
+            filter: YouTube.SearchFilter,
+            items: List<YTItem>,
+        ): List<YTItem> {
+            if (filter != FILTER_SONG && filter != FILTER_ALBUM) return items
+            val gaps = spotifyGaps(items)
+            if (gaps.isEmpty) return items
+            return if (filter == FILTER_SONG) {
+                items.withSpotifyGaps(gaps.songs)
+            } else {
+                items.withSpotifyGaps(gaps.albums)
+            }
+        }
+
+        private suspend fun withSpotifyOnlySummary(page: SearchSummaryPage): SearchSummaryPage {
+            val allItems = page.summaries.flatMap { it.items }
+            val gaps = spotifyGaps(allItems)
+            if (gaps.isEmpty) return page
+            var songsPlaced = gaps.songs.isEmpty()
+            var albumsPlaced = gaps.albums.isEmpty()
+            val updated =
+                page.summaries.map { summary ->
+                    when {
+                        summary.items.isNotEmpty() && summary.items.all { it is SongItem } && !songsPlaced -> {
+                            songsPlaced = true
+                            summary.copy(items = summary.items.withSpotifyGaps(gaps.songs))
+                        }
+
+                        summary.items.isNotEmpty() && summary.items.all { it is AlbumItem } && !albumsPlaced -> {
+                            albumsPlaced = true
+                            summary.copy(items = summary.items.withSpotifyGaps(gaps.albums))
+                        }
+
+                        else -> summary
+                    }
+                }
+            val extras =
+                buildList {
+                    if (!songsPlaced) add(SearchSummary(context.getString(R.string.filter_songs), gaps.songs))
+                    if (!albumsPlaced) add(SearchSummary(context.getString(R.string.filter_albums), gaps.albums))
+                }
+            return page.copy(summaries = updated + extras)
+        }
+
         private suspend fun suggestedArtists(): List<ArtistItem> {
             suggestedArtistsCache?.let { return it }
             val page = YouTube.searchSuggestions(query).getOrNull()
@@ -178,7 +253,7 @@ class OnlineSearchViewModel
                                 .filterExplicit(context.dataStore.get(HideExplicitKey, false))
                                 .filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false))
                         summaryPage =
-                            contentFilteredPage.copy(
+                            withSpotifyOnlySummary(contentFilteredPage.copy(
                                 summaries =
                                     contentFilteredPage.summaries.mapIndexedNotNull { summaryIndex, summary ->
                                         summary
@@ -193,7 +268,7 @@ class OnlineSearchViewModel
                                             )
                                             .takeIf { filteredSummary -> filteredSummary.items.isNotEmpty() }
                                     },
-                            )
+                            ))
                     }.onFailure {
                         reportException(it)
                     }
@@ -223,7 +298,9 @@ class OnlineSearchViewModel
                         val aiContentFilterPolicy = loadAiContentFilterPolicy()
                         viewStateMap[filterKey] =
                             ItemsPage(
-                                filterAiContent(
+                                withSpotifyOnlyItems(
+                                    filter,
+                                    filterAiContent(
                                     (extraArtists + result.items)
                                         .distinctBy { it.id }
                                         .filterExplicit(
@@ -234,6 +311,7 @@ class OnlineSearchViewModel
                                         ).filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false))
                                         .dropCleanTwins(),
                                     aiContentFilterPolicy,
+                                    ),
                                 ),
                                 result.continuation,
                             )

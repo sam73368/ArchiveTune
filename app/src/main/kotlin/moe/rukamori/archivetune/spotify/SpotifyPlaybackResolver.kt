@@ -37,6 +37,9 @@ object SpotifyPlaybackResolver {
 
     suspend fun resolveToMediaItem(track: SpotifyTrack): MediaItem? = resolveToMetadata(track)?.toMediaItem()
 
+    suspend fun resolveOrSpotifyOnly(track: SpotifyTrack): MediaItem =
+        resolveToMediaItem(track) ?: track.toSpotifyOnlyMetadata().toMediaItem()
+
     suspend fun resolveToMetadata(track: SpotifyTrack): MediaMetadata? =
         withContext(Dispatchers.IO) {
             val metadataSource =

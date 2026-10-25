@@ -109,7 +109,7 @@ class SpotifyHomeViewModel @Inject constructor(
                 key = "track:${action.track.id}",
                 unavailableMessageResId = R.string.spotify_track_unavailable,
             ) {
-                SpotifyPlaybackResolver.resolveToMetadata(action.track)?.let { metadata ->
+                (SpotifyPlaybackResolver.resolveToMetadata(action.track) ?: action.track.toSpotifyOnlyMetadata()).let { metadata ->
                     SpotifyHomeNavigationEvent.PlayTracks(
                         SpotifyTracksQueue(
                             title = action.title,
@@ -124,8 +124,10 @@ class SpotifyHomeViewModel @Inject constructor(
                 val query = listOfNotNull(action.name, action.artist)
                     .filter(String::isNotBlank)
                     .joinToString(" ")
-                searchCatalogItem<AlbumItem>(query, YouTube.SearchFilter.FILTER_ALBUM)
-                    ?.let { SpotifyHomeNavigationEvent.OpenAlbum(it.browseId) }
+                SpotifyHomeNavigationEvent.OpenAlbum(
+                    searchCatalogItem<AlbumItem>(query, YouTube.SearchFilter.FILTER_ALBUM)?.browseId
+                        ?: SpotifyOnly.albumItemId(action.id),
+                )
             }
             is SpotifyHomeAction.ArtistClick -> resolveSelection("artist:${action.id}") {
                 searchCatalogItem<ArtistItem>(action.name, YouTube.SearchFilter.FILTER_ARTIST)

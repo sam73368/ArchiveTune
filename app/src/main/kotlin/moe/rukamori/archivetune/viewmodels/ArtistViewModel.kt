@@ -50,6 +50,7 @@ import moe.rukamori.archivetune.extensions.filterExplicit
 import moe.rukamori.archivetune.extensions.filterExplicitAlbums
 import moe.rukamori.archivetune.extensions.filterVideo
 import moe.rukamori.archivetune.innertube.YouTube
+import moe.rukamori.archivetune.innertube.models.AlbumItem
 import moe.rukamori.archivetune.innertube.models.BrowseEndpoint
 import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.YTItem
@@ -59,6 +60,8 @@ import moe.rukamori.archivetune.innertube.pages.ArtistPage
 import moe.rukamori.archivetune.innertube.pages.ArtistSection
 import moe.rukamori.archivetune.innertube.pages.ArtistSectionLayout
 import moe.rukamori.archivetune.innertube.pages.isInlineCarousel
+import moe.rukamori.archivetune.spotify.SpotifyGapFinder
+import moe.rukamori.archivetune.spotify.withSpotifyGaps
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
@@ -120,6 +123,7 @@ class ArtistViewModel
         private val database: MusicDatabase,
         observeArtistBlocked: ObserveArtistBlockedUseCase,
         private val setArtistBlocked: SetArtistBlockedUseCase,
+        private val spotifyGapFinder: SpotifyGapFinder,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         val artistId = savedStateHandle.get<String>("artistId")!!
@@ -132,6 +136,8 @@ class ArtistViewModel
         val events = eventChannel.receiveAsFlow()
         private var blockJob: Job? = null
         private var inlineExpandJob: Job? = null
+        private var spotifyOnlyAlbums: List<AlbumItem> = emptyList()
+        private var spotifyAlbumsChecked = false
 
         val libraryArtist =
             database
@@ -225,6 +231,11 @@ class ArtistViewModel
                                 }
 
                         artistPage = page.copy(sections = filteredSections)
+                        if (spotifyAlbumsChecked) {
+                            applySpotifyOnlyAlbums()
+                        } else {
+                            loadSpotifyOnlyAlbums(page)
+                        }
 
                         expandInlineCarouselSections(filteredSections, hideExplicit, hideVideo, blockedArtistIds)
 
@@ -245,6 +256,50 @@ class ArtistViewModel
                         reportException(it)
                     }
             }
+        }
+
+        private fun loadSpotifyOnlyAlbums(page: ArtistPage) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val known = page.sections.flatMap { it.items }.filterIsInstance<AlbumItem>()
+                val missing =
+                    try {
+                        spotifyGapFinder.missingAlbumsForArtist(page.artist.title, known)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        emptyList()
+                    }
+                spotifyAlbumsChecked = true
+                if (missing.isEmpty()) return@launch
+                spotifyOnlyAlbums = missing
+                withContext(Dispatchers.Main) { applySpotifyOnlyAlbums() }
+            }
+        }
+
+        private fun applySpotifyOnlyAlbums() {
+            val extra = spotifyOnlyAlbums
+            val current = artistPage ?: return
+            if (extra.isEmpty()) return
+            val index = current.sections.indexOfFirst { section -> section.items.any { it is AlbumItem } }
+            val sections =
+                if (index >= 0) {
+                    current.sections.mapIndexed { sectionIndex, section ->
+                        if (sectionIndex == index) {
+                            section.copy(items = section.items.withSpotifyGaps(extra))
+                        } else {
+                            section
+                        }
+                    }
+                } else {
+                    current.sections +
+                        ArtistSection(
+                            title = context.getString(R.string.filter_albums),
+                            items = extra,
+                            moreEndpoint = null,
+                            layout = ArtistSectionLayout.GRID,
+                        )
+                }
+            artistPage = current.copy(sections = sections)
         }
 
         /**
@@ -319,7 +374,15 @@ class ArtistViewModel
             if (sectionIndex !in current.sections.indices) return
             if (current.sections[sectionIndex].moreEndpoint != endpoint) return
             val updatedSections = current.sections.toMutableList()
-            updatedSections[sectionIndex] = updatedSections[sectionIndex].copy(items = mergedItems)
+            updatedSections[sectionIndex] =
+                updatedSections[sectionIndex].copy(
+                    items =
+                        if (mergedItems.any { it is AlbumItem }) {
+                            mergedItems.withSpotifyGaps(spotifyOnlyAlbums)
+                        } else {
+                            mergedItems
+                        },
+                )
             artistPage = current.copy(sections = updatedSections)
         }
 

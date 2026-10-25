@@ -64,6 +64,8 @@ import moe.rukamori.archivetune.innertube.models.YTItem
 import moe.rukamori.archivetune.playback.queues.YouTubeQueue
 import moe.rukamori.archivetune.spotify.SpotifyPlaybackResolver
 import moe.rukamori.archivetune.spotify.SpotifySearchItem
+import moe.rukamori.archivetune.spotify.playSpotifyOnlyTrack
+import moe.rukamori.archivetune.spotify.toSpotifyOnlyMetadata
 import moe.rukamori.archivetune.ui.component.EmptyPlaceholder
 import moe.rukamori.archivetune.ui.component.LocalMenuState
 import moe.rukamori.archivetune.ui.component.SearchSourcePicker
@@ -381,12 +383,16 @@ private fun SpotifySearchResultRow(
                             if (album != null) {
                                 navController.navigate("album/${album.id}")
                             } else {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.no_results_found),
-                                    Toast.LENGTH_SHORT,
-                                ).show()
+                                navController.navigate("spotify_album/${item.value.id}")
                             }
+                        } catch (error: kotlinx.coroutines.CancellationException) {
+                            throw error
+                        } catch (error: Throwable) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.no_results_found),
+                                Toast.LENGTH_SHORT,
+                            ).show()
                         } finally {
                             resolving = false
                         }
@@ -412,6 +418,14 @@ private fun SpotifySearchResultRow(
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
+                        } catch (error: kotlinx.coroutines.CancellationException) {
+                            throw error
+                        } catch (error: Throwable) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.no_results_found),
+                                Toast.LENGTH_SHORT,
+                            ).show()
                         } finally {
                             resolving = false
                         }
@@ -441,12 +455,16 @@ private fun SpotifySearchResultRow(
                             if (metadata != null) {
                                 playerConnection.playSongKeepingQueue(metadata, YouTubeQueue.radio(metadata))
                             } else {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.spotify_track_unavailable),
-                                    Toast.LENGTH_SHORT,
-                                ).show()
+                                playerConnection.playSpotifyOnlyTrack(track.toSpotifyOnlyMetadata())
                             }
+                        } catch (error: kotlinx.coroutines.CancellationException) {
+                            throw error
+                        } catch (error: Throwable) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.spotify_track_unavailable),
+                                Toast.LENGTH_SHORT,
+                            ).show()
                         } finally {
                             resolving = false
                         }

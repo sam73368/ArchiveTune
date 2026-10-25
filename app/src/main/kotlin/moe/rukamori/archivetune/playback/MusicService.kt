@@ -262,6 +262,7 @@ import moe.rukamori.archivetune.constants.SoundCloudAudioQualityKey
 import moe.rukamori.archivetune.constants.SoundCloudAudioQuality
 import moe.rukamori.archivetune.constants.SoundCloudEnabledKey
 import moe.rukamori.archivetune.constants.SoundCloudAuthTokenKey
+import moe.rukamori.archivetune.spotify.isSpotifyOnlyId
 import moe.rukamori.archivetune.constants.SpotifyDirectEnabledKey
 import moe.rukamori.archivetune.constants.SpotifyResolveMethod
 import moe.rukamori.archivetune.constants.SpotifyResolveMethodKey
@@ -7523,6 +7524,8 @@ class MusicService :
                         }
                     }
 
+                    if (mediaId.isSpotifyOnlyId()) return@runCatching
+
                     if (preferredStreamClient != PlayerStreamClient.ARCHIVETUNE_EXTRACTOR) {
                         val result =
                             retryWithoutPlaybackLoginContext {
@@ -9324,7 +9327,7 @@ class MusicService :
             override == null ||
                 override == AudioSourceType.YOUTUBE ||
                 isSourceEnabled(override)
-        val chain =
+        val baseChain =
             if (isDirectPick) {
                 listOfNotNull(override)
             } else when (override) {
@@ -9345,13 +9348,21 @@ class MusicService :
                     sourceChainFor(mode)
                 }
             }
+        val chain =
+            if (mediaId.isSpotifyOnlyId() && override == null && mode != SourceResolveMode.RESCUE &&
+                AudioSourceType.SPOTIFY !in baseChain
+            ) {
+                baseChain + AudioSourceType.SPOTIFY
+            } else {
+                baseChain
+            }
         Timber.tag("MusicService").d("Multi-source resolve for %s | chain=%s", mediaId, chain.joinToString(",") { it.name })
         if (chain.isEmpty()) {
             Timber.tag("MusicService").d("Multi-source skip: no sources to try (chain empty)")
             return null
         }
 
-        if (lowDataModeActive && !isDirectPick) {
+        if (lowDataModeActive && !isDirectPick && !mediaId.isSpotifyOnlyId()) {
             tidalActiveMediaIds.remove(mediaId)
             Timber.tag("MusicService").i("Low-data mode active; skipping Tidal/Qobuz for %s", mediaId)
             return null
@@ -10303,6 +10314,9 @@ class MusicService :
                     else -> 0
                 }
             }
+            if (query.explicit) {
+                score += if (track.explicit) 2 else -2
+            }
             if (score > bestScore) {
                 bestScore = score
                 best = SpotifyMatch(
@@ -11106,6 +11120,14 @@ class MusicService :
         resolveMultiSourceDataSpec(dataSpec, mediaId, lowDataModeActive)?.let { sourceDataSpec ->
             scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
             return sourceDataSpec
+        }
+
+        if (mediaId.isSpotifyOnlyId()) {
+            throw PlaybackException(
+                getString(R.string.spotify_only_unavailable),
+                null,
+                PlaybackException.ERROR_CODE_REMOTE_ERROR,
+            )
         }
 
         if (preferredStreamClient == PlayerStreamClient.ARCHIVETUNE_EXTRACTOR) {

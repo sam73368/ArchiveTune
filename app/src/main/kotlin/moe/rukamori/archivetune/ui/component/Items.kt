@@ -10,6 +10,7 @@
 package moe.rukamori.archivetune.ui.component
 
 import kotlinx.coroutines.flow.flowOf
+import moe.rukamori.archivetune.spotify.isSpotifyOnlyId
 import moe.rukamori.archivetune.ui.utils.aggregateDownloadState
 import android.widget.Toast
 import androidx.annotation.DrawableRes
@@ -773,6 +774,7 @@ fun YouTubeListItem(
         ) {
             Icon.Favorite()
         }
+        if (item.id.isSpotifyOnlyId()) SpotifyOnlyBadge()
         if (item.explicit) Icon.Explicit()
         if (item is SongItem && song?.song?.inLibrary != null) {
             Icon.Library()
@@ -857,7 +859,7 @@ fun YouTubeListItem(
         )
     }
 
-    if (item is SongItem && isSwipeable && swipeEnabled) {
+    if (item is SongItem && isSwipeable && swipeEnabled && !item.id.isSpotifyOnlyId()) {
         SwipeToSongBox(
             mediaItem =
                 item
@@ -900,6 +902,7 @@ fun YouTubeGridItem(
         ) {
             Icon.Favorite()
         }
+        if (item.id.isSpotifyOnlyId()) SpotifyOnlyBadge()
         if (item.explicit) Icon.Explicit()
         if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
         if (item is SongItem) {
@@ -979,7 +982,7 @@ fun YouTubeGridItem(
 
             if (showPlayOverlay) {
                 AlbumPlayButton(
-                    visible = item is AlbumItem && !isActive,
+                    visible = item is AlbumItem && !isActive && !item.id.isSpotifyOnlyId(),
                     onClick = {
                         coroutineScope?.launch(Dispatchers.IO) {
                             var albumWithSongs = database.albumWithSongs(item.id).first()

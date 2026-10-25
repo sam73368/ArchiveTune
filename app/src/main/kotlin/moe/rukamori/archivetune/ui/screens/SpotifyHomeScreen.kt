@@ -67,6 +67,7 @@ import coil3.compose.AsyncImage
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.spotify.SpotifyOnly
 import moe.rukamori.archivetune.ui.component.pressScaleClickable
 import moe.rukamori.archivetune.innertube.models.AlbumItem
 import moe.rukamori.archivetune.innertube.models.Artist
@@ -163,7 +164,7 @@ fun SpotifyHomeScreen(
     LaunchedEffect(viewModel, navController, playerConnection, context) {
         viewModel.navigationEvents.collect { event ->
             when (event) {
-                is SpotifyHomeNavigationEvent.OpenAlbum -> navController.navigate("album/${event.browseId}")
+                is SpotifyHomeNavigationEvent.OpenAlbum -> navController.navigate(SpotifyOnly.albumRoute(event.browseId))
                 is SpotifyHomeNavigationEvent.OpenArtist -> navController.navigate("artist/${event.id}")
                 is SpotifyHomeNavigationEvent.PlayTracks -> playerConnection.playQueue(event.queue)
                 is SpotifyHomeNavigationEvent.ShowMessage ->

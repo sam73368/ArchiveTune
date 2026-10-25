@@ -91,6 +91,9 @@ import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.models.toMediaMetadata
 import moe.rukamori.archivetune.playback.queues.ListQueue
 import moe.rukamori.archivetune.playback.queues.YouTubeQueue
+import moe.rukamori.archivetune.spotify.SpotifyOnly
+import moe.rukamori.archivetune.spotify.isSpotifyOnlyId
+import moe.rukamori.archivetune.spotify.playSpotifyOnlyTrack
 import moe.rukamori.archivetune.ui.component.EmptyPlaceholder
 import moe.rukamori.archivetune.ui.component.LocalMenuState
 import moe.rukamori.archivetune.ui.component.SearchSourcePicker
@@ -224,7 +227,7 @@ fun OnlineSearchResult(
 
     val ytItemContent: @Composable LazyItemScope.(YTItem) -> Unit = { item: YTItem ->
         val longClick: (() -> Unit)? =
-            if (item is PodcastItem || item is EpisodeItem) {
+            if (item is PodcastItem || item is EpisodeItem || item.id.isSpotifyOnlyId()) {
                 null
             } else {
                 {
@@ -294,7 +297,13 @@ fun OnlineSearchResult(
                     .combinedClickable(
                         onClick = {
                             when (item) {
-                                is SongItem -> {
+                                is SongItem -> if (item.id.isSpotifyOnlyId()) {
+                                    if (item.id == mediaMetadata?.id) {
+                                        playerConnection.player.togglePlayPause()
+                                    } else {
+                                        playerConnection.playSpotifyOnlyTrack(SpotifyOnly.metadataFor(item))
+                                    }
+                                } else {
                                     val playAsVideo = showVideos && (searchFilter == FILTER_VIDEO || item.isMusicVideoClip())
                                     val sameTrack = item.id == mediaMetadata?.id
                                     val currentIsVideo = sameTrack && mediaMetadata?.isMusicVideo == true
@@ -322,7 +331,7 @@ fun OnlineSearchResult(
                                 }
 
                                 is AlbumItem -> {
-                                    navController.navigate("album/${item.id}")
+                                    navController.navigate(SpotifyOnly.albumRoute(item.id))
                                 }
 
                                 is ArtistItem -> {
