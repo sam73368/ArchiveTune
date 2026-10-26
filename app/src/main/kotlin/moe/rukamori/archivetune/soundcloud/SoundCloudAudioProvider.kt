@@ -59,6 +59,8 @@ object SoundCloudAudioProvider {
         val album: String?,
         val durationMs: Long?,
         val directTrackUrl: String? = null,
+        val explicit: Boolean = false,
+        val isrc: String? = null,
     ) {
         val directUrl: String?
             get() = directTrackUrl?.takeIf { it.isNotBlank() }?.let { url ->
@@ -92,6 +94,8 @@ object SoundCloudAudioProvider {
         val sampleRate: Int?,
         val contentLength: Long?,
         val expiresAtMs: Long,
+        val album: String? = null,
+        val explicit: Boolean? = null,
     )
 
     class SoundCloudResolutionException(message: String, cause: Throwable? = null) : Exception(message, cause)
@@ -106,6 +110,14 @@ object SoundCloudAudioProvider {
         val durationMs: Long?,
         val trackAuthorization: String?,
         val transcodings: JSONArray?,
+        val album: String? = null,
+        val isrc: String? = null,
+        val explicit: Boolean? = null,
+        val verifiedUploader: Boolean = false,
+        val uploaderName: String? = null,
+        val publisherArtist: String? = null,
+        val labelName: String? = null,
+        val description: String? = null,
     )
 
     private data class StreamCandidate(
@@ -617,6 +629,8 @@ object SoundCloudAudioProvider {
             sampleRate = candidate.sampleRate ?: DEFAULT_SAMPLE_RATE,
             contentLength = null,
             expiresAtMs = now + STREAM_CACHE_MS,
+            album = track.album,
+            explicit = track.explicit,
         )
     }
 
@@ -760,6 +774,10 @@ object SoundCloudAudioProvider {
         query: Query,
         forWaveform: Boolean = false,
     ): MatchedTrack? {
+        if (!forWaveform) {
+            return selectOfficialStudioTrack(tracks, query)
+        }
+
         val strict = selectBestTrackInternal(
             tracks = tracks,
             query = query,
@@ -768,13 +786,6 @@ object SoundCloudAudioProvider {
             maxDurationDiffSeconds = 20,
         )
         if (strict != null) return strict
-
-        if (tracks.isNotEmpty()) {
-            Timber.tag(TAG).i(
-                "selectBestTrack: no strict match among ${tracks.size} candidate(s) for '${query.title}' " +
-                    "by '${query.artists.joinToString()}'; retrying with relaxed artist matching",
-            )
-        }
 
         val loose = selectBestTrackInternal(
             tracks = tracks,
@@ -785,15 +796,6 @@ object SoundCloudAudioProvider {
         )
         if (loose != null) return loose
 
-        if (tracks.isNotEmpty()) {
-            Timber.tag(TAG).i(
-                "selectBestTrack: no relaxed match either for '${query.title}' among ${tracks.size} candidate(s)" +
-                    if (forWaveform) "; retrying with lenient matching" else "",
-            )
-        }
-
-        if (!forWaveform) return null
-
         return selectBestTrackInternal(
             tracks = tracks,
             query = query,
@@ -801,6 +803,56 @@ object SoundCloudAudioProvider {
             minScore = 120,
             maxDurationDiffSeconds = 30,
             allowVersionMismatch = true,
+        )
+    }
+
+    private fun selectOfficialStudioTrack(
+        tracks: List<MatchedTrack>,
+        query: Query,
+    ): MatchedTrack? {
+        val wanted = SoundCloudOfficialGate.Wanted(
+            title = query.title,
+            artists = query.artists,
+            album = query.album,
+            isrc = query.isrc,
+            explicit = query.explicit,
+            durationMs = query.durationMs,
+        )
+        val official = tracks.filter { track ->
+            val verdict = SoundCloudOfficialGate.evaluate(
+                wanted,
+                SoundCloudOfficialGate.Candidate(
+                    title = track.title,
+                    artistNames = track.artistNames,
+                    album = track.album,
+                    isrc = track.isrc,
+                    explicit = track.explicit,
+                    verifiedUploader = track.verifiedUploader,
+                    uploaderName = track.uploaderName,
+                    publisherArtist = track.publisherArtist,
+                    labelName = track.labelName,
+                    description = track.description,
+                    durationMs = track.durationMs,
+                ),
+            )
+            if (!verdict.accepted) {
+                Timber.tag(TAG).d("SoundCloud candidate '%s' rejected for '%s': %s", track.title, query.title, verdict.reason)
+            }
+            verdict.accepted
+        }
+        if (official.isEmpty()) {
+            Timber.tag(TAG).i(
+                "selectBestTrack: no official studio match among ${tracks.size} candidate(s) for '${query.title}' " +
+                    "by '${query.artists.joinToString()}'; leaving it to the next source",
+            )
+            return null
+        }
+        return selectBestTrackInternal(
+            tracks = official,
+            query = query,
+            requireArtistMatch = true,
+            minScore = 420,
+            maxDurationDiffSeconds = SoundCloudOfficialGate.MAX_DURATION_DIFF_MS / 1000L,
         )
     }
 
@@ -988,8 +1040,10 @@ object SoundCloudAudioProvider {
         if (stringOrNull("policy")?.equals("SNIP", ignoreCase = true) == true) return null
         val trackId = stringOrNull("id") ?: return null
         val title = stringOrNull("title") ?: return null
-        val publisherArtist = optJSONObject("publisher_metadata")?.stringOrNull("artist")
-        val userName = optJSONObject("user")?.stringOrNull("username")
+        val publisher = optJSONObject("publisher_metadata")
+        val publisherArtist = publisher?.stringOrNull("artist")
+        val userObject = optJSONObject("user")
+        val userName = userObject?.stringOrNull("username")
         val labelName = stringOrNull("label_name")
         val artistNames = listOfNotNull(publisherArtist, userName, labelName)
             .flatMap(::splitArtistNames)
@@ -1008,6 +1062,17 @@ object SoundCloudAudioProvider {
             durationMs = durationMs,
             trackAuthorization = stringOrNull("track_authorization"),
             transcodings = optJSONObject("media")?.optJSONArray("transcodings"),
+            album = publisher?.stringOrNull("album_title") ?: publisher?.stringOrNull("release_title"),
+            isrc = publisher?.stringOrNull("isrc"),
+            explicit = publisher?.takeIf { it.has("explicit") && !it.isNull("explicit") }?.optBoolean("explicit"),
+            verifiedUploader = userObject?.optBoolean("verified", false) == true,
+            uploaderName = userName,
+            publisherArtist = publisherArtist,
+            labelName = labelName,
+            description = listOfNotNull(stringOrNull("description"), stringOrNull("genre"), stringOrNull("tag_list"))
+                .joinToString("\n")
+                .take(1500)
+                .takeIf { it.isNotBlank() },
         )
     }
 
@@ -1045,8 +1110,9 @@ object SoundCloudAudioProvider {
             source = AudioSourceType.SOUNDCLOUD,
             matchedTitle = title,
             matchedArtist = artist,
-            matchedAlbum = null,
+            matchedAlbum = album,
             matchedDurationMs = durationMs,
+            matchedExplicit = explicit,
             trustedDirectId = query.directUrl != null || query.mediaId.toSoundCloudUrlOrNull() != null,
             sampleRate = sampleRate,
             bitDepth = null,

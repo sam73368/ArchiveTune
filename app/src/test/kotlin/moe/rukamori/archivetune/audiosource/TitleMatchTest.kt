@@ -45,6 +45,45 @@ class TitleMatchTest {
     }
 
     @Test
+    fun rejectsSoundCloudUploadWhoseLengthDiffersFromStudio() {
+        val result =
+            evaluate(
+                stream(title = "Stay", artist = "Rihanna", durationMs = 253_000).copy(source = AudioSourceType.SOUNDCLOUD),
+            )
+
+        assertFalse(result.accepted)
+    }
+
+    @Test
+    fun rejectsCleanEditWhenExplicitIsWanted() {
+        val result =
+            TitleMatch.evaluate(
+                wantedTitle = "Stay",
+                wantedArtists = listOf("Rihanna"),
+                wantedAlbum = null,
+                wantedDurationMs = 241_000,
+                stream = stream(title = "Stay", artist = "Rihanna", durationMs = 241_000).copy(matchedExplicit = false),
+                wantedExplicit = true,
+            )
+
+        assertFalse(result.accepted)
+    }
+
+    @Test
+    fun rejectsLiveAlbumForStudioTrack() {
+        val result =
+            TitleMatch.evaluate(
+                wantedTitle = "Stay",
+                wantedArtists = listOf("Rihanna"),
+                wantedAlbum = "Unapologetic",
+                wantedDurationMs = 241_000,
+                stream = stream(title = "Stay", artist = "Rihanna", album = "Live at the Garden", durationMs = 241_000),
+            )
+
+        assertFalse(result.accepted)
+    }
+
+    @Test
     fun rejectsImplausibleDuration() {
         val result = evaluate(stream(title = "Stay", artist = "Rihanna", durationMs = 310_000))
 

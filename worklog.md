@@ -6109,3 +6109,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification. Root cause on device unconfirmed (reason text is only "Sign in").
+
+---
+Task ID: SC-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: SoundCloud sometimes played a live or non-official version instead of the studio track (example: Master of Puppets). Only the official studio, explicit-matching version may play from a non-YouTube source; otherwise fall through to the next source / YouTube Music.
+
+Work Log:
+- Cause: `SoundCloudAudioProvider.selectBestTrack` accepted any user upload whose title looked similar (version check only on a short token list, 20 s duration tolerance, relaxed second pass with 8 s and no artist match). A live recording titled like the studio song, or a re-upload, passed. `TitleMatch` then trusted it (15 s gate, no explicit check).
+- New `SoundCloudOfficialGate` (pure, unit tested): rejects candidates whose title/album/description carry a version marker the wanted song lacks (live, concert, session, bootleg, remix, cover, demo, sped up, slowed, reverb, nightcore, 8d, mashup, en vivo, ao vivo, en direct...; whole-word matching so "olive" is fine), whose description admits a live/cover/unofficial upload, whose ISRC conflicts, or whose length differs by more than 6 s (or cannot be verified without an ISRC match). A clean edit (publisher `explicit=false`, clean marker, or unknown flag without ISRC match) is rejected when the song is explicit. A match needs an official signal: ISRC match, a verified uploader named like the artist, or publisher metadata naming the artist plus release data (album, ISRC or label).
+- `SoundCloudAudioProvider`: `MatchedTrack` keeps publisher_metadata album/isrc/explicit, verified flag, uploader, label and description; the search path (not the waveform path) now only uses `selectOfficialStudioTrack`, so a failed match returns null and `resolveMultiSourceDataSpec` continues to the next source and finally YouTube Music. Direct SoundCloud URLs chosen by the user are still trusted. The stream now carries album and explicit flag.
+- `TitleMatch`: new `wantedExplicit` and `DirectStream.matchedExplicit` (clean edit rejected when explicit is wanted), album version mismatch check for every source (live/acoustic/remix/... albums), more version markers, SoundCloud duration gate 6 s.
+- Tests: `SoundCloudOfficialGateTest`, three new `TitleMatchTest` cases.
+
+Stage Summary:
+- Pending CI compile and on-device verification.

@@ -21,6 +21,8 @@ data class DirectStream(
     val matchedAlbum: String? = null,
     val matchedDurationMs: Long? = null,
 
+    val matchedExplicit: Boolean? = null,
+
     val trustedDirectId: Boolean = false,
 
     val sampleRate: Int? = null,
@@ -49,6 +51,7 @@ object TitleMatch {
     private const val MIN_TITLE_WITH_METADATA = 0.84
     private const val MIN_ARTIST = 0.72
     private const val DURATION_HARD_GATE_MS = 15_000L
+    private const val SOUNDCLOUD_DURATION_GATE_MS = 6_000L
 
     data class Result(
         val accepted: Boolean,
@@ -110,12 +113,21 @@ object TitleMatch {
         wantedAlbum: String?,
         wantedDurationMs: Long?,
         stream: DirectStream,
+        wantedExplicit: Boolean = false,
     ): Result {
         if (stream.trustedDirectId) return Result(true, 1.0, 1.0, 1.0, 1.0, "trusted catalog id")
         val candidateTitle = stream.matchedTitle
             ?: return Result(false, 0.0, 0.0, null, null, "provider returned no matched metadata")
         if (hasVersionMismatch(wantedTitle, candidateTitle)) {
             return Result(false, 0.0, ratio(wantedTitle, candidateTitle), null, null, "version mismatch")
+        }
+        if (!wantedAlbum.isNullOrBlank() && !stream.matchedAlbum.isNullOrBlank() &&
+            hasAlbumVersionMismatch(wantedAlbum, stream.matchedAlbum)
+        ) {
+            return Result(false, 0.0, ratio(wantedTitle, candidateTitle), null, null, "album version mismatch")
+        }
+        if (wantedExplicit && stream.matchedExplicit == false) {
+            return Result(false, 0.0, ratio(wantedTitle, candidateTitle), null, null, "clean edit while explicit is wanted")
         }
 
         val titleScore = ratio(wantedTitle, candidateTitle)
@@ -131,6 +143,11 @@ object TitleMatch {
         }
         if (durationScore == 0.0) {
             return Result(false, 0.0, titleScore, artistScore, durationScore, "duration differs by more than 15s")
+        }
+        if (stream.source == AudioSourceType.SOUNDCLOUD && wantedDurationMs != null && wantedDurationMs > 0 &&
+            stream.matchedDurationMs != null && abs(wantedDurationMs - stream.matchedDurationMs) > SOUNDCLOUD_DURATION_GATE_MS
+        ) {
+            return Result(false, 0.0, titleScore, artistScore, durationScore, "user upload length differs from the studio version")
         }
 
         if (artistScore == null) {
@@ -205,7 +222,18 @@ object TitleMatch {
         listOf(
             "live", "concert", "remix", "rework", "acoustic", "instrumental", "karaoke",
             "cover", "demo", "sped up", "nightcore", "slowed", "extended", "radio edit",
+            "unplugged", "bootleg", "mashup", "tribute", "reverb", "8d", "en vivo", "ao vivo",
+            "en direct", "rehearsal", "soundboard", "sessions", "tour",
         )
+
+    private val albumVersionMarkers =
+        listOf("live", "concert", "unplugged", "acoustic", "remix", "demo", "instrumental", "karaoke", "cover", "tribute", "sessions")
+
+    private fun hasAlbumVersionMismatch(wanted: String, candidate: String): Boolean {
+        val target = " ${normalize(wanted)} "
+        val option = " ${normalize(candidate)} "
+        return albumVersionMarkers.any { marker -> (" $marker " in target) != (" $marker " in option) }
+    }
 
     private fun hasVersionMismatch(wanted: String, candidate: String): Boolean {
         val target = " ${normalize(wanted)} "

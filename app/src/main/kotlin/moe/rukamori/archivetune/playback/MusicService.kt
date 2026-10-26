@@ -9450,6 +9450,7 @@ class MusicService :
                         wantedAlbum = query.album,
                         wantedDurationMs = query.durationMs,
                         stream = stream,
+                        wantedExplicit = query.explicit,
                     )
                 }
             if (!match.accepted) {
@@ -10064,6 +10065,8 @@ class MusicService :
                             album = query.album,
                             durationMs = query.durationMs,
                             directTrackUrl = query.soundCloudUrl,
+                            explicit = query.explicit,
+                            isrc = query.isrc,
                         ),
                     authToken = authToken,
                     quality = quality,
