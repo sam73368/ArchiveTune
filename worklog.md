@@ -6125,3 +6125,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification.
+
+---
+Task ID: AL-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Artist "Albums" see-all page showed albums in YouTube's popularity order (studio, live and others mixed). Show them newest first, with a title separating live/tour albums.
+
+Work Log:
+- `ArtistAlbumGrouping` (utils, unit tested): groups albums into Albums / Live albums and tours / EPs / Singles (live detected from whole-word markers in the title such as live, concert, unplugged, tour, en vivo; release type from the subtitle) and sorts each group by year descending (undated last, stable ties).
+- `ArtistItemsViewModel`: for a grid made only of albums, the remaining continuation pages (max 12) are loaded automatically so the sort is complete instead of changing when scrolling.
+- `ArtistItemsScreen`: album grids render the groups with a full-width section title (only when more than one group exists); other lists unchanged. Grid item content moved to a shared lambda.
+- `ArtistItemsPage`: album `releaseType` now parsed from the subtitle ("Single"/"EP") instead of always ALBUM.
+- Strings `artist_group_*` en/fr.
+
+Stage Summary:
+- Pending CI compile and on-device verification. Limit: a live album whose title has no live marker (e.g. "S&M 2") stays in the Albums group.

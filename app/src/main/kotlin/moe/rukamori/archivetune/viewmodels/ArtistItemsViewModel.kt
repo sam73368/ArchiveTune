@@ -24,6 +24,7 @@ import moe.rukamori.archivetune.constants.HideVideoKey
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.extensions.filterBlockedArtists
 import moe.rukamori.archivetune.innertube.YouTube
+import moe.rukamori.archivetune.innertube.models.AlbumItem
 import moe.rukamori.archivetune.innertube.models.BrowseEndpoint
 import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.filterExplicit
@@ -73,6 +74,10 @@ class ArtistItemsViewModel
         @Volatile
         private var ranking = false
 
+        private companion object {
+            const val MAX_ALBUM_PAGES = 12
+        }
+
         init {
             viewModelScope.launch {
                 YouTube
@@ -103,6 +108,20 @@ class ArtistItemsViewModel
                             artistItemsPage.layout == ArtistItemsPageLayout.LIST &&
                                 artistItemsPage.items.isNotEmpty() &&
                                 artistItemsPage.items.all { it is SongItem }
+                        val onlyAlbums =
+                            artistItemsPage.layout == ArtistItemsPageLayout.GRID &&
+                                artistItemsPage.items.isNotEmpty() &&
+                                artistItemsPage.items.all { it is AlbumItem }
+                        if (onlyAlbums && artistItemsPage.continuation != null) {
+                            ranking = true
+                            viewModelScope.launch(Dispatchers.IO) {
+                                try {
+                                    loadRemainingAlbumPages()
+                                } finally {
+                                    ranking = false
+                                }
+                            }
+                        }
                         if (onlySongs && !context.isLowDataModeActive()) {
                             ranking = true
                             viewModelScope.launch(Dispatchers.IO) {
@@ -116,6 +135,30 @@ class ArtistItemsViewModel
                     }.onFailure {
                         reportException(it)
                     }
+            }
+        }
+
+        private suspend fun loadRemainingAlbumPages() {
+            var pages = 0
+            while (pages < MAX_ALBUM_PAGES) {
+                val current = itemsPage.value ?: return
+                val continuation = current.continuation ?: return
+                val next = YouTube.artistItemsContinuation(continuation).getOrNull() ?: return
+                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                val hideVideo = context.dataStore.get(HideVideoKey, true)
+                val blocked = database.getBlockedArtistIds().toSet()
+                itemsPage.value =
+                    ItemsPage(
+                        items =
+                            (current.items + next.items)
+                                .distinctBy { it.id }
+                                .filterExplicit(hideExplicit)
+                                .filterVideo(hideVideo)
+                                .filterBlockedArtists(blocked)
+                                .dropCleanTwins(),
+                        continuation = next.continuation,
+                    )
+                pages++
             }
         }
 

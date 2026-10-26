@@ -391,4 +391,8 @@
     <string name="spotify_fill_gaps_title">Show Spotify-only releases</string>
     <string name="spotify_fill_gaps_description">Add songs and albums missing from YouTube Music to search results and artist pages, with a Spotify badge</string>
     <string name="playback_age_restricted_hint">If this song is age-restricted, turn on \"Allow age-restricted content\" in Settings > Content.</string>
+    <string name="artist_group_albums">Albums</string>
+    <string name="artist_group_live">Live albums and tours</string>
+    <string name="artist_group_eps">EPs</string>
+    <string name="artist_group_singles">Singles</string>
 </resources>

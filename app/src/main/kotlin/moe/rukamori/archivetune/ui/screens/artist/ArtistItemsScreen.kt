@@ -28,6 +28,10 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import moe.rukamori.archivetune.utils.ArtistAlbumGrouping
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -123,6 +127,15 @@ fun ArtistItemsScreen(
     val title by viewModel.title.collectAsStateWithLifecycle()
     val itemsPage by viewModel.itemsPage.collectAsStateWithLifecycle()
     val itemsLayout by viewModel.itemsLayout.collectAsStateWithLifecycle()
+    val albumGroupsOrNull =
+        remember(itemsPage, itemsLayout) {
+            val items = itemsPage?.items.orEmpty().distinctBy { it.id }
+            if (itemsLayout == ArtistItemsPageLayout.GRID && items.isNotEmpty() && items.all { it is AlbumItem }) {
+                ArtistAlbumGrouping.group(items.filterIsInstance<AlbumItem>())
+            } else {
+                null
+            }
+        }
 
     val glassHeader = rememberGlassScreenHeader()
     val systemBarsTopPadding = LocalStableSystemBarsTopPadding.current
@@ -335,11 +348,7 @@ fun ArtistItemsScreen(
                 columns = GridCells.Adaptive(minSize = GridThumbnailHeight + 24.dp),
                 contentPadding = contentPadding,
             ) {
-                items(
-                    items = itemsPage?.items.orEmpty().distinctBy { it.id },
-                    key = { "artist_items_${it.contentKey}" },
-                    contentType = { it.contentType },
-                ) { item ->
+                val gridItemContent: @Composable LazyGridItemScope.(YTItem) -> Unit = { item ->
                     YouTubeGridItem(
                         item = item,
                         isActive =
@@ -432,6 +441,36 @@ fun ArtistItemsScreen(
                                     },
                                 ).animateItem(),
                     )
+                }
+
+                val albumGroups = albumGroupsOrNull
+                if (albumGroups != null) {
+                    albumGroups.forEach { group ->
+                        if (albumGroups.size > 1) {
+                            item(
+                                key = "album_group_${group.kind.name}",
+                                span = { GridItemSpan(maxLineSpan) },
+                                contentType = "album_group_header",
+                            ) {
+                                Text(
+                                    text = stringResource(group.kind.titleRes()),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+                                )
+                            }
+                        }
+                        items(
+                            items = group.albums,
+                            key = { "artist_items_${it.contentKey}" },
+                            contentType = { it.contentType },
+                        ) { item -> gridItemContent(item) }
+                    }
+                } else {
+                    items(
+                        items = itemsPage?.items.orEmpty().distinctBy { it.id },
+                        key = { "artist_items_${it.contentKey}" },
+                        contentType = { it.contentType },
+                    ) { item -> gridItemContent(item) }
                 }
 
                 if (itemsPage?.continuation != null) {
@@ -594,3 +633,11 @@ private val YTItem.contentType: Int
             is PlaylistItem -> CONTENT_TYPE_PLAYLIST
             else -> CONTENT_TYPE_LIST
         }
+
+private fun ArtistAlbumGrouping.Kind.titleRes(): Int =
+    when (this) {
+        ArtistAlbumGrouping.Kind.ALBUMS -> R.string.artist_group_albums
+        ArtistAlbumGrouping.Kind.LIVE -> R.string.artist_group_live
+        ArtistAlbumGrouping.Kind.EPS -> R.string.artist_group_eps
+        ArtistAlbumGrouping.Kind.SINGLES -> R.string.artist_group_singles
+    }
