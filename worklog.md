@@ -6094,3 +6094,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification.
+
+---
+Task ID: ST-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: "Letter to my unborn" failed with "Confirm playback in YouTube Music" (LoginRequiredForPlaybackException, reason "Sign in") and no other source was tried.
+
+Work Log:
+- Cause: every YouTube client answered LOGIN_REQUIRED for this track (age gate or per-track sign-in check). `isRescuableYouTubeRefusal` explicitly excluded `LoginRequiredForPlaybackException`, so the existing rescue paths (JioSaavn rescue source and the alternate-upload search in `StudioAudioResolver`) never ran, and the user got only the login dialog. `isAgeRestrictedPlaybackFallbackAllowed` was dead code and matched English reason text only.
+- `MusicService`: a login-required refusal is now rescuable and counts as an unplayable-video refusal, so the rescue sources and another YouTube upload of the same song are tried before the error is shown. Invalid login context still goes straight to the login prompt.
+- When nothing works and "Allow age-restricted content" is off, the error message now adds a hint pointing to that setting (`playback_age_restricted_hint`, en/fr).
+- `YTPlayerUtils`: new `isAgeGateReason` with localized markers (fr, es, de, pt, it) shared by `isLoginRecoveryError` and the age fallback check.
+
+Stage Summary:
+- Pending CI compile and on-device verification. Root cause on device unconfirmed (reason text is only "Sign in").

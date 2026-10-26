@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.playback
 
+import moe.rukamori.archivetune.constants.AllowAgeRestrictedKey
 import moe.rukamori.archivetune.constants.SmartShuffleEveryKey
 import moe.rukamori.archivetune.constants.SmartShuffleKey
 import android.app.ActivityManager
@@ -10982,9 +10983,8 @@ class MusicService :
     /** YouTube refused the track itself (not a network/login problem): worth trying elsewhere. */
     private fun Throwable.isRescuableYouTubeRefusal(): Boolean =
         when (this) {
-            is YTPlayerUtils.LoginRequiredForPlaybackException,
-            is YTPlayerUtils.InvalidPlaybackLoginContextException,
-            -> false
+            is YTPlayerUtils.InvalidPlaybackLoginContextException -> false
+            is YTPlayerUtils.LoginRequiredForPlaybackException -> true
             is YTPlayerUtils.PremiumOnlyPlaybackException -> true
             is YTPlayerUtils.BadStreamPlayerResponseException,
             is YTPlayerUtils.BotDetectionPlaybackException,
@@ -10996,6 +10996,7 @@ class MusicService :
     /** Only an explicit refusal of this video (e.g. Premium-only) makes another upload worth it. */
     private fun Throwable.isUnplayableVideoRefusal(): Boolean =
         this is YTPlayerUtils.PremiumOnlyPlaybackException ||
+            this is YTPlayerUtils.LoginRequiredForPlaybackException ||
             (this is PlaybackException && !isNetworkConnectionFailure() && !isRequestTimeout())
 
     private fun resolvePlaybackDataSpec(
@@ -11229,8 +11230,14 @@ class MusicService :
                     }
 
                     throwable is YTPlayerUtils.LoginRequiredForPlaybackException -> {
+                        val ageHint =
+                            if (dataStore.get(AllowAgeRestrictedKey, false)) {
+                                ""
+                            } else {
+                                " " + getString(R.string.playback_age_restricted_hint)
+                            }
                         throw PlaybackException(
-                            getString(R.string.playback_requires_youtube_music_confirmation),
+                            getString(R.string.playback_requires_youtube_music_confirmation) + ageHint,
                             throwable,
                             PlaybackException.ERROR_CODE_REMOTE_ERROR,
                         )

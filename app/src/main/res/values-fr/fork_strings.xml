@@ -179,4 +179,5 @@
     <string name="spotify_only_album_load_failed">Impossible de charger cet album Spotify</string>
     <string name="spotify_fill_gaps_title">Afficher les sorties exclusives Spotify</string>
     <string name="spotify_fill_gaps_description">Ajoute aux recherches et aux pages artiste les titres et albums absents de YouTube Music, avec un badge Spotify</string>
+    <string name="playback_age_restricted_hint">Si ce titre est soumis à une restriction d\'âge, active « Autoriser les contenus réservés aux adultes » dans Réglages > Contenu.</string>
 </resources>

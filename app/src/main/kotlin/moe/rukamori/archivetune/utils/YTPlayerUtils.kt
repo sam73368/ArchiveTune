@@ -173,12 +173,7 @@ object YTPlayerUtils {
 
     fun isAgeRestrictedPlaybackFallbackAllowed(failure: LoginRequiredForPlaybackException): Boolean {
         if (!ageRestrictedPlaybackAllowed()) return false
-        val lower = failure.message.orEmpty().lowercase(Locale.US)
-        return "confirm your age" in lower ||
-            "age-restricted" in lower ||
-            "age restricted" in lower ||
-            "inappropriate for some users" in lower ||
-            "mature audiences" in lower
+        return isAgeGateReason(failure.message)
     }
 
     private data class CachedStreamUrl(
@@ -2024,9 +2019,38 @@ object YTPlayerUtils {
             "verify" in lower && "human" in lower
     }
 
+    private val LOCALIZED_AGE_GATE_MARKERS =
+        listOf(
+            "confirmer votre âge",
+            "limite d'âge",
+            "limite d’âge",
+            "restriction d'âge",
+            "restriction d’âge",
+            "réservé aux adultes",
+            "confirmar tu edad",
+            "restricción de edad",
+            "bestätigen sie ihr alter",
+            "altersbeschränkt",
+            "confirmar sua idade",
+            "restrição de idade",
+            "conferma la tua età",
+            "limite di età",
+        )
+
+    fun isAgeGateReason(reason: String?): Boolean {
+        val lower = reason.orEmpty().lowercase(Locale.US)
+        return LOCALIZED_AGE_GATE_MARKERS.any { it in lower } ||
+            "confirm your age" in lower ||
+            "age-restricted" in lower ||
+            "age restricted" in lower ||
+            "inappropriate for some users" in lower ||
+            "mature audiences" in lower
+    }
+
     private fun isLoginRecoveryError(reason: String): Boolean {
         val lower = reason.lowercase(Locale.US)
-        return "confirm your age" in lower ||
+        return isAgeGateReason(reason) ||
+            "confirm your age" in lower ||
             "age-restricted" in lower ||
             "age restricted" in lower ||
             "inappropriate for some users" in lower ||
