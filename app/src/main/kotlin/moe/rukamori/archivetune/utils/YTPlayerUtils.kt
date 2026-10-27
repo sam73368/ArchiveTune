@@ -201,6 +201,21 @@ object YTPlayerUtils {
     private val failedStreamClientsUntil = ConcurrentHashMap<String, Long>()
 
     private val simpMusicFailedUntil = ConcurrentHashMap<String, Long>()
+    private val racerStreamRejectedUntil = ConcurrentHashMap<String, Long>()
+    private const val RACER_REJECTION_BACKOFF_MS = 30 * 60 * 1000L
+
+    fun markResolvedStreamRejected(videoId: String) {
+        racerStreamRejectedUntil[videoId] = System.currentTimeMillis() + RACER_REJECTION_BACKOFF_MS
+    }
+
+    private fun racersAllowed(videoId: String): Boolean {
+        val until = racerStreamRejectedUntil[videoId] ?: return true
+        if (until <= System.currentTimeMillis()) {
+            racerStreamRejectedUntil.remove(videoId)
+            return true
+        }
+        return false
+    }
 
     init {
         SimpStreamLog.sink =
@@ -221,6 +236,7 @@ object YTPlayerUtils {
         playbackDataCache.clear()
         failedStreamClientsUntil.clear()
         simpMusicFailedUntil.clear()
+        racerStreamRejectedUntil.clear()
         lastSuccessfulClientKey = null
     }
 
@@ -1078,7 +1094,9 @@ object YTPlayerUtils {
         Timber.tag(logTag).i("Fetching player response for videoId: $videoId, playlistId: $playlistId")
 
         val racedWinner: PlaybackData? =
-            coroutineScope {
+            if (!racersAllowed(videoId)) {
+                null
+            } else coroutineScope {
                 val simpMusicDeferred =
                     async {
                         if (simpMusicFailedUntil[videoId]?.let { it > System.currentTimeMillis() } == true) {
@@ -1147,7 +1165,11 @@ object YTPlayerUtils {
                 val secondResult = awaitQuietly(simpMusicDeferred) ?: awaitQuietly(echoDeferred)
                 secondResult
             }
-        racedWinner?.let { return it }
+        if (racedWinner != null) {
+            if (StreamUrlProbe.probe(racedWinner.streamUrl) != StreamUrlProbe.Result.REJECTED) return racedWinner
+            Timber.tag(logTag).w("Raced stream for %s was rejected by googlevideo; using the native client chain", videoId)
+            markResolvedStreamRejected(videoId)
+        }
 
         val signatureTimestamp = getSignatureTimestampOrNull(videoId)
         Timber.tag(logTag).v("Signature timestamp: $signatureTimestamp")
@@ -1556,9 +1578,10 @@ object YTPlayerUtils {
                 if (canUseLoggedInPlayback && expectedDurationMs != null && isLikelyPreview(candidate, expectedDurationMs)) continue
                 if (shouldSkipCipheredWebCandidate(client, candidate, videoId, authState)) continue
                 val cacheKey = buildStreamCacheKey(videoId, candidate.itag, client, authState.streamCacheFingerprint)
-                val cached = streamUrlCache[cacheKey]
+                val cached =
+                    streamUrlCache[cacheKey]?.takeIf { it.expiresAtMs > System.currentTimeMillis() + STREAM_URL_EXPIRY_SAFETY_MS }
                 val candidateResult =
-                    if (cached != null && cached.expiresAtMs > System.currentTimeMillis() + STREAM_URL_EXPIRY_SAFETY_MS) {
+                    if (cached != null) {
                         Result.success(cached.url)
                     } else {
                         findUrl(candidate, videoId, client, authState)
@@ -1584,7 +1607,25 @@ object YTPlayerUtils {
                     reportException(candidateFailure)
                     continue
                 }
-                val candidateUrl = candidateResult.getOrThrow()
+                var candidateUrl = candidateResult.getOrThrow()
+                if (cached == null) {
+                    val verifiedUrl = StreamUrlProbe.firstPlayable(candidateUrl, authState.poTokenGvsSession)
+                    if (verifiedUrl == null) {
+                        Timber.tag(logTag).w(
+                            "googlevideo rejected the stream of %s for %s; trying the next client",
+                            describeClient(client),
+                            videoId,
+                        )
+                        markStreamClientFailed(
+                            videoId = videoId,
+                            clientKey = StreamClientUtils.buildClientKey(client),
+                            httpStatusCode = 403,
+                            authFingerprint = authState.streamCacheFingerprint,
+                        )
+                        break
+                    }
+                    candidateUrl = verifiedUrl
+                }
                 selectedFormat = candidate
                 selectedUrl = candidateUrl
                 break

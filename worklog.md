@@ -6223,3 +6223,20 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification. The first open of an artist fills the cache in the background (up to 45 album pages + 25 editions + 8 searches); the display improves as soon as it finishes and is instant afterwards.
+
+---
+Task ID: PB-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: "Fuck You" (Dr. Dre) failed with "This video is unavailable" (signed out) and then HTTP 403 on the stream (signed in). Make YouTube Music playback fall back automatically instead of failing.
+
+Work Log:
+- Cause of the 403: resolution handed the player a URL that googlevideo refuses (wrong or missing GVS PO token for a web client, or an unvalidated URL from the SimpMusic/Echo race, Echo accepts its last client unvalidated). The player only discovered it at playback, and the 3-attempt runtime retry kept getting the same raced URL.
+- New `StreamUrlProbe` (pure helpers + probe): 2-byte ranged GET with the playback request profile and stream proxy, `range` query rewritten to 0-1, manifests skipped, network errors treated as unknown.
+- `YTPlayerUtils`: every freshly resolved native candidate is probed; on rejection the URL is retried with the session-bound PO token (`poTokenGvsSession`) and without `pot`, otherwise the client is marked failed and the next client is tried within the same resolution (logged-in TV/Web Creator clients included). The race winner is probed too; a rejected race result falls back to the native chain and racers are skipped for that video for 30 minutes (`markResolvedStreamRejected`).
+- `MusicService.retryPlaybackAfterStreamFailure` also marks the race as rejected for the video on a runtime 403, so the retry uses a different path.
+- AGENTS.md: album-section arrow invariants updated to the user's request (AL-4), stream probe invariant added.
+- Tests `StreamUrlProbeTest`.
+
+Stage Summary:
+- Pending CI compile and on-device verification; YouTube could not be reached from the sandbox, so the exact client that works for this track is not known. The "unavailable" answer while signed out is YouTube's own refusal for the anonymous session; signed in, the chain now tries every client until a URL is accepted.

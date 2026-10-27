@@ -5212,6 +5212,9 @@ class MusicService :
         if (!failedExpiredUrl && cachedExtractorFailedUrl == null && requestProfile.clientKey.isNotEmpty()) {
             YTPlayerUtils.markStreamClientFailed(mediaId, requestProfile.clientKey, responseException.responseCode)
         }
+        if (!failedExpiredUrl && cachedExtractorFailedUrl == null) {
+            YTPlayerUtils.markResolvedStreamRejected(mediaId)
+        }
 
         if (!playbackStreamRecoveryTracker.registerRetryAttempt(mediaId)) {
             return false
