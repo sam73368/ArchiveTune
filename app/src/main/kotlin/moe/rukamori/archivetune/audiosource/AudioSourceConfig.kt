@@ -62,11 +62,15 @@ object TitleMatch {
         val reason: String,
     )
 
+    private val featuringGroup =
+        Regex("""[(\[]\s*(feat\.?|ft\.?|featuring|with|avec|con|mit)\s[^)\]]*[)\]]""")
+
     fun normalize(value: String?): String =
         (value ?: "")
             .lowercase()
             .let { Normalizer.normalize(it, Normalizer.Form.NFD) }
             .replace(Regex("\\p{Mn}+"), "")
+            .replace(featuringGroup, " ")
             .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
             .replace(Regex("""\b(feat|ft|featuring)\b.*$"""), "")
             .replace(Regex("""\b(explicit|clean|remaster|remastered|version|audio|official)\b"""), " ")

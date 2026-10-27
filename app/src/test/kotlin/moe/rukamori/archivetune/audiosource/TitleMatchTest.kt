@@ -8,6 +8,7 @@
 package moe.rukamori.archivetune.audiosource
 
 import moe.rukamori.archivetune.constants.AudioSourceType
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -120,6 +121,22 @@ class TitleMatchTest {
             wantedDurationMs = 242_000,
             stream = stream,
         )
+
+    @Test
+    fun localizedFeaturingCreditsAreIgnored() {
+        assertEquals("fuck you", TitleMatch.normalize("Fuck You (avec Devin The Dude et Snoop Dogg)"))
+        assertEquals("fuck you", TitleMatch.normalize("Fuck You (feat. Devin The Dude & Snoop Dogg)"))
+        assertEquals("song part 2", TitleMatch.normalize("Song (Part 2)"))
+        val result =
+            TitleMatch.evaluate(
+                wantedTitle = "Fuck You (avec Devin The Dude et Snoop Dogg)",
+                wantedArtists = listOf("Dr. Dre"),
+                wantedAlbum = null,
+                wantedDurationMs = 206_000,
+                stream = stream(title = "Fuck You", artist = "Dr. Dre", durationMs = 206_000),
+            )
+        assertTrue(result.accepted)
+    }
 
     private fun stream(
         title: String?,

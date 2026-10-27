@@ -1324,19 +1324,29 @@ object YTPlayerUtils {
                 ?.takeIf { it > 0 }
                 ?.times(1000L)
 
-        val streamClients =
-            buildStreamClientOrder(preferredStreamClient, authState).filterNot { client ->
-                val blocked =
-                    isStreamClientTemporarilyBlocked(
-                        videoId = videoId,
-                        clientKey = StreamClientUtils.buildClientKey(client),
-                        authFingerprint = authState.streamCacheFingerprint,
-                    )
-                if (blocked) {
-                    Timber.tag(logTag).w("Temporarily blocked stream client for $videoId: ${describeClient(client)}")
-                }
-                blocked
+        val (temporarilyBlockedClients, availableClients) =
+            buildStreamClientOrder(preferredStreamClient, authState).partition { client ->
+                isStreamClientTemporarilyBlocked(
+                    videoId = videoId,
+                    clientKey = StreamClientUtils.buildClientKey(client),
+                    authFingerprint = authState.streamCacheFingerprint,
+                )
             }
+        if (temporarilyBlockedClients.isNotEmpty()) {
+            Timber.tag(logTag).w(
+                "Recently failed stream clients for %s are tried last: %s",
+                videoId,
+                temporarilyBlockedClients.joinToString { describeClient(it) },
+            )
+        }
+        val streamClients = availableClients + temporarilyBlockedClients
+        Timber.tag(logTag).i(
+            "Metadata response for %s via %s: %s %s",
+            videoId,
+            describeClient(metadataClient),
+            metadataPlayerResponse.playabilityStatus.status,
+            metadataPlayerResponse.playabilityStatus.reason.orEmpty(),
+        )
 
         val botDetectedClients = mutableSetOf<String>()
         var gateFailure: PlaybackGateFailure? = null
@@ -1609,7 +1619,7 @@ object YTPlayerUtils {
                 }
                 var candidateUrl = candidateResult.getOrThrow()
                 if (cached == null) {
-                    val verifiedUrl = StreamUrlProbe.firstPlayable(candidateUrl, authState.poTokenGvsSession)
+                    val verifiedUrl = StreamUrlProbe.firstPlayable(candidateUrl, gvsPoTokenCandidates(authState, videoId))
                     if (verifiedUrl == null) {
                         Timber.tag(logTag).w(
                             "googlevideo rejected the stream of %s for %s; trying the next client",
@@ -1895,6 +1905,16 @@ object YTPlayerUtils {
             ?.trim()
     }
 
+    private fun gvsPoTokenCandidates(
+        authState: PlaybackAuthState,
+        videoId: String,
+    ): List<String> =
+        listOfNotNull(
+            authState.poTokenGvsSession,
+            authState.resolveGvsPoToken(WEB_REMIX, videoId),
+            authState.poTokenGvs?.takeIf { authState.poTokenGvsVideoId == videoId },
+        ).filter { it.isNotBlank() }.distinct()
+
     private fun isCipheredFormat(format: PlayerResponse.StreamingData.Format): Boolean =
         format.url == null && (format.signatureCipher != null || format.cipher != null)
 
@@ -1906,7 +1926,9 @@ object YTPlayerUtils {
     ): Boolean {
         val isWebClient = StreamClientUtils.isWebClient(client.clientName)
         val isCiphered = isCipheredFormat(format)
-        val hasGvsPoToken = !authState.resolveGvsPoToken(client, videoId).isNullOrBlank()
+        val hasGvsPoToken =
+            !authState.resolveGvsPoToken(client, videoId).isNullOrBlank() ||
+                gvsPoTokenCandidates(authState, videoId).isNotEmpty()
         if (
             !shouldSkipCipheredWebPlaybackCandidate(
                 webClientPoTokenEnabled = authState.webClientPoTokenEnabled,

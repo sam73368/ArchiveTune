@@ -6240,3 +6240,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification; YouTube could not be reached from the sandbox, so the exact client that works for this track is not known. The "unavailable" answer while signed out is YouTube's own refusal for the anonymous session; signed in, the chain now tries every client until a URL is accepted.
+
+---
+Task ID: PB-2
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Follow-up on "Fuck You" (Dr. Dre, 7EqnoEljHCw) with the user's log: still "This video is unavailable".
+
+Work Log:
+- Log analysis: every visitor client answers UNPLAYABLE/ERROR "video unavailable" (anonymous access refused), IOS/ANDROID_CREATOR fail with HTTP 400 FAILED_PRECONDITION, TVHTML5 logged in answers "The page needs to be reloaded", WEB_CREATOR logged in answers OK with 4 ciphered audio formats but every candidate was skipped ("Web PoToken playback is enabled but no GVS token is available": `resolveGvsPoToken` returns null for clients without `useWebPoTokens`), and WEB_REMIX/WEB plus 5 Android/iOS clients were dropped by the 10-minute failed-client backoff, so the only logged-in clients never produced a URL and the last client's "unavailable" became the error.
+- `YTPlayerUtils`: the ciphered-web skip now counts any GVS token the session has (`gvsPoTokenCandidates`: session-bound, WEB_REMIX, video-bound); the probe retries a rejected URL with each of them (adding `pot` when missing) and without it. Temporarily blocked clients are tried last instead of being removed. The metadata client's playability is logged.
+- `StreamUrlProbe` logs every probe (client, itag, pot, HTTP code).
+- `TitleMatch.normalize` and `StudioAudioResolver.cleanTitle` drop bracketed featuring credits in any language ("(avec X et Y)", "(feat. X)", "(with X)", "(con X)", "(mit X)"): JioSaavn had the exact song (artist and length 100%) but was rejected on the localized title, and the alternate-upload search used the long title.
+- Tests: `TitleMatchTest.localizedFeaturingCreditsAreIgnored`.
+
+Stage Summary:
+- Pending CI and a new log from the user's device. The WEB_REMIX logged-in attempt was hidden by the backoff in the first log; the next log will show it and the probe results.

@@ -213,7 +213,15 @@ object StudioAudioResolver {
         )
 
     /** Strips "(Clip officiel)", "[Official Video]", "(Audio)", "(Paroles)"… */
-    internal fun cleanTitle(title: String): String = title.replace(decorationRegex, "").replace(Regex("\\s+"), " ").trim()
+    private val featuringRegex =
+        Regex("""\s*[(\[]\s*(feat\.?|ft\.?|featuring|with|avec|con|mit)\s[^)\]]*[)\]]""", RegexOption.IGNORE_CASE)
+
+    internal fun cleanTitle(title: String): String =
+        title
+            .replace(decorationRegex, "")
+            .replace(featuringRegex, "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
 
     private fun comparable(value: String): String = TitleMatch.normalize(cleanTitle(value))
 

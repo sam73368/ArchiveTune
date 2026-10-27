@@ -94,9 +94,17 @@ object StreamUrlProbe {
                     .build()
                     .newCall(request)
                     .execute()
-                    .use { response -> classify(response.code) }
-                    .also { result ->
-                        if (result == Result.REJECTED) Timber.tag(TAG).w("Stream URL rejected (c=%s)", target.queryParameter("c"))
+                    .use { response ->
+                        classify(response.code).also { result ->
+                            Timber.tag(TAG).i(
+                                "Probe c=%s itag=%s pot=%b -> HTTP %d (%s)",
+                                target.queryParameter("c"),
+                                target.queryParameter("itag"),
+                                target.queryParameter("pot") != null,
+                                response.code,
+                                result,
+                            )
+                        }
                     }
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -109,20 +117,22 @@ object StreamUrlProbe {
 
     suspend fun firstPlayable(
         url: String,
-        sessionPoToken: String?,
+        poTokens: List<String?>,
     ): String? {
         if (probe(url) != Result.REJECTED) return url
-        val currentPot = potOf(url) ?: return null
+        val currentPot = potOf(url)
         val variants =
             buildList {
-                sessionPoToken
-                    ?.takeIf { it.isNotBlank() && it != currentPot }
-                    ?.let { add(withPoToken(url, it)) }
-                add(withoutPoToken(url))
+                poTokens
+                    .filterNotNull()
+                    .filter { it.isNotBlank() && it != currentPot }
+                    .distinct()
+                    .forEach { add(withPoToken(url, it)) }
+                if (currentPot != null) add(withoutPoToken(url))
             }.distinct()
-        for (variant in variants) {
+        for ((index, variant) in variants.withIndex()) {
             if (probe(variant) != Result.REJECTED) {
-                Timber.tag(TAG).i("Stream URL accepted after changing its PO token")
+                Timber.tag(TAG).i("Stream URL accepted with PO token variant %d of %d", index + 1, variants.size)
                 return variant
             }
         }
