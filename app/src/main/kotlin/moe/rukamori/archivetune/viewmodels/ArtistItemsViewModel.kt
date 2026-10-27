@@ -73,7 +73,7 @@ class ArtistItemsViewModel
         val itemsPage = MutableStateFlow<ItemsPage?>(null)
         val itemsLayout = MutableStateFlow(ArtistItemsPageLayout.LIST)
         val albumOverrides = MutableStateFlow<Map<String, ArtistAlbumGrouping.Override>>(emptyMap())
-        val albumDisplayIds = MutableStateFlow<Set<String>?>(null)
+        val albumReplacements = MutableStateFlow<Map<String, AlbumItem>>(emptyMap())
         private var mbOverrides: Map<String, ArtistAlbumGrouping.Override> = emptyMap()
         private var editionResult: AlbumEditionService.Result? = null
 
@@ -109,6 +109,7 @@ class ArtistItemsViewModel
                 if (!context.isLowDataModeActive()) {
                     editionResult = runCatching { albumEditionService.refine(albums) }.getOrNull() ?: editionResult
                     publishAlbumState()
+                    editionResult?.display?.let { display -> resolveAlbumKinds((albums + display).distinctBy { it.id }) }
                 }
             }
         }
@@ -190,7 +191,7 @@ class ArtistItemsViewModel
         private fun publishAlbumState() {
             val result = editionResult
             albumOverrides.value = ArtistAlbumGrouping.withEditionBases(mbOverrides, result?.baseOf.orEmpty())
-            albumDisplayIds.value = result?.display?.map { it.id }?.toSet()
+            albumReplacements.value = result?.replacements.orEmpty()
         }
 
         private suspend fun resolveAlbumKinds(albums: List<AlbumItem>) {

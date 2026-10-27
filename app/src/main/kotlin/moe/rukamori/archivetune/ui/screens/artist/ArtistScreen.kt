@@ -389,20 +389,22 @@ fun ArtistScreen(
                     .take(3)
         }
     }
-    val hiddenAlbumIds by viewModel.hiddenAlbumIds.collectAsStateWithLifecycle()
+    val albumReplacements by viewModel.albumReplacements.collectAsStateWithLifecycle()
     val albumOverrides by viewModel.albumOverrides.collectAsStateWithLifecycle()
     val orderedRemoteSections =
-        remember(artistPage?.sections, hiddenAlbumIds, albumOverrides) {
+        remember(artistPage?.sections, albumReplacements, albumOverrides) {
             val sections =
                 artistPage?.sections.orEmpty().map { section ->
                     val onlyAlbums = section.items.isNotEmpty() && section.items.all { it is AlbumItem }
                     if (!onlyAlbums) {
                         section
                     } else {
-                        val visible = section.items.filterNot { it.id in hiddenAlbumIds }
-                        section.copy(
-                            items = ArtistAlbumGrouping.newestFirst(visible.filterIsInstance<AlbumItem>(), albumOverrides),
-                        )
+                        val visible =
+                            section.items
+                                .filterIsInstance<AlbumItem>()
+                                .map { albumReplacements[it.id] ?: it }
+                                .distinctBy { it.id }
+                        section.copy(items = ArtistAlbumGrouping.newestFirst(visible, albumOverrides))
                     }
                 }
             val topSongsSection =

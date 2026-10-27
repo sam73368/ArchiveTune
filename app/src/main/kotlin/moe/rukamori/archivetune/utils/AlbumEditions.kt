@@ -8,6 +8,7 @@
 package moe.rukamori.archivetune.utils
 
 import moe.rukamori.archivetune.innertube.models.AlbumItem
+import moe.rukamori.archivetune.innertube.models.AlbumReleaseType
 import java.text.Normalizer
 import java.util.Locale
 import kotlin.math.abs
@@ -103,6 +104,23 @@ object AlbumEditions {
         second: String,
     ): Boolean = keysRelated(familyKey(first), familyKey(second))
 
+    fun sharesArtist(
+        first: AlbumItem,
+        second: AlbumItem,
+    ): Boolean {
+        val a = first.artists.orEmpty()
+        val b = second.artists.orEmpty()
+        if (a.isEmpty() || b.isEmpty()) return true
+        return a.any { left ->
+            b.any { right ->
+                (left.id != null && left.id == right.id) ||
+                    AlbumKindCatalog.normalizeArtist(left.name) == AlbumKindCatalog.normalizeArtist(right.name)
+            }
+        }
+    }
+
+    private fun isFullAlbum(album: AlbumItem): Boolean = album.releaseType == AlbumReleaseType.ALBUM
+
     private fun allowedGap(album: AlbumItem): Int = MAX_UPDATE_YEAR_GAP + if (hasUpdateMarker(album.title)) 1 else 0
 
     private fun yearsCompatible(
@@ -151,6 +169,7 @@ object AlbumEditions {
         for (i in items.indices) {
             for (j in i + 1 until items.size) {
                 if (!keysRelated(keys[i], keys[j])) continue
+                if (isFullAlbum(items[i]) != isFullAlbum(items[j])) continue
                 val marker = hasEditionMarker(items[i].title) || hasEditionMarker(items[j].title)
                 if (marker || yearsCompatible(items[i], items[j])) {
                     parent[find(j)] = find(i)
@@ -189,7 +208,14 @@ object AlbumEditions {
         while (remaining.isNotEmpty()) {
             val base = earliest(remaining)
             val baseKeys = base.tracks.orEmpty().map(::trackKey).filter { it.isNotBlank() }.toSet()
-            val cluster = remaining.filter { it === base || overlap(baseKeys, it.tracks.orEmpty()) >= MIN_TRACK_OVERLAP }
+            val cluster =
+                remaining.filter {
+                    it === base ||
+                        (
+                            overlap(baseKeys, it.tracks.orEmpty()) >= MIN_TRACK_OVERLAP &&
+                                !(baseKeys.size < 4 && it.tracks.orEmpty().size >= baseKeys.size * 3)
+                        )
+                }
             clusters += cluster
             remaining.removeAll(cluster.toSet())
         }

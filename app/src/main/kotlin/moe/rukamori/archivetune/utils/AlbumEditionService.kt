@@ -22,6 +22,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.AlbumItem
+import moe.rukamori.archivetune.innertube.models.AlbumReleaseType
 import moe.rukamori.archivetune.innertube.models.Artist
 import timber.log.Timber
 import java.io.File
@@ -36,7 +37,7 @@ class AlbumEditionService
     ) {
         data class Result(
             val display: List<AlbumItem>,
-            val hiddenIds: Set<String>,
+            val replacements: Map<String, AlbumItem>,
             val baseOf: Map<String, AlbumItem>,
         )
 
@@ -55,35 +56,23 @@ class AlbumEditionService
         )
 
         @Serializable
-        private data class StoredCluster(
-            val displayId: String,
-            val baseId: String,
-            val members: List<StoredAlbum>,
-        )
-
-        @Serializable
-        private data class StoredFamily(
-            val savedAt: Long,
-            val clusters: List<StoredCluster>,
-        )
-
-        private data class Resolved(
-            val memberIds: List<String>,
-            val decision: AlbumEditions.Decision,
+        private data class StoredInfo(
+            val fetchedAt: Long,
+            val searchedAt: Long = 0L,
+            val tracks: List<String>,
+            val self: StoredAlbum,
+            val siblings: List<StoredAlbum> = emptyList(),
         )
 
         @Serializable
         private data class Store(
-            val families: Map<String, StoredFamily> = emptyMap(),
-            val tracks: Map<String, List<String>> = emptyMap(),
+            val infos: Map<String, StoredInfo> = emptyMap(),
         )
 
         private val json = Json { ignoreUnknownKeys = true }
         private val file = File(context.filesDir, STORE_FILE)
         private val lock = Any()
-        private var families = LinkedHashMap<String, StoredFamily>()
-        private var tracks = LinkedHashMap<String, List<String>>()
-        private var familyByMember = HashMap<String, String>()
+        private var infos = LinkedHashMap<String, StoredInfo>()
         private var loaded = false
 
         private fun ensureLoaded() {
@@ -93,31 +82,22 @@ class AlbumEditionService
                 val store =
                     runCatching { if (file.exists()) json.decodeFromString<Store>(file.readText()) else null }.getOrNull()
                         ?: Store()
-                families = LinkedHashMap(store.families)
-                tracks = LinkedHashMap(store.tracks)
-                reindex()
-            }
-        }
-
-        private fun reindex() {
-            familyByMember = HashMap()
-            families.forEach { (key, family) ->
-                family.clusters.forEach { cluster -> cluster.members.forEach { familyByMember[it.id] = key } }
+                infos = LinkedHashMap(store.infos)
             }
         }
 
         private fun persist() {
             runCatching {
-                val trimmedFamilies =
-                    if (families.size > MAX_FAMILIES) {
-                        families.entries.sortedByDescending { it.value.savedAt }.take(MAX_FAMILIES).associate { it.key to it.value }
-                    } else {
-                        families
+                val snapshot =
+                    synchronized(lock) {
+                        if (infos.size > MAX_INFOS) {
+                            infos.entries.sortedByDescending { it.value.fetchedAt }.take(MAX_INFOS).associate { it.key to it.value }
+                        } else {
+                            LinkedHashMap(infos)
+                        }
                     }
-                val trimmedTracks =
-                    if (tracks.size > MAX_TRACK_LISTS) tracks.entries.toList().takeLast(MAX_TRACK_LISTS).associate { it.key to it.value } else tracks
                 val temp = File(file.parentFile, "$STORE_FILE.tmp")
-                temp.writeText(json.encodeToString(Store(trimmedFamilies, trimmedTracks)))
+                temp.writeText(json.encodeToString(Store(snapshot)))
                 if (!temp.renameTo(file)) {
                     file.writeText(temp.readText())
                     temp.delete()
@@ -125,148 +105,180 @@ class AlbumEditionService
             }.onFailure { Timber.tag(TAG).w(it, "Could not save the album edition cache") }
         }
 
-        private fun familyKeyOf(members: List<AlbumItem>): String = members.map { it.id }.sorted().joinToString("|")
+        private fun infoOf(id: String): StoredInfo? = synchronized(lock) { infos[id] }
 
-        private fun buildResult(
-            albums: List<AlbumItem>,
-            decisions: Map<String, List<Resolved>>,
-        ): Result {
-            val byId = albums.associateBy { it.id }
-            val displayIds = HashSet<String>()
-            val hidden = HashSet<String>()
+        private fun freshInfo(
+            id: String,
+            now: Long,
+        ): StoredInfo? = infoOf(id)?.takeIf { now - it.fetchedAt < INFO_TTL_MS }
+
+        private fun tracksOf(id: String): List<String>? = infoOf(id)?.tracks?.takeIf { it.isNotEmpty() }
+
+        private fun compute(albums: List<AlbumItem>): Result {
+            val universe = LinkedHashMap<String, AlbumItem>()
+            albums.forEach { universe[it.id] = it }
+            var frontier = albums.map { it.id }
+            repeat(2) {
+                val next = mutableListOf<String>()
+                for (id in frontier) {
+                    val info = infoOf(id) ?: continue
+                    for (sibling in info.siblings) {
+                        if (universe.putIfAbsent(sibling.id, toAlbumItem(sibling)) == null) next += sibling.id
+                    }
+                }
+                frontier = next
+            }
+
+            val replacements = HashMap<String, AlbumItem>()
             val baseOf = HashMap<String, AlbumItem>()
-            for (family in AlbumEditions.families(albums)) {
-                val resolved = decisions[familyKeyOf(family)]
-                if (family.size == 1 || resolved == null) {
-                    displayIds += family.map { it.id }
-                    continue
-                }
-                val covered = HashSet<String>()
-                for (cluster in resolved) {
-                    val present = cluster.memberIds.filter { it in byId }
-                    covered += present
-                    if (present.size < 2 || cluster.decision.displayId !in present) {
-                        displayIds += present
-                        continue
+            for (family in AlbumEditions.families(universe.values.toList())) {
+                if (family.size < 2) continue
+                val editions = family.map { AlbumEditions.Edition(it, tracksOf(it.id)) }
+                for (cluster in AlbumEditions.partition(editions)) {
+                    if (cluster.size < 2) continue
+                    val decision = AlbumEditions.decide(cluster)
+                    val byId = cluster.associateBy { it.album.id }
+                    val base = byId[decision.baseId]?.album ?: continue
+                    var display = byId[decision.displayId]?.album ?: continue
+                    if (display.id != base.id && base.year != null) display = display.copy(year = base.year)
+                    for (edition in cluster) {
+                        if (edition.album.id != decision.displayId) replacements[edition.album.id] = display
                     }
-                    displayIds += cluster.decision.displayId
-                    present.filter { it != cluster.decision.displayId }.forEach { hidden += it }
-                    if (cluster.decision.baseId != cluster.decision.displayId) {
-                        byId[cluster.decision.baseId]?.let { baseOf[cluster.decision.displayId] = it }
-                    }
+                    if (display.id != base.id) baseOf[display.id] = base
                 }
-                displayIds += family.map { it.id }.filter { it !in covered }
             }
-            return Result(albums.filter { it.id in displayIds }, hidden, baseOf)
+
+            val shown = LinkedHashMap<String, AlbumItem>()
+            for (album in albums) {
+                val chosen = replacements[album.id] ?: album
+                shown.putIfAbsent(chosen.id, chosen)
+            }
+            val listIds = albums.mapTo(HashSet()) { it.id }
+            return Result(shown.values.toList(), replacements.filterKeys { it in listIds }, baseOf)
         }
-
-        private fun heuristicResolved(family: List<AlbumItem>): List<Resolved> =
-            listOf(Resolved(family.map { it.id }, AlbumEditions.heuristicDecision(family)))
-
-        private fun storedResolved(stored: StoredFamily): List<Resolved> =
-            stored.clusters.map { cluster ->
-                Resolved(cluster.members.map { it.id }, AlbumEditions.Decision(cluster.displayId, cluster.baseId))
-            }
 
         fun quick(albums: List<AlbumItem>): Result {
             ensureLoaded()
-            val now = System.currentTimeMillis()
-            val decisions = HashMap<String, List<Resolved>>()
-            for (family in AlbumEditions.families(albums)) {
-                if (family.size < 2) continue
-                val key = familyKeyOf(family)
-                val stored = synchronized(lock) { families[key] }
-                decisions[key] =
-                    if (stored != null && now - stored.savedAt < FAMILY_TTL_MS) {
-                        storedResolved(stored)
-                    } else {
-                        heuristicResolved(family)
-                    }
+            return compute(albums)
+        }
+
+        private suspend fun fetchInfo(
+            album: AlbumItem,
+            now: Long,
+        ): StoredInfo? {
+            val page = runCatching { YouTube.album(album.id).getOrNull() }.getOrNull() ?: return null
+            val tracks = page.songs.map { it.title }
+            if (tracks.isEmpty()) return null
+            val siblings =
+                page.otherVersions
+                    .filter { version ->
+                        version.id != album.id &&
+                            version.releaseType == AlbumReleaseType.ALBUM &&
+                            AlbumEditions.sameFamilyTitles(version.title, album.title) &&
+                            AlbumEditions.sharesArtist(album, version)
+                    }.distinctBy { it.id }
+            val previous = infoOf(album.id)
+            return StoredInfo(
+                fetchedAt = now,
+                searchedAt = previous?.searchedAt ?: 0L,
+                tracks = tracks,
+                self = toStored(album),
+                siblings = (siblings + previous?.siblings.orEmpty().map(::toAlbumItem)).distinctBy { it.id }.map(::toStored),
+            )
+        }
+
+        private suspend fun fetchInfos(
+            targets: List<AlbumItem>,
+            limit: Int,
+            now: Long,
+        ) {
+            val todo = targets.distinctBy { it.id }.filter { freshInfo(it.id, now) == null }.take(limit)
+            if (todo.isEmpty()) return
+            val semaphore = Semaphore(PARALLEL_FETCHES)
+            val results =
+                coroutineScope {
+                    todo.map { album -> async { semaphore.withPermit { album to fetchInfo(album, now) } } }.awaitAll()
+                }
+            synchronized(lock) {
+                results.forEach { (album, info) -> if (info != null) infos[album.id] = info }
             }
-            return buildResult(albums, decisions)
+        }
+
+        private suspend fun searchOriginals(
+            albums: List<AlbumItem>,
+            now: Long,
+        ) {
+            val candidates =
+                albums
+                    .filter { album ->
+                        val info = freshInfo(album.id, now)
+                        val albumYear = album.year
+                        info != null &&
+                            info.searchedAt == 0L &&
+                            AlbumEditions.hasEditionMarker(album.title) &&
+                            info.siblings.none { sibling ->
+                                val siblingYear = sibling.year
+                                siblingYear != null &&
+                                    albumYear != null &&
+                                    siblingYear <= albumYear &&
+                                    !AlbumEditions.hasEditionMarker(sibling.title)
+                            }
+                    }.take(MAX_SEARCHES)
+            for (album in candidates) {
+                val query = listOf(AlbumEditions.familyKey(album.title), album.artists?.firstOrNull()?.name.orEmpty()).joinToString(" ").trim()
+                if (query.isBlank()) continue
+                val found =
+                    runCatching {
+                        YouTube.search(query, YouTube.SearchFilter.FILTER_ALBUM, useAccountContext = false).getOrNull()?.items
+                    }.getOrNull() ?: continue
+                val matches =
+                    found
+                        .filterIsInstance<AlbumItem>()
+                        .filter { version ->
+                            version.id != album.id &&
+                                version.releaseType == AlbumReleaseType.ALBUM &&
+                                AlbumEditions.sameFamilyTitles(version.title, album.title) &&
+                                AlbumEditions.sharesArtist(album, version)
+                        }.distinctBy { it.id }
+                synchronized(lock) {
+                    val info = infos[album.id] ?: return@synchronized
+                    infos[album.id] =
+                        info.copy(
+                            searchedAt = now,
+                            siblings = (info.siblings + matches.map(::toStored)).distinctBy { it.id },
+                        )
+                }
+            }
         }
 
         suspend fun refine(albums: List<AlbumItem>): Result =
             withContext(Dispatchers.IO) {
                 ensureLoaded()
                 val now = System.currentTimeMillis()
-                val decisions = HashMap<String, List<Resolved>>()
-                val pending = mutableListOf<Pair<String, List<AlbumItem>>>()
-                for (family in AlbumEditions.families(albums)) {
-                    if (family.size < 2) continue
-                    val key = familyKeyOf(family)
-                    val stored = synchronized(lock) { families[key] }
-                    if (stored != null && now - stored.savedAt < FAMILY_TTL_MS) {
-                        decisions[key] = storedResolved(stored)
-                    } else {
-                        decisions[key] = heuristicResolved(family)
-                        pending += key to family
-                    }
-                }
-                var fetchBudget = MAX_FETCHES_PER_REFINE
-                val semaphore = Semaphore(3)
-                var changed = false
-                for ((key, family) in pending) {
-                    val missing = family.filter { synchronized(lock) { tracks[it.id] } == null }
-                    if (missing.size > fetchBudget) continue
-                    fetchBudget -= missing.size
-                    val fetched =
-                        coroutineScope {
-                            missing
-                                .map { album ->
-                                    async {
-                                        semaphore.withPermit {
-                                            album.id to
-                                                runCatching { YouTube.album(album.id).getOrNull()?.songs?.map { it.title } }.getOrNull()
-                                        }
-                                    }
-                                }.awaitAll()
-                        }
-                    if (fetched.any { it.second.isNullOrEmpty() }) continue
-                    synchronized(lock) { fetched.forEach { (id, list) -> tracks[id] = list.orEmpty() } }
-                    val editions = family.map { AlbumEditions.Edition(it, synchronized(lock) { tracks[it.id] }) }
-                    val clusters = AlbumEditions.partition(editions)
-                    val resolved =
-                        clusters.map { cluster ->
-                            Resolved(cluster.map { it.album.id }, AlbumEditions.decide(cluster))
-                        }
-                    decisions[key] = resolved
-                    val byId = family.associateBy { it.id }
-                    synchronized(lock) {
-                        families[key] =
-                            StoredFamily(
-                                now,
-                                resolved.map { cluster ->
-                                    StoredCluster(
-                                        cluster.decision.displayId,
-                                        cluster.decision.baseId,
-                                        cluster.memberIds.mapNotNull { byId[it] }.map(::toStored),
-                                    )
-                                },
-                            )
-                        changed = true
-                    }
-                }
-                if (changed) {
-                    synchronized(lock) {
-                        reindex()
-                        persist()
-                    }
-                }
-                buildResult(albums, decisions)
+                val fullAlbums =
+                    albums
+                        .filter { it.releaseType == AlbumReleaseType.ALBUM }
+                        .sortedBy { if (AlbumEditions.hasEditionMarker(it.title)) 0 else 1 }
+                fetchInfos(fullAlbums, MAX_LIST_FETCHES, now)
+                searchOriginals(fullAlbums, now)
+                val discovered =
+                    fullAlbums
+                        .flatMap { album -> infoOf(album.id)?.siblings.orEmpty().map(::toAlbumItem) }
+                        .filter { sibling -> fullAlbums.none { it.id == sibling.id } }
+                fetchInfos(discovered, MAX_SIBLING_FETCHES, now)
+                persist()
+                compute(albums)
             }
 
         fun siblingsOf(albumId: String): List<AlbumItem> {
             ensureLoaded()
             return synchronized(lock) {
-                val key = familyByMember[albumId] ?: return emptyList()
-                families[key]
-                    ?.clusters
-                    ?.firstOrNull { cluster -> cluster.members.any { it.id == albumId } }
-                    ?.members
-                    ?.filter { it.id != albumId }
-                    ?.map(::toAlbumItem)
-                    .orEmpty()
+                val own = infos[albumId]?.siblings.orEmpty()
+                val reverse =
+                    infos.values
+                        .filter { info -> info.self.id != albumId && info.siblings.any { it.id == albumId } }
+                        .flatMap { info -> listOf(info.self) + info.siblings }
+                (own + reverse).filter { it.id != albumId }.distinctBy { it.id }.map(::toAlbumItem)
             }
         }
 
@@ -302,10 +314,12 @@ class AlbumEditionService
 
         private companion object {
             const val TAG = "AlbumEditions"
-            const val STORE_FILE = "album_editions_v2.json"
-            const val FAMILY_TTL_MS = 45L * 24 * 60 * 60 * 1000
-            const val MAX_FAMILIES = 600
-            const val MAX_TRACK_LISTS = 1500
-            const val MAX_FETCHES_PER_REFINE = 40
+            const val STORE_FILE = "album_editions_v3.json"
+            const val INFO_TTL_MS = 45L * 24 * 60 * 60 * 1000
+            const val MAX_INFOS = 2500
+            const val MAX_LIST_FETCHES = 45
+            const val MAX_SIBLING_FETCHES = 25
+            const val MAX_SEARCHES = 8
+            const val PARALLEL_FETCHES = 3
         }
     }

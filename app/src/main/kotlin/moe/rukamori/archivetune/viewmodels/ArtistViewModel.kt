@@ -63,6 +63,7 @@ import moe.rukamori.archivetune.innertube.pages.isInlineCarousel
 import moe.rukamori.archivetune.spotify.SpotifyGapFinder
 import moe.rukamori.archivetune.spotify.withSpotifyGaps
 import moe.rukamori.archivetune.utils.AlbumEditionService
+import moe.rukamori.archivetune.utils.AlbumKindCatalog
 import moe.rukamori.archivetune.utils.ArtistAlbumGrouping
 import moe.rukamori.archivetune.utils.AlbumKindRepository
 import moe.rukamori.archivetune.utils.dataStore
@@ -263,36 +264,40 @@ class ArtistViewModel
             }
         }
 
-        val hiddenAlbumIds = MutableStateFlow<Set<String>>(emptySet())
+        val albumReplacements = MutableStateFlow<Map<String, AlbumItem>>(emptyMap())
         val albumOverrides = MutableStateFlow<Map<String, ArtistAlbumGrouping.Override>>(emptyMap())
-        private var musicBrainzOverrides: Map<String, ArtistAlbumGrouping.Override> = emptyMap()
+        private var musicBrainzEntries: List<AlbumKindCatalog.Entry> = emptyList()
         private var editionBases: Map<String, AlbumItem> = emptyMap()
+        private var knownAlbums: List<AlbumItem> = emptyList()
 
         private fun publishAlbumOverrides() {
-            albumOverrides.value = ArtistAlbumGrouping.withEditionBases(musicBrainzOverrides, editionBases)
+            val musicBrainz =
+                if (musicBrainzEntries.isEmpty()) emptyMap() else ArtistAlbumGrouping.musicBrainzOverrides(knownAlbums, musicBrainzEntries)
+            albumOverrides.value = ArtistAlbumGrouping.withEditionBases(musicBrainz, editionBases)
+        }
+
+        private fun applyEditions(
+            albums: List<AlbumItem>,
+            result: AlbumEditionService.Result,
+        ) {
+            albumReplacements.value = result.replacements
+            editionBases = result.baseOf
+            knownAlbums = (albums + result.display).distinctBy { it.id }
+            publishAlbumOverrides()
         }
 
         private fun warmAlbumKinds(page: ArtistPage) {
             val albums = page.sections.flatMap { it.items }.filterIsInstance<AlbumItem>().distinctBy { it.id }
             viewModelScope.launch(Dispatchers.IO) {
-                if (albums.isNotEmpty()) {
-                    val quick = albumEditionService.quick(albums)
-                    hiddenAlbumIds.value = quick.hiddenIds
-                    editionBases = quick.baseOf
-                    publishAlbumOverrides()
-                }
+                if (albums.isNotEmpty()) applyEditions(albums, albumEditionService.quick(albums))
                 if (context.isLowDataModeActive()) return@launch
                 val entries = runCatching { albumKindRepository.entriesFor(page.artist.title) }.getOrNull()
-                if (albums.isNotEmpty() && !entries.isNullOrEmpty()) {
-                    musicBrainzOverrides = ArtistAlbumGrouping.musicBrainzOverrides(albums, entries)
+                if (!entries.isNullOrEmpty()) {
+                    musicBrainzEntries = entries
                     publishAlbumOverrides()
                 }
                 if (albums.isNotEmpty()) {
-                    runCatching { albumEditionService.refine(albums) }.getOrNull()?.let {
-                        hiddenAlbumIds.value = it.hiddenIds
-                        editionBases = it.baseOf
-                        publishAlbumOverrides()
-                    }
+                    runCatching { albumEditionService.refine(albums) }.getOrNull()?.let { applyEditions(albums, it) }
                 }
             }
         }

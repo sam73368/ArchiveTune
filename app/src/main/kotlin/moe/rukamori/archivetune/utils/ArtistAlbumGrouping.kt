@@ -63,6 +63,10 @@ object ArtistAlbumGrouping {
                     overrides[it.value.id]?.year ?: it.value.year ?: Int.MIN_VALUE
                 }.thenBy { it.index },
             ).map { it.value }
+            .map { album ->
+                val year = overrides[album.id]?.year
+                if (year != null && year != album.year) album.copy(year = year) else album
+            }
 
     fun musicBrainzOverrides(
         albums: List<AlbumItem>,

@@ -6206,3 +6206,20 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification. The Eminem/Joyner Lucas cases are covered by unit tests on representative titles; the real YouTube titles and track lists could not be fetched from the sandbox.
+
+---
+Task ID: AL-5
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: The album shown for an artist must be the original explicit studio album, or its "update" (at most 24 months later, only new studio songs) when one exists. Real screenshots showed the update/original was never found.
+
+Work Log:
+- Root cause: YouTube's artist album list often contains only one edition (the "Version originale", the Expanded reissue, ADHD 2 without Reloaded); the other edition exists only on the album page ("Other versions") so the edition logic never saw it.
+- `AlbumEditionService` rewritten (cache `album_editions_v3.json`): for every full album of the artist page / albums grid it fetches the YouTube album page once (track list + "Other versions" filtered by same family title and shared artist), stores it for 45 days, then fetches the track lists of the discovered editions. Albums with an edition marker (Expanded, Deluxe, Remastered...) with no earlier unmarked edition found are also searched on YouTube Music (max 8 per run). Decisions are recomputed from the cache (instant), the result exposes `replacements` (every hidden edition id mapped to the album to show, which may be an edition that was not in YouTube's list) and `baseOf`.
+- A promoted or discovered album takes the year of the original, `ArtistAlbumGrouping.newestFirst/group` also show the MusicBrainz original year on the label, so a 2022 Expanded reissue no longer looks out of order.
+- `AlbumEditions`: singles/EPs are never merged with an album of the same name, a tiny base (under 4 tracks) is not absorbed by a much larger release, `sharesArtist` shared with the service.
+- Artist page carousels and the albums grid now replace hidden editions by the album to show (`albumReplacements`) instead of just hiding them; MusicBrainz kinds are resolved again for the discovered albums.
+- Tests added in `AlbumEditionsTest`.
+
+Stage Summary:
+- Pending CI compile and on-device verification. The first open of an artist fills the cache in the background (up to 45 album pages + 25 editions + 8 searches); the display improves as soon as it finishes and is instant afterwards.

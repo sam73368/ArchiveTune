@@ -8,6 +8,8 @@
 package moe.rukamori.archivetune.utils
 
 import moe.rukamori.archivetune.innertube.models.AlbumItem
+import moe.rukamori.archivetune.innertube.models.AlbumReleaseType
+import moe.rukamori.archivetune.innertube.models.Artist
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -210,5 +212,53 @@ class AlbumEditionsTest {
         assertFalse(AlbumEditions.isStudioLike("One \u2013 Instrumental"))
         assertFalse(AlbumEditions.isStudioLike("Song - Live in Paris"))
         assertTrue(AlbumEditions.isStudioLike("Song - Remastered 2011"))
+    }
+
+    @Test
+    fun lateExpandedReissueNeverReplacesTheOriginal() {
+        val original = album("show", "The Eminem Show", 2002)
+        val expanded = album("expanded", "The Eminem Show (Expanded Edition)", 2022)
+        val tracks = (1..20).map { "Song $it" }
+        val decision =
+            AlbumEditions.decide(
+                listOf(
+                    edition(original, tracks),
+                    edition(expanded, tracks + listOf("Bonus 1", "Bonus 2") + (1..5).map { "Song $it (Instrumental)" }),
+                ),
+            )
+
+        assertEquals("show", decision.displayId)
+        assertEquals("show", AlbumEditions.heuristicDecision(listOf(expanded, original)).displayId)
+    }
+
+    @Test
+    fun singlesAreNeverMergedWithAnAlbumOfTheSameName() {
+        val single = album("single", "Karma", 2026).copy(releaseType = AlbumReleaseType.SINGLE)
+        val full = album("full", "Karma", 2026)
+
+        assertEquals(2, AlbumEditions.families(listOf(single, full)).size)
+    }
+
+    @Test
+    fun tinyBaseIsNotAbsorbedByALargeUnrelatedRelease() {
+        val clusters =
+            AlbumEditions.partition(
+                listOf(
+                    edition(album("a", "Hits", 2000), listOf("One")),
+                    edition(album("b", "Hits", 2000), listOf("One") + (2..10).map { "Other $it" }),
+                ),
+            )
+
+        assertEquals(2, clusters.size)
+    }
+
+    @Test
+    fun sharedArtistDetectionUsesIdsOrNames() {
+        val first = album("a", "X", 2000).copy(artists = listOf(Artist("Eminem", "UC1")))
+        val second = album("b", "X", 2000).copy(artists = listOf(Artist("EMINEM", null)))
+        val third = album("c", "X", 2000).copy(artists = listOf(Artist("Someone Else", "UC9")))
+
+        assertTrue(AlbumEditions.sharesArtist(first, second))
+        assertFalse(AlbumEditions.sharesArtist(first, third))
     }
 }
