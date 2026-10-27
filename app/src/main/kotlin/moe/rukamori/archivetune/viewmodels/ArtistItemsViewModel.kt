@@ -33,6 +33,7 @@ import moe.rukamori.archivetune.innertube.models.filterVideo
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPage
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPageLayout
 import moe.rukamori.archivetune.models.ItemsPage
+import moe.rukamori.archivetune.utils.AlbumEditionService
 import moe.rukamori.archivetune.utils.AlbumKindCatalog
 import moe.rukamori.archivetune.utils.AlbumKindRepository
 import moe.rukamori.archivetune.utils.ArtistAlbumGrouping
@@ -51,6 +52,7 @@ class ArtistItemsViewModel
         @ApplicationContext val context: Context,
         private val database: MusicDatabase,
         private val albumKindRepository: AlbumKindRepository,
+        private val albumEditionService: AlbumEditionService,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         private val browseId = savedStateHandle.get<String>("browseId")!!
@@ -71,6 +73,9 @@ class ArtistItemsViewModel
         val itemsPage = MutableStateFlow<ItemsPage?>(null)
         val itemsLayout = MutableStateFlow(ArtistItemsPageLayout.LIST)
         val albumOverrides = MutableStateFlow<Map<String, ArtistAlbumGrouping.Override>>(emptyMap())
+        val albumDisplayIds = MutableStateFlow<Set<String>?>(null)
+        private var mbOverrides: Map<String, ArtistAlbumGrouping.Override> = emptyMap()
+        private var editionResult: AlbumEditionService.Result? = null
 
         val artist =
             database
@@ -128,7 +133,15 @@ class ArtistItemsViewModel
                                         ranking = false
                                     }
                                 }
-                                resolveAlbumKinds()
+                                val albums = itemsPage.value?.items.orEmpty().filterIsInstance<AlbumItem>()
+                                if (albums.isEmpty()) return@launch
+                                editionResult = albumEditionService.quick(albums)
+                                publishAlbumState()
+                                launch { resolveAlbumKinds(albums) }
+                                if (!context.isLowDataModeActive()) {
+                                    editionResult = runCatching { albumEditionService.refine(albums) }.getOrNull() ?: editionResult
+                                    publishAlbumState()
+                                }
                             }
                         }
                         if (onlySongs && !context.isLowDataModeActive()) {
@@ -147,9 +160,20 @@ class ArtistItemsViewModel
             }
         }
 
-        private suspend fun resolveAlbumKinds() {
-            val albums = itemsPage.value?.items.orEmpty().filterIsInstance<AlbumItem>()
-            if (albums.isEmpty()) return
+        @Synchronized
+        private fun publishAlbumState() {
+            val result = editionResult
+            val overrides = HashMap(mbOverrides)
+            result?.baseOf?.forEach { (displayId, base) ->
+                val baseOverride = mbOverrides[base.id]
+                val kind = mbOverrides[displayId]?.kind ?: baseOverride?.kind ?: ArtistAlbumGrouping.kindOf(base)
+                overrides[displayId] = ArtistAlbumGrouping.Override(kind, baseOverride?.year ?: base.year)
+            }
+            albumOverrides.value = overrides
+            albumDisplayIds.value = result?.display?.map { it.id }?.toSet()
+        }
+
+        private suspend fun resolveAlbumKinds(albums: List<AlbumItem>) {
             val name =
                 database.artist(routeArtistId).first()?.artist?.name?.takeIf { it.isNotBlank() }
                     ?: YouTube.artist(routeArtistId).getOrNull()?.artist?.title?.takeIf { it.isNotBlank() }
@@ -163,7 +187,10 @@ class ArtistItemsViewModel
                 val entry = AlbumKindCatalog.lookup(entries, album.title, album.year) ?: continue
                 overrides[album.id] = ArtistAlbumGrouping.Override(entry.kind, entry.year ?: album.year)
             }
-            if (overrides.isNotEmpty()) albumOverrides.value = overrides
+            if (overrides.isNotEmpty()) {
+                mbOverrides = overrides
+                publishAlbumState()
+            }
         }
 
         private suspend fun loadRemainingAlbumPages() {

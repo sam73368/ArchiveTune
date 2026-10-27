@@ -6172,3 +6172,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification. MusicBrainz could not be reached from the build sandbox, so the response format follows its documented API and is only unit-tested on sample JSON.
+
+---
+Task ID: AL-3
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: One entry per album (the studio original, explicit), editions in "Other versions", updated re-releases with new studio songs shown instead of the original, and a cleaned "Other versions" list.
+
+Work Log:
+- `AlbumEditions` (pure, tested): editions of an album are grouped by a family key (title without brackets, deluxe/remastered/edition words, accents), merged only when a title carries an edition marker or the years are within 2. `decide` picks the displayed edition from the track lists: base = earliest edition; an edition replaces it when it is at most 2 years later, contains most of the base tracks, and every extra track is a studio song (no live, demo, instrumental, acoustic, remix, session...); the one with the most tracks wins, explicit first on ties (an explicit twin of a clean base wins). Without track lists the clean, explicit, markerless, earliest edition is shown.
+- `AlbumEditionService` (Hilt singleton): `quick` (stored decision or heuristic, instant) and `refine` (fetches track lists of the editions of multi-edition families, max 40 per call, 3 at a time, then stores the decision). Disk cache `album_editions_v1.json` (decisions 45 days, track lists), so it works offline afterwards. Skipped in low-data mode.
+- Artist "Albums" page and artist-page album carousels now hide the other editions; a promoted edition takes the original's year and kind so the chronological order is kept.
+- `AlbumViewModel`: "Other versions" keeps only editions of the same album (same family key and artist) from YouTube's list (which mixed unrelated carousels) plus the editions stored for the album, including the original when a promoted edition is opened.
+- Tests `AlbumEditionsTest`.
+
+Stage Summary:
+- Pending CI compile and on-device verification. Edition detection needs YouTube album track lists; if they cannot be fetched the heuristic fallback applies.

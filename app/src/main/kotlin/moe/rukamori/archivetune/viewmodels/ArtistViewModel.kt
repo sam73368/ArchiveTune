@@ -62,6 +62,7 @@ import moe.rukamori.archivetune.innertube.pages.ArtistSectionLayout
 import moe.rukamori.archivetune.innertube.pages.isInlineCarousel
 import moe.rukamori.archivetune.spotify.SpotifyGapFinder
 import moe.rukamori.archivetune.spotify.withSpotifyGaps
+import moe.rukamori.archivetune.utils.AlbumEditionService
 import moe.rukamori.archivetune.utils.AlbumKindRepository
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
@@ -126,6 +127,7 @@ class ArtistViewModel
         private val setArtistBlocked: SetArtistBlockedUseCase,
         private val spotifyGapFinder: SpotifyGapFinder,
         private val albumKindRepository: AlbumKindRepository,
+        private val albumEditionService: AlbumEditionService,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         val artistId = savedStateHandle.get<String>("artistId")!!
@@ -260,10 +262,19 @@ class ArtistViewModel
             }
         }
 
+        val hiddenAlbumIds = MutableStateFlow<Set<String>>(emptySet())
+
         private fun warmAlbumKinds(page: ArtistPage) {
-            if (context.isLowDataModeActive()) return
+            val albums = page.sections.flatMap { it.items }.filterIsInstance<AlbumItem>().distinctBy { it.id }
             viewModelScope.launch(Dispatchers.IO) {
+                if (albums.isNotEmpty()) {
+                    hiddenAlbumIds.value = albumEditionService.quick(albums).hiddenIds
+                }
+                if (context.isLowDataModeActive()) return@launch
                 runCatching { albumKindRepository.entriesFor(page.artist.title) }
+                if (albums.isNotEmpty()) {
+                    runCatching { albumEditionService.refine(albums) }.getOrNull()?.let { hiddenAlbumIds.value = it.hiddenIds }
+                }
             }
         }
 

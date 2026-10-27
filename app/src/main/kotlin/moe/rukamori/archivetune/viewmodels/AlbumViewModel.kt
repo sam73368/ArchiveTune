@@ -29,6 +29,9 @@ import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.extensions.filterBlockedArtists
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.AlbumItem
+import moe.rukamori.archivetune.utils.AlbumEditionService
+import moe.rukamori.archivetune.utils.AlbumEditions
+import moe.rukamori.archivetune.utils.AlbumKindCatalog
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.utils.isLowDataModeActive
@@ -63,6 +66,7 @@ class AlbumViewModel
     constructor(
         @ApplicationContext context: Context,
         private val database: MusicDatabase,
+        private val albumEditionService: AlbumEditionService,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         val albumId = savedStateHandle.get<String>("albumId")!!
@@ -106,6 +110,21 @@ class AlbumViewModel
             fetchAlbumCanvas(context)
         }
 
+        private fun sharesArtist(
+            first: AlbumItem,
+            second: AlbumItem,
+        ): Boolean {
+            val a = first.artists.orEmpty()
+            val b = second.artists.orEmpty()
+            if (a.isEmpty() || b.isEmpty()) return true
+            return a.any { left ->
+                b.any { right ->
+                    (left.id != null && left.id == right.id) ||
+                        AlbumKindCatalog.normalizeArtist(left.name) == AlbumKindCatalog.normalizeArtist(right.name)
+                }
+            }
+        }
+
         fun retry() {
             viewModelScope.launch {
                 _fetchState.value = FetchState.Pending
@@ -115,10 +134,20 @@ class AlbumViewModel
                     .onSuccess {
                         playlistId.value = it.album.playlistId
                         val blockedArtistIds = database.getBlockedArtistIds().toSet()
-                        otherVersions.value =
+                        val familyKey = AlbumEditions.familyKey(it.album.title)
+                        val related =
                             it.otherVersions.filter { version ->
-                                version.artists.orEmpty().none { artist -> artist.id in blockedArtistIds }
+                                familyKey.isNotBlank() &&
+                                    version.id != albumId &&
+                                    AlbumEditions.familyKey(version.title) == familyKey &&
+                                    sharesArtist(it.album, version)
                             }
+                        otherVersions.value =
+                            (albumEditionService.siblingsOf(albumId) + related)
+                                .filter { version -> version.id != albumId }
+                                .filter { version ->
+                                    version.artists.orEmpty().none { artist -> artist.id in blockedArtistIds }
+                                }.distinctBy { version -> version.id }
                         database.withTransaction {
                             if (album == null) {
                                 insert(it)

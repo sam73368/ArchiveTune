@@ -128,9 +128,15 @@ fun ArtistItemsScreen(
     val itemsPage by viewModel.itemsPage.collectAsStateWithLifecycle()
     val itemsLayout by viewModel.itemsLayout.collectAsStateWithLifecycle()
     val albumOverrides by viewModel.albumOverrides.collectAsStateWithLifecycle()
+    val albumDisplayIds by viewModel.albumDisplayIds.collectAsStateWithLifecycle()
     val albumGroupsOrNull =
-        remember(itemsPage, itemsLayout, albumOverrides) {
-            val items = itemsPage?.items.orEmpty().distinctBy { it.id }
+        remember(itemsPage, itemsLayout, albumOverrides, albumDisplayIds) {
+            val items =
+                itemsPage
+                    ?.items
+                    .orEmpty()
+                    .distinctBy { it.id }
+                    .filter { item -> albumDisplayIds?.let { item.id in it } ?: true }
             if (itemsLayout == ArtistItemsPageLayout.GRID && items.isNotEmpty() && items.all { it is AlbumItem }) {
                 ArtistAlbumGrouping.group(items.filterIsInstance<AlbumItem>(), albumOverrides)
             } else {
