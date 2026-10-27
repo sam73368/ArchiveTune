@@ -245,7 +245,7 @@ fun BitChordHeroCard(
                 ),
     ) {
         AsyncImage(
-            model = if (tv) artworkUrl?.resize(544, 544, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal) else artworkUrl,
+            model = artworkUrl?.resize(if (tv) 544 else 720, if (tv) 544 else 720, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
@@ -308,6 +308,7 @@ fun BitChordShelfCard(
     val tv = LocalTvLayout.current
     val tvFocus = rememberTvFocusState()
     val cardWidth = if (tv) BitChordTvShelfCardWidth else BitChordShelfCardWidth
+    val cardArtworkPx = if (tv) 544 else with(androidx.compose.ui.platform.LocalDensity.current) { cardWidth.roundToPx() }
     Column(
         modifier =
             modifier
@@ -341,7 +342,7 @@ fun BitChordShelfCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
-                model = if (tv) artworkUrl?.resize(544, 544, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal) else artworkUrl,
+                model = artworkUrl?.resize(cardArtworkPx, cardArtworkPx, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -390,6 +391,7 @@ fun BitChordCompactTrackRow(
     onLongClick: () -> Unit,
 ) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val rowArtworkPx = with(androidx.compose.ui.platform.LocalDensity.current) { 48.dp.roundToPx() }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
@@ -413,7 +415,7 @@ fun BitChordCompactTrackRow(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
-                model = artworkUrl,
+                model = artworkUrl?.resize(rowArtworkPx, rowArtworkPx, ytimgResizePolicy = moe.rukamori.archivetune.ui.utils.YtimgResizePolicy.PreserveOriginal),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

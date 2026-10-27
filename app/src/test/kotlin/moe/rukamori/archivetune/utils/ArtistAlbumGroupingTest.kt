@@ -97,4 +97,22 @@ class ArtistAlbumGroupingTest {
         assertFalse(ArtistAlbumGrouping.isLive("Olive Branch"))
         assertFalse(ArtistAlbumGrouping.isLive("Delivery"))
     }
+
+    @Test
+    fun promotedEditionKeepsTheYearOfTheOriginalForOrdering() {
+        val original = album("ADHD 2", 2024)
+        val reloaded = album("ADHD 2: Reloaded", 2025)
+        val newer = album("Another Album", 2025)
+        val overrides =
+            ArtistAlbumGrouping.withEditionBases(
+                emptyMap(),
+                mapOf(reloaded.id to original),
+            )
+
+        assertEquals(2024, overrides[reloaded.id]?.year)
+        assertEquals(
+            listOf("Another Album", "ADHD 2: Reloaded"),
+            ArtistAlbumGrouping.newestFirst(listOf(reloaded, newer), overrides).map { it.title },
+        )
+    }
 }

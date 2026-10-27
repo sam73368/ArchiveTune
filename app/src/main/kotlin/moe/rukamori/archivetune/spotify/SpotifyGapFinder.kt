@@ -26,6 +26,7 @@ import moe.rukamori.archivetune.innertube.models.YTItem
 import moe.rukamori.archivetune.spotify.models.SpotifyAlbum
 import moe.rukamori.archivetune.spotify.models.SpotifySimpleArtist
 import moe.rukamori.archivetune.spotify.models.SpotifyTrack
+import moe.rukamori.archivetune.utils.AlbumEditions
 import moe.rukamori.archivetune.utils.dataStore
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -187,7 +188,7 @@ class SpotifyGapFinder
             album: SpotifyAlbum,
             candidate: AlbumItem,
         ): Boolean =
-            titlesMatch(album.name, candidate.title) &&
+            (titlesMatch(album.name, candidate.title) || AlbumEditions.sameFamilyTitles(album.name, candidate.title)) &&
                 artistsMatch(album.artists, candidate.artists?.map { it.name }.orEmpty())
 
         private fun trackMatches(

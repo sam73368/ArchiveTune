@@ -64,6 +64,31 @@ object ArtistAlbumGrouping {
                 }.thenBy { it.index },
             ).map { it.value }
 
+    fun musicBrainzOverrides(
+        albums: List<AlbumItem>,
+        entries: List<AlbumKindCatalog.Entry>,
+    ): Map<String, Override> {
+        val overrides = HashMap<String, Override>()
+        for (album in albums) {
+            val entry = AlbumKindCatalog.lookup(entries, album.title, album.year) ?: continue
+            overrides[album.id] = Override(entry.kind, entry.year ?: album.year)
+        }
+        return overrides
+    }
+
+    fun withEditionBases(
+        musicBrainz: Map<String, Override>,
+        baseOf: Map<String, AlbumItem>,
+    ): Map<String, Override> {
+        val overrides = HashMap(musicBrainz)
+        baseOf.forEach { (displayId, base) ->
+            val baseOverride = musicBrainz[base.id]
+            val kind = musicBrainz[displayId]?.kind ?: baseOverride?.kind ?: kindOf(base)
+            overrides[displayId] = Override(kind, baseOverride?.year ?: base.year)
+        }
+        return overrides
+    }
+
     fun group(
         albums: List<AlbumItem>,
         overrides: Map<String, Override> = emptyMap(),

@@ -134,12 +134,10 @@ class AlbumViewModel
                     .onSuccess {
                         playlistId.value = it.album.playlistId
                         val blockedArtistIds = database.getBlockedArtistIds().toSet()
-                        val familyKey = AlbumEditions.familyKey(it.album.title)
                         val related =
                             it.otherVersions.filter { version ->
-                                familyKey.isNotBlank() &&
-                                    version.id != albumId &&
-                                    AlbumEditions.familyKey(version.title) == familyKey &&
+                                version.id != albumId &&
+                                    AlbumEditions.sameFamilyTitles(version.title, it.album.title) &&
                                     sharesArtist(it.album, version)
                             }
                         otherVersions.value =

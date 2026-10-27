@@ -34,9 +34,9 @@ import moe.rukamori.archivetune.innertube.pages.ArtistItemsPage
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPageLayout
 import moe.rukamori.archivetune.models.ItemsPage
 import moe.rukamori.archivetune.utils.AlbumEditionService
-import moe.rukamori.archivetune.utils.AlbumKindCatalog
 import moe.rukamori.archivetune.utils.AlbumKindRepository
 import moe.rukamori.archivetune.utils.ArtistAlbumGrouping
+import moe.rukamori.archivetune.utils.ArtistSectionRegistry
 import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
 import moe.rukamori.archivetune.utils.SongViewRanking
 import moe.rukamori.archivetune.utils.dataStore
@@ -89,8 +89,54 @@ class ArtistItemsViewModel
             const val MAX_ALBUM_PAGES = 12
         }
 
+        private fun startAlbumPipeline(
+            hasMorePages: Boolean,
+        ) {
+            viewModelScope.launch(Dispatchers.IO) {
+                if (hasMorePages) {
+                    ranking = true
+                    try {
+                        loadRemainingAlbumPages()
+                    } finally {
+                        ranking = false
+                    }
+                }
+                val albums = itemsPage.value?.items.orEmpty().filterIsInstance<AlbumItem>()
+                if (albums.isEmpty()) return@launch
+                editionResult = albumEditionService.quick(albums)
+                publishAlbumState()
+                launch { resolveAlbumKinds(albums) }
+                if (!context.isLowDataModeActive()) {
+                    editionResult = runCatching { albumEditionService.refine(albums) }.getOrNull() ?: editionResult
+                    publishAlbumState()
+                }
+            }
+        }
+
+        private suspend fun loadLocalSection() {
+            val stored = params?.let(ArtistSectionRegistry::get)
+            if (stored == null) {
+                itemsPage.value = ItemsPage(items = emptyList(), continuation = null)
+                return
+            }
+            val items =
+                stored
+                    .distinctBy { it.id }
+                    .filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                    .filterVideo(context.dataStore.get(HideVideoKey, true))
+                    .filterBlockedArtists(database.getBlockedArtistIds().toSet())
+                    .dropCleanTwins()
+            itemsLayout.value = ArtistItemsPageLayout.GRID
+            itemsPage.value = ItemsPage(items = items, continuation = null)
+            if (items.isNotEmpty() && items.all { it is AlbumItem }) startAlbumPipeline(hasMorePages = false)
+        }
+
         init {
+            if (browseId == ArtistSectionRegistry.LOCAL_BROWSE_ID) {
+                viewModelScope.launch { loadLocalSection() }
+            }
             viewModelScope.launch {
+                if (browseId == ArtistSectionRegistry.LOCAL_BROWSE_ID) return@launch
                 YouTube
                     .artistItems(
                         BrowseEndpoint(
@@ -123,27 +169,7 @@ class ArtistItemsViewModel
                             artistItemsPage.layout == ArtistItemsPageLayout.GRID &&
                                 artistItemsPage.items.isNotEmpty() &&
                                 artistItemsPage.items.all { it is AlbumItem }
-                        if (onlyAlbums) {
-                            viewModelScope.launch(Dispatchers.IO) {
-                                if (artistItemsPage.continuation != null) {
-                                    ranking = true
-                                    try {
-                                        loadRemainingAlbumPages()
-                                    } finally {
-                                        ranking = false
-                                    }
-                                }
-                                val albums = itemsPage.value?.items.orEmpty().filterIsInstance<AlbumItem>()
-                                if (albums.isEmpty()) return@launch
-                                editionResult = albumEditionService.quick(albums)
-                                publishAlbumState()
-                                launch { resolveAlbumKinds(albums) }
-                                if (!context.isLowDataModeActive()) {
-                                    editionResult = runCatching { albumEditionService.refine(albums) }.getOrNull() ?: editionResult
-                                    publishAlbumState()
-                                }
-                            }
-                        }
+                        if (onlyAlbums) startAlbumPipeline(hasMorePages = artistItemsPage.continuation != null)
                         if (onlySongs && !context.isLowDataModeActive()) {
                             ranking = true
                             viewModelScope.launch(Dispatchers.IO) {
@@ -163,13 +189,7 @@ class ArtistItemsViewModel
         @Synchronized
         private fun publishAlbumState() {
             val result = editionResult
-            val overrides = HashMap(mbOverrides)
-            result?.baseOf?.forEach { (displayId, base) ->
-                val baseOverride = mbOverrides[base.id]
-                val kind = mbOverrides[displayId]?.kind ?: baseOverride?.kind ?: ArtistAlbumGrouping.kindOf(base)
-                overrides[displayId] = ArtistAlbumGrouping.Override(kind, baseOverride?.year ?: base.year)
-            }
-            albumOverrides.value = overrides
+            albumOverrides.value = ArtistAlbumGrouping.withEditionBases(mbOverrides, result?.baseOf.orEmpty())
             albumDisplayIds.value = result?.display?.map { it.id }?.toSet()
         }
 
@@ -182,11 +202,7 @@ class ArtistItemsViewModel
                 albumKindRepository.entriesFor(name, allowNetwork = !context.isLowDataModeActive())
                     ?.takeIf { it.isNotEmpty() }
                     ?: return
-            val overrides = HashMap<String, ArtistAlbumGrouping.Override>()
-            for (album in albums) {
-                val entry = AlbumKindCatalog.lookup(entries, album.title, album.year) ?: continue
-                overrides[album.id] = ArtistAlbumGrouping.Override(entry.kind, entry.year ?: album.year)
-            }
+            val overrides = ArtistAlbumGrouping.musicBrainzOverrides(albums, entries)
             if (overrides.isNotEmpty()) {
                 mbOverrides = overrides
                 publishAlbumState()

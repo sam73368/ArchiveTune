@@ -63,6 +63,7 @@ import moe.rukamori.archivetune.innertube.pages.isInlineCarousel
 import moe.rukamori.archivetune.spotify.SpotifyGapFinder
 import moe.rukamori.archivetune.spotify.withSpotifyGaps
 import moe.rukamori.archivetune.utils.AlbumEditionService
+import moe.rukamori.archivetune.utils.ArtistAlbumGrouping
 import moe.rukamori.archivetune.utils.AlbumKindRepository
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
@@ -263,17 +264,35 @@ class ArtistViewModel
         }
 
         val hiddenAlbumIds = MutableStateFlow<Set<String>>(emptySet())
+        val albumOverrides = MutableStateFlow<Map<String, ArtistAlbumGrouping.Override>>(emptyMap())
+        private var musicBrainzOverrides: Map<String, ArtistAlbumGrouping.Override> = emptyMap()
+        private var editionBases: Map<String, AlbumItem> = emptyMap()
+
+        private fun publishAlbumOverrides() {
+            albumOverrides.value = ArtistAlbumGrouping.withEditionBases(musicBrainzOverrides, editionBases)
+        }
 
         private fun warmAlbumKinds(page: ArtistPage) {
             val albums = page.sections.flatMap { it.items }.filterIsInstance<AlbumItem>().distinctBy { it.id }
             viewModelScope.launch(Dispatchers.IO) {
                 if (albums.isNotEmpty()) {
-                    hiddenAlbumIds.value = albumEditionService.quick(albums).hiddenIds
+                    val quick = albumEditionService.quick(albums)
+                    hiddenAlbumIds.value = quick.hiddenIds
+                    editionBases = quick.baseOf
+                    publishAlbumOverrides()
                 }
                 if (context.isLowDataModeActive()) return@launch
-                runCatching { albumKindRepository.entriesFor(page.artist.title) }
+                val entries = runCatching { albumKindRepository.entriesFor(page.artist.title) }.getOrNull()
+                if (albums.isNotEmpty() && !entries.isNullOrEmpty()) {
+                    musicBrainzOverrides = ArtistAlbumGrouping.musicBrainzOverrides(albums, entries)
+                    publishAlbumOverrides()
+                }
                 if (albums.isNotEmpty()) {
-                    runCatching { albumEditionService.refine(albums) }.getOrNull()?.let { hiddenAlbumIds.value = it.hiddenIds }
+                    runCatching { albumEditionService.refine(albums) }.getOrNull()?.let {
+                        hiddenAlbumIds.value = it.hiddenIds
+                        editionBases = it.baseOf
+                        publishAlbumOverrides()
+                    }
                 }
             }
         }

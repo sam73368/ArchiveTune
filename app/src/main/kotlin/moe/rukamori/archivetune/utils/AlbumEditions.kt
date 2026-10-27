@@ -10,10 +10,11 @@ package moe.rukamori.archivetune.utils
 import moe.rukamori.archivetune.innertube.models.AlbumItem
 import java.text.Normalizer
 import java.util.Locale
+import kotlin.math.abs
 
 object AlbumEditions {
     const val MAX_UPDATE_YEAR_GAP = 2
-    private const val MIN_TRACK_OVERLAP = 0.7
+    private const val MIN_TRACK_OVERLAP = 0.5
 
     data class Edition(
         val album: AlbumItem,
@@ -38,11 +39,20 @@ object AlbumEditions {
             "ultimate", "platinum", "complete", "extended", "box", "bonus", "reloaded", "revisited", "redux", "edition",
         )
 
-    private val nonStudioTrackWords =
+    private val updateMarkerWords = setOf("reloaded", "revisited", "redux", "reimagined")
+
+    private val sequelWords =
+        setOf(
+            "part", "pt", "vol", "volume", "chapter", "ii", "iii", "iv", "vi", "vii", "viii", "ix", "x", "live",
+            "unplugged", "soundtrack", "ost", "best", "hits", "greatest", "remixes", "instrumentals", "sessions",
+        )
+
+    private val nonStudioMarkers =
         listOf(
-            "live", "demo", "demos", "instrumental", "acoustic", "karaoke", "a cappella", "acapella", "remix", "mix",
-            "rough", "outtake", "outtakes", "rehearsal", "session", "sessions", "alternate", "alternative", "unplugged",
-            "sped up", "slowed", "en vivo", "en direct", "ao vivo", "tour", "interview", "commentary", "soundcheck",
+            "live", "demo", "demos", "instrumental", "instrumentals", "acoustic", "karaoke", "a cappella", "acapella",
+            "remix", "mix", "rough mix", "outtake", "outtakes", "rehearsal", "session", "sessions", "alternate",
+            "alternative", "unplugged", "sped up", "slowed", "en vivo", "en direct", "ao vivo", "interview",
+            "commentary", "soundcheck", "stripped", "orchestral",
         )
 
     private fun fold(raw: String): String =
@@ -52,6 +62,9 @@ object AlbumEditions {
             .lowercase(Locale.ROOT)
             .replace("&", " and ")
 
+    private fun words(raw: String): List<String> =
+        fold(raw).replace(Regex("""[^\p{L}\p{N}]+"""), " ").split(' ').filter { it.isNotBlank() }
+
     fun familyKey(title: String): String =
         fold(title)
             .replace(Regex("""\([^)]*\)|\[[^]]*]"""), " ")
@@ -60,61 +73,127 @@ object AlbumEditions {
             .filter { it.isNotBlank() && it !in familyNoiseWords }
             .joinToString(" ")
 
-    fun hasEditionMarker(title: String): Boolean {
-        val words =
-            fold(title)
-                .replace(Regex("""[^\p{L}\p{N}]+"""), " ")
-                .split(' ')
-                .filter { it.isNotBlank() }
-                .toSet()
-        return words.any { it in editionMarkerWords }
+    fun hasEditionMarker(title: String): Boolean = words(title).any { it in editionMarkerWords }
+
+    fun hasUpdateMarker(title: String): Boolean = words(title).any { it in updateMarkerWords }
+
+    private fun prefixRelated(
+        first: String,
+        second: String,
+    ): Boolean {
+        val a = first.split(' ').filter { it.isNotBlank() }
+        val b = second.split(' ').filter { it.isNotBlank() }
+        val (short, long) = if (a.size <= b.size) a to b else b to a
+        if (short.size < 2 || long.size == short.size) return false
+        if (long.take(short.size) != short) return false
+        val extra = long.drop(short.size)
+        return extra.none { token -> token in sequelWords || token.all { it.isDigit() } }
+    }
+
+    private fun keysRelated(
+        first: String,
+        second: String,
+    ): Boolean =
+        first.isNotBlank() &&
+            second.isNotBlank() &&
+            (first == second || first.replace(" ", "") == second.replace(" ", "") || prefixRelated(first, second))
+
+    fun sameFamilyTitles(
+        first: String,
+        second: String,
+    ): Boolean = keysRelated(familyKey(first), familyKey(second))
+
+    private fun allowedGap(album: AlbumItem): Int = MAX_UPDATE_YEAR_GAP + if (hasUpdateMarker(album.title)) 1 else 0
+
+    private fun yearsCompatible(
+        a: AlbumItem,
+        b: AlbumItem,
+    ): Boolean {
+        val ya = a.year
+        val yb = b.year
+        return ya == null || yb == null || abs(ya - yb) <= MAX_UPDATE_YEAR_GAP
     }
 
     fun isStudioLike(trackTitle: String): Boolean {
-        val text = " " + fold(trackTitle).replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim() + " "
-        return nonStudioTrackWords.none { " $it " in text }
+        val folded = fold(trackTitle).replace(" \u2013 ", " - ")
+        val bracketText = Regex("""\(([^)]*)\)|\[([^]]*)]""").findAll(folded).joinToString(" ") { it.value }
+        val dashText = folded.substringAfter(" - ", "").substringAfter(" – ", "")
+        val suffix = " " + (bracketText + " " + dashText).replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim() + " "
+        if (nonStudioMarkers.any { " $it " in suffix }) return false
+        val head = words(trackTitle).take(2).joinToString(" ")
+        return !(head == "live at" || head == "live in" || head == "live from" || head == "demo of")
     }
 
     fun trackKey(trackTitle: String): String =
         fold(trackTitle)
             .replace(Regex("""\([^)]*\)|\[[^]]*]"""), " ")
-            .replace(Regex("""\s-\s.*$"""), " ")
+            .replace(Regex("""\s[-–]\s.*$"""), " ")
+            .replace(Regex("""\b(feat|ft|featuring)\b.*$"""), " ")
             .replace(Regex("""[^\p{L}\p{N}]+"""), " ")
             .trim()
 
-    private fun rawKey(trackTitle: String): String =
-        fold(trackTitle).replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim()
+    private fun rawKey(trackTitle: String): String = fold(trackTitle).replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim()
 
     fun families(albums: List<AlbumItem>): List<List<AlbumItem>> {
-        val byKey = LinkedHashMap<String, MutableList<AlbumItem>>()
-        for (album in albums.distinctBy { it.id }) {
-            val key = familyKey(album.title)
-            if (key.isBlank()) {
-                byKey["\u0000${album.id}"] = mutableListOf(album)
-            } else {
-                byKey.getOrPut(key) { mutableListOf() } += album
+        val items = albums.distinctBy { it.id }
+        val keys = items.map { familyKey(it.title) }
+        val parent = IntArray(items.size) { it }
+
+        fun find(i: Int): Int {
+            var x = i
+            while (parent[x] != x) {
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            }
+            return x
+        }
+
+        for (i in items.indices) {
+            for (j in i + 1 until items.size) {
+                if (!keysRelated(keys[i], keys[j])) continue
+                val marker = hasEditionMarker(items[i].title) || hasEditionMarker(items[j].title)
+                if (marker || yearsCompatible(items[i], items[j])) {
+                    parent[find(j)] = find(i)
+                }
             }
         }
-        val result = mutableListOf<List<AlbumItem>>()
-        for (group in byKey.values) {
-            if (group.size < 2) {
-                result += group
-                continue
-            }
-            val anyMarker = group.any { hasEditionMarker(it.title) }
-            if (anyMarker) {
-                result += group
-                continue
-            }
-            val years = group.mapNotNull { it.year }
-            val closeInTime = years.size == group.size && (years.max() - years.min()) <= MAX_UPDATE_YEAR_GAP
-            if (closeInTime) {
-                result += group
-            } else {
-                group.forEach { result += listOf(it) }
-            }
+        val groups = LinkedHashMap<Int, MutableList<AlbumItem>>()
+        for (index in items.indices) groups.getOrPut(find(index)) { mutableListOf() } += items[index]
+        return groups.values.toList()
+    }
+
+    private fun overlap(
+        baseKeys: Set<String>,
+        tracks: List<String>,
+    ): Double {
+        if (baseKeys.isEmpty()) return 0.0
+        val keys = tracks.map(::trackKey).toSet()
+        return baseKeys.count { it in keys }.toDouble() / baseKeys.size
+    }
+
+    private fun earliest(editions: List<Edition>): Edition =
+        editions
+            .withIndex()
+            .sortedWith(
+                compareBy<IndexedValue<Edition>> { it.value.album.year ?: Int.MAX_VALUE }
+                    .thenBy { if (hasEditionMarker(it.value.album.title)) 1 else 0 }
+                    .thenBy { it.value.tracks?.size ?: Int.MAX_VALUE }
+                    .thenBy { it.index },
+            ).first()
+            .value
+
+    fun partition(editions: List<Edition>): List<List<Edition>> {
+        if (editions.size < 2 || editions.any { it.tracks.isNullOrEmpty() }) return listOf(editions)
+        val remaining = editions.toMutableList()
+        val clusters = mutableListOf<List<Edition>>()
+        while (remaining.isNotEmpty()) {
+            val base = earliest(remaining)
+            val baseKeys = base.tracks.orEmpty().map(::trackKey).filter { it.isNotBlank() }.toSet()
+            val cluster = remaining.filter { it === base || overlap(baseKeys, it.tracks.orEmpty()) >= MIN_TRACK_OVERLAP }
+            clusters += cluster
+            remaining.removeAll(cluster.toSet())
         }
-        return result
+        return clusters
     }
 
     private fun orderForFallback(
@@ -132,41 +211,30 @@ object AlbumEditions {
         require(family.isNotEmpty())
         if (family.size == 1) return Decision(family[0].album.id, family[0].album.id)
 
-        val base =
-            family
-                .withIndex()
-                .sortedWith(
-                    compareBy<IndexedValue<Edition>> { it.value.album.year ?: Int.MAX_VALUE }
-                        .thenBy { if (hasEditionMarker(it.value.album.title)) 1 else 0 }
-                        .thenBy { it.value.tracks?.size ?: Int.MAX_VALUE }
-                        .thenBy { it.index },
-                ).first()
-                .value
-
+        val base = earliest(family)
         val baseTracks = base.tracks
+        if (baseTracks.isNullOrEmpty()) {
+            return heuristicDecision(family.map { it.album })
+        }
+
+        val baseKeys = baseTracks.map(::trackKey).filter { it.isNotBlank() }.toSet()
+        val baseRawKeys = baseTracks.map(::rawKey).toSet()
         val candidates = mutableListOf(base)
-        if (baseTracks != null && baseTracks.isNotEmpty()) {
-            val baseKeys = baseTracks.map(::trackKey).filter { it.isNotBlank() }.toSet()
-            val baseRawKeys = baseTracks.map(::rawKey).toSet()
-            for (edition in family) {
-                if (edition === base) continue
-                val tracks = edition.tracks ?: continue
-                val keys = tracks.map(::trackKey).toSet()
-                val overlap = if (baseKeys.isEmpty()) 0.0 else baseKeys.count { it in keys }.toDouble() / baseKeys.size
-                if (overlap < MIN_TRACK_OVERLAP) continue
-                val yearGap =
-                    if (base.album.year != null && edition.album.year != null) edition.album.year!! - base.album.year!! else null
-                if (yearGap == null || yearGap < 0 || yearGap > MAX_UPDATE_YEAR_GAP) continue
-                val nonStudioNew = tracks.filter { !isStudioLike(it) && rawKey(it) !in baseRawKeys }
-                if (nonStudioNew.isNotEmpty()) continue
-                val extras = tracks.filter { trackKey(it) !in baseKeys }
-                val explicitTwin = extras.isEmpty() && edition.album.explicit && !base.album.explicit
-                if (!explicitTwin && extras.isEmpty()) continue
-                candidates += edition
+        for (edition in family) {
+            if (edition === base) continue
+            val tracks = edition.tracks ?: continue
+            if (overlap(baseKeys, tracks) < MIN_TRACK_OVERLAP) continue
+            val baseYear = base.album.year
+            val editionYear = edition.album.year
+            if (baseYear != null && editionYear != null) {
+                val gap = editionYear - baseYear
+                if (gap < 0 || gap > allowedGap(edition.album)) continue
             }
-        } else {
-            val fallback = family.map { it.album }.sortedWith(::orderForFallback).first()
-            return Decision(fallback.id, base.album.id)
+            if (tracks.any { !isStudioLike(it) && rawKey(it) !in baseRawKeys }) continue
+            val extras = tracks.filter { trackKey(it) !in baseKeys }
+            val explicitTwin = extras.isEmpty() && edition.album.explicit && !base.album.explicit
+            if (!explicitTwin && extras.isEmpty()) continue
+            candidates += edition
         }
 
         val display =
@@ -185,7 +253,18 @@ object AlbumEditions {
                 .sortedWith(
                     compareBy<AlbumItem> { it.year ?: Int.MAX_VALUE }.thenBy { if (hasEditionMarker(it.title)) 1 else 0 },
                 ).first()
-        val display = family.sortedWith(::orderForFallback).first()
+        val updates =
+            family.filter { edition ->
+                edition.id != base.id &&
+                    hasUpdateMarker(edition.title) &&
+                    (base.year == null || edition.year == null || edition.year!! - base.year!! in 0..allowedGap(edition))
+            }
+        val display =
+            if (updates.isNotEmpty()) {
+                updates.sortedWith(compareByDescending<AlbumItem> { it.explicit }.thenByDescending { it.year ?: 0 }).first()
+            } else {
+                family.sortedWith(::orderForFallback).first()
+            }
         return Decision(display.id, base.id)
     }
 }

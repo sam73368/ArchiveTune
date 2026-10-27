@@ -207,6 +207,9 @@ import moe.rukamori.archivetune.ui.utils.backToMain
 import moe.rukamori.archivetune.ui.utils.formatCompactCount
 import moe.rukamori.archivetune.ui.utils.navigateHome
 import moe.rukamori.archivetune.ui.utils.resize
+import moe.rukamori.archivetune.innertube.pages.ArtistSection
+import moe.rukamori.archivetune.utils.ArtistAlbumGrouping
+import moe.rukamori.archivetune.utils.ArtistSectionRegistry
 import moe.rukamori.archivetune.utils.ReleaseRadarRepository
 import moe.rukamori.archivetune.utils.UpcomingRelease
 import moe.rukamori.archivetune.utils.parsePresavedReleases
@@ -387,20 +390,19 @@ fun ArtistScreen(
         }
     }
     val hiddenAlbumIds by viewModel.hiddenAlbumIds.collectAsStateWithLifecycle()
+    val albumOverrides by viewModel.albumOverrides.collectAsStateWithLifecycle()
     val orderedRemoteSections =
-        remember(artistPage?.sections, hiddenAlbumIds) {
+        remember(artistPage?.sections, hiddenAlbumIds, albumOverrides) {
             val sections =
-                artistPage?.sections.orEmpty().let { all ->
-                    if (hiddenAlbumIds.isEmpty()) {
-                        all
+                artistPage?.sections.orEmpty().map { section ->
+                    val onlyAlbums = section.items.isNotEmpty() && section.items.all { it is AlbumItem }
+                    if (!onlyAlbums) {
+                        section
                     } else {
-                        all.map { section ->
-                            if (section.items.any { it is AlbumItem && it.id in hiddenAlbumIds }) {
-                                section.copy(items = section.items.filterNot { it is AlbumItem && it.id in hiddenAlbumIds })
-                            } else {
-                                section
-                            }
-                        }
+                        val visible = section.items.filterNot { it.id in hiddenAlbumIds }
+                        section.copy(
+                            items = ArtistAlbumGrouping.newestFirst(visible.filterIsInstance<AlbumItem>(), albumOverrides),
+                        )
                     }
                 }
             val topSongsSection =
@@ -1380,7 +1382,13 @@ fun ArtistScreen(
                                                         ),
                                                     )
                                                 }
-                                            },
+                                            }
+                                            ?: albumsSectionOpener(
+                                                section = section,
+                                                allSections = artistPage?.sections.orEmpty(),
+                                                artistId = viewModel.artistId,
+                                                navController = navController,
+                                            ),
                                 )
                             }
                         }
@@ -2828,6 +2836,27 @@ private fun String.toArtistCompactCountText(): String? {
             ?: return null
 
     return formatCompactCount(count)
+}
+
+private fun albumsSectionOpener(
+    section: ArtistSection,
+    allSections: List<ArtistSection>,
+    artistId: String,
+    navController: NavController,
+): (() -> Unit)? {
+    if (section.items.isEmpty() || !section.items.all { it is AlbumItem }) return null
+    val original =
+        allSections.firstOrNull { candidate ->
+            candidate.title == section.title && candidate.items.any { it.id == section.items.first().id }
+        } ?: section
+    return {
+        val key = ArtistSectionRegistry.keyFor(artistId, section.title, original.items.firstOrNull()?.id)
+        ArtistSectionRegistry.put(key, original.items)
+        navController.navigate(
+            "artist/${Uri.encode(artistId)}/items?browseId=${ArtistSectionRegistry.LOCAL_BROWSE_ID}" +
+                "&params=${Uri.encode(key)}&title=${Uri.encode(section.title)}",
+        )
+    }
 }
 
 private fun buildArtistItemsRoute(

@@ -6188,3 +6188,21 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification. Edition detection needs YouTube album track lists; if they cannot be fetched the heuristic fallback applies.
+
+---
+Task ID: AL-4
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: "See all" arrow on every Albums and Singles & EP carousel, chronological order everywhere, ADHD 2 Reloaded and the duplicated Eminem album, pixelated home covers.
+
+Work Log:
+- `ArtistScreen`: album-only sections without a usable YouTube "more" endpoint now get the header arrow. It opens the artist items grid in a local mode (`browseId=local`, `params` = key in the new `ArtistSectionRegistry`), which shows the section items grouped (Albums, Live, Compilations, EP, Singles) with the same edition/kind logic and no network paging. Sections with a real endpoint keep the full YouTube grid.
+- Album-only carousels on the artist page are sorted newest first using the MusicBrainz original year or the year of the original for a promoted edition (`ArtistViewModel.albumOverrides`, helpers `ArtistAlbumGrouping.musicBrainzOverrides` / `withEditionBases` shared with the items screen).
+- `AlbumEditions` rewritten to be more tolerant: family keys ignore "the/reloaded/..." and match prefixes ("Title: Subtitle"), spaces ("ADHD2"), unknown years; sequels (digits, Part/Vol/Live) are never merged. Editions whose tracks do not overlap (at least 50 percent) are split into separate clusters (`partition`). "Reloaded/Revisited/Redux" editions get one extra year of tolerance and win in the heuristic. Non-studio detection also reads dash suffixes ("Song - Live").
+- `AlbumEditionService` stores one decision per cluster (`album_editions_v2.json`); "Other versions" of an album only list its own cluster. `AlbumViewModel` filters YouTube's list with the same family test.
+- `SpotifyGapFinder`: a Spotify-only album is no longer added when a known album is an edition of it (fixes a duplicated "The Death of Slim Shady").
+- `BitChordHomeFeed`: cover images (hero, shelf cards, compact rows) request a thumbnail sized for the displayed pixels instead of the small default one, which was upscaled and looked pixelated.
+- Tests: `AlbumEditionsTest`, `ArtistAlbumGroupingTest` extended.
+
+Stage Summary:
+- Pending CI compile and on-device verification. The Eminem/Joyner Lucas cases are covered by unit tests on representative titles; the real YouTube titles and track lists could not be fetched from the sandbox.

@@ -142,4 +142,73 @@ class AlbumEditionsTest {
         assertEquals("load", AlbumEditions.familyKey("Load (Remastered Deluxe Edition)"))
         assertEquals("the death of slim shady".replace("the ", ""), AlbumEditions.familyKey("THE DEATH OF SLIM SHADY (Coup De Grâce)"))
     }
+
+    @Test
+    fun reloadedEditionIsShownAndTheOriginalIsHidden() {
+        val original = album("adhd2", "ADHD 2", 2024)
+        val reloaded = album("reloaded", "ADHD 2: Reloaded", 2025)
+        val tracks = (1..12).map { "Titre $it" }
+        val decision =
+            AlbumEditions.decide(
+                listOf(edition(original, tracks), edition(reloaded, tracks + listOf("Nouveau 1", "Nouveau 2"))),
+            )
+
+        assertEquals("reloaded", decision.displayId)
+        assertEquals("adhd2", decision.baseId)
+        assertEquals(1, AlbumEditions.families(listOf(original, reloaded)).size)
+        assertEquals("reloaded", AlbumEditions.heuristicDecision(listOf(original, reloaded)).displayId)
+    }
+
+    @Test
+    fun reloadedWithoutYearsStillGroupsWithTheOriginal() {
+        val original = album("o", "ADHD 2", null)
+        val reloaded = album("r", "ADHD2 Reloaded", null)
+
+        assertEquals(1, AlbumEditions.families(listOf(original, reloaded)).size)
+        assertEquals("r", AlbumEditions.heuristicDecision(listOf(original, reloaded)).displayId)
+    }
+
+    @Test
+    fun subtitleVariantsOfTheSameAlbumAreOneFamily() {
+        val families =
+            AlbumEditions.families(
+                listOf(
+                    album("a", "The Death of Slim Shady", 2024),
+                    album("b", "The Death of Slim Shady: Coup de Grâce", 2024),
+                    album("c", "THE DEATH OF SLIM SHADY (Coup De Grâce)", 2024, explicit = false),
+                    album("d", "Music To Be Murdered By", 2020),
+                ),
+            )
+
+        assertEquals(listOf(3, 1), families.map { it.size })
+    }
+
+    @Test
+    fun sequelsAreNotMergedWithTheirPredecessor() {
+        assertFalse(AlbumEditions.sameFamilyTitles("ADHD", "ADHD 2"))
+        assertFalse(AlbumEditions.sameFamilyTitles("Load", "Load Live"))
+        assertTrue(AlbumEditions.sameFamilyTitles("Album", "Album (Deluxe)"))
+    }
+
+    @Test
+    fun unrelatedAlbumsSharingATitleAreSplitByTrackOverlap() {
+        val first = album("x", "Greatest Hits", 2000)
+        val second = album("y", "Greatest Hits", 2001)
+        val clusters =
+            AlbumEditions.partition(
+                listOf(
+                    edition(first, (1..10).map { "Alpha $it" }),
+                    edition(second, (1..10).map { "Beta $it" }),
+                ),
+            )
+
+        assertEquals(2, clusters.size)
+    }
+
+    @Test
+    fun dashSuffixedNonStudioTracksAreDetected() {
+        assertFalse(AlbumEditions.isStudioLike("One \u2013 Instrumental"))
+        assertFalse(AlbumEditions.isStudioLike("Song - Live in Paris"))
+        assertTrue(AlbumEditions.isStudioLike("Song - Remastered 2011"))
+    }
 }

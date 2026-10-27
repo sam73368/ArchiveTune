@@ -55,11 +55,21 @@ class AlbumEditionService
         )
 
         @Serializable
-        private data class StoredFamily(
-            val savedAt: Long,
+        private data class StoredCluster(
             val displayId: String,
             val baseId: String,
             val members: List<StoredAlbum>,
+        )
+
+        @Serializable
+        private data class StoredFamily(
+            val savedAt: Long,
+            val clusters: List<StoredCluster>,
+        )
+
+        private data class Resolved(
+            val memberIds: List<String>,
+            val decision: AlbumEditions.Decision,
         )
 
         @Serializable
@@ -91,7 +101,9 @@ class AlbumEditionService
 
         private fun reindex() {
             familyByMember = HashMap()
-            families.forEach { (key, family) -> family.members.forEach { familyByMember[it.id] = key } }
+            families.forEach { (key, family) ->
+                family.clusters.forEach { cluster -> cluster.members.forEach { familyByMember[it.id] = key } }
+            }
         }
 
         private fun persist() {
@@ -117,39 +129,58 @@ class AlbumEditionService
 
         private fun buildResult(
             albums: List<AlbumItem>,
-            decisions: Map<String, AlbumEditions.Decision>,
+            decisions: Map<String, List<Resolved>>,
         ): Result {
             val byId = albums.associateBy { it.id }
             val displayIds = HashSet<String>()
             val hidden = HashSet<String>()
             val baseOf = HashMap<String, AlbumItem>()
             for (family in AlbumEditions.families(albums)) {
-                val key = familyKeyOf(family)
-                val decision = decisions[key]
-                if (family.size == 1 || decision == null) {
+                val resolved = decisions[familyKeyOf(family)]
+                if (family.size == 1 || resolved == null) {
                     displayIds += family.map { it.id }
                     continue
                 }
-                displayIds += decision.displayId
-                family.filter { it.id != decision.displayId }.forEach { hidden += it.id }
-                if (decision.baseId != decision.displayId) byId[decision.baseId]?.let { baseOf[decision.displayId] = it }
+                val covered = HashSet<String>()
+                for (cluster in resolved) {
+                    val present = cluster.memberIds.filter { it in byId }
+                    covered += present
+                    if (present.size < 2 || cluster.decision.displayId !in present) {
+                        displayIds += present
+                        continue
+                    }
+                    displayIds += cluster.decision.displayId
+                    present.filter { it != cluster.decision.displayId }.forEach { hidden += it }
+                    if (cluster.decision.baseId != cluster.decision.displayId) {
+                        byId[cluster.decision.baseId]?.let { baseOf[cluster.decision.displayId] = it }
+                    }
+                }
+                displayIds += family.map { it.id }.filter { it !in covered }
             }
             return Result(albums.filter { it.id in displayIds }, hidden, baseOf)
         }
 
+        private fun heuristicResolved(family: List<AlbumItem>): List<Resolved> =
+            listOf(Resolved(family.map { it.id }, AlbumEditions.heuristicDecision(family)))
+
+        private fun storedResolved(stored: StoredFamily): List<Resolved> =
+            stored.clusters.map { cluster ->
+                Resolved(cluster.members.map { it.id }, AlbumEditions.Decision(cluster.displayId, cluster.baseId))
+            }
+
         fun quick(albums: List<AlbumItem>): Result {
             ensureLoaded()
             val now = System.currentTimeMillis()
-            val decisions = HashMap<String, AlbumEditions.Decision>()
+            val decisions = HashMap<String, List<Resolved>>()
             for (family in AlbumEditions.families(albums)) {
                 if (family.size < 2) continue
                 val key = familyKeyOf(family)
                 val stored = synchronized(lock) { families[key] }
                 decisions[key] =
                     if (stored != null && now - stored.savedAt < FAMILY_TTL_MS) {
-                        AlbumEditions.Decision(stored.displayId, stored.baseId)
+                        storedResolved(stored)
                     } else {
-                        AlbumEditions.heuristicDecision(family)
+                        heuristicResolved(family)
                     }
             }
             return buildResult(albums, decisions)
@@ -159,16 +190,16 @@ class AlbumEditionService
             withContext(Dispatchers.IO) {
                 ensureLoaded()
                 val now = System.currentTimeMillis()
-                val decisions = HashMap<String, AlbumEditions.Decision>()
+                val decisions = HashMap<String, List<Resolved>>()
                 val pending = mutableListOf<Pair<String, List<AlbumItem>>>()
                 for (family in AlbumEditions.families(albums)) {
                     if (family.size < 2) continue
                     val key = familyKeyOf(family)
                     val stored = synchronized(lock) { families[key] }
                     if (stored != null && now - stored.savedAt < FAMILY_TTL_MS) {
-                        decisions[key] = AlbumEditions.Decision(stored.displayId, stored.baseId)
+                        decisions[key] = storedResolved(stored)
                     } else {
-                        decisions[key] = AlbumEditions.heuristicDecision(family)
+                        decisions[key] = heuristicResolved(family)
                         pending += key to family
                     }
                 }
@@ -194,10 +225,25 @@ class AlbumEditionService
                     if (fetched.any { it.second.isNullOrEmpty() }) continue
                     synchronized(lock) { fetched.forEach { (id, list) -> tracks[id] = list.orEmpty() } }
                     val editions = family.map { AlbumEditions.Edition(it, synchronized(lock) { tracks[it.id] }) }
-                    val decision = AlbumEditions.decide(editions)
-                    decisions[key] = decision
+                    val clusters = AlbumEditions.partition(editions)
+                    val resolved =
+                        clusters.map { cluster ->
+                            Resolved(cluster.map { it.album.id }, AlbumEditions.decide(cluster))
+                        }
+                    decisions[key] = resolved
+                    val byId = family.associateBy { it.id }
                     synchronized(lock) {
-                        families[key] = StoredFamily(now, decision.displayId, decision.baseId, family.map(::toStored))
+                        families[key] =
+                            StoredFamily(
+                                now,
+                                resolved.map { cluster ->
+                                    StoredCluster(
+                                        cluster.decision.displayId,
+                                        cluster.decision.baseId,
+                                        cluster.memberIds.mapNotNull { byId[it] }.map(::toStored),
+                                    )
+                                },
+                            )
                         changed = true
                     }
                 }
@@ -214,7 +260,13 @@ class AlbumEditionService
             ensureLoaded()
             return synchronized(lock) {
                 val key = familyByMember[albumId] ?: return emptyList()
-                families[key]?.members?.filter { it.id != albumId }?.map(::toAlbumItem).orEmpty()
+                families[key]
+                    ?.clusters
+                    ?.firstOrNull { cluster -> cluster.members.any { it.id == albumId } }
+                    ?.members
+                    ?.filter { it.id != albumId }
+                    ?.map(::toAlbumItem)
+                    .orEmpty()
             }
         }
 
@@ -250,7 +302,7 @@ class AlbumEditionService
 
         private companion object {
             const val TAG = "AlbumEditions"
-            const val STORE_FILE = "album_editions_v1.json"
+            const val STORE_FILE = "album_editions_v2.json"
             const val FAMILY_TTL_MS = 45L * 24 * 60 * 60 * 1000
             const val MAX_FAMILIES = 600
             const val MAX_TRACK_LISTS = 1500
