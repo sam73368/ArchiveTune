@@ -62,6 +62,7 @@ import moe.rukamori.archivetune.innertube.pages.ArtistSectionLayout
 import moe.rukamori.archivetune.innertube.pages.isInlineCarousel
 import moe.rukamori.archivetune.spotify.SpotifyGapFinder
 import moe.rukamori.archivetune.spotify.withSpotifyGaps
+import moe.rukamori.archivetune.utils.AlbumKindRepository
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
@@ -124,6 +125,7 @@ class ArtistViewModel
         observeArtistBlocked: ObserveArtistBlockedUseCase,
         private val setArtistBlocked: SetArtistBlockedUseCase,
         private val spotifyGapFinder: SpotifyGapFinder,
+        private val albumKindRepository: AlbumKindRepository,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         val artistId = savedStateHandle.get<String>("artistId")!!
@@ -258,7 +260,15 @@ class ArtistViewModel
             }
         }
 
+        private fun warmAlbumKinds(page: ArtistPage) {
+            if (context.isLowDataModeActive()) return
+            viewModelScope.launch(Dispatchers.IO) {
+                runCatching { albumKindRepository.entriesFor(page.artist.title) }
+            }
+        }
+
         private fun loadSpotifyOnlyAlbums(page: ArtistPage) {
+            warmAlbumKinds(page)
             viewModelScope.launch(Dispatchers.IO) {
                 val known = page.sections.flatMap { it.items }.filterIsInstance<AlbumItem>()
                 val missing =

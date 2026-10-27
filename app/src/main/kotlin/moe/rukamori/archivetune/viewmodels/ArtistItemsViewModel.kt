@@ -16,6 +16,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,6 +33,9 @@ import moe.rukamori.archivetune.innertube.models.filterVideo
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPage
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPageLayout
 import moe.rukamori.archivetune.models.ItemsPage
+import moe.rukamori.archivetune.utils.AlbumKindCatalog
+import moe.rukamori.archivetune.utils.AlbumKindRepository
+import moe.rukamori.archivetune.utils.ArtistAlbumGrouping
 import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
 import moe.rukamori.archivetune.utils.SongViewRanking
 import moe.rukamori.archivetune.utils.dataStore
@@ -46,6 +50,7 @@ class ArtistItemsViewModel
     constructor(
         @ApplicationContext val context: Context,
         private val database: MusicDatabase,
+        private val albumKindRepository: AlbumKindRepository,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         private val browseId = savedStateHandle.get<String>("browseId")!!
@@ -65,6 +70,7 @@ class ArtistItemsViewModel
         val title = MutableStateFlow(routeTitle.orEmpty())
         val itemsPage = MutableStateFlow<ItemsPage?>(null)
         val itemsLayout = MutableStateFlow(ArtistItemsPageLayout.LIST)
+        val albumOverrides = MutableStateFlow<Map<String, ArtistAlbumGrouping.Override>>(emptyMap())
 
         val artist =
             database
@@ -112,14 +118,17 @@ class ArtistItemsViewModel
                             artistItemsPage.layout == ArtistItemsPageLayout.GRID &&
                                 artistItemsPage.items.isNotEmpty() &&
                                 artistItemsPage.items.all { it is AlbumItem }
-                        if (onlyAlbums && artistItemsPage.continuation != null) {
-                            ranking = true
+                        if (onlyAlbums) {
                             viewModelScope.launch(Dispatchers.IO) {
-                                try {
-                                    loadRemainingAlbumPages()
-                                } finally {
-                                    ranking = false
+                                if (artistItemsPage.continuation != null) {
+                                    ranking = true
+                                    try {
+                                        loadRemainingAlbumPages()
+                                    } finally {
+                                        ranking = false
+                                    }
                                 }
+                                resolveAlbumKinds()
                             }
                         }
                         if (onlySongs && !context.isLowDataModeActive()) {
@@ -136,6 +145,25 @@ class ArtistItemsViewModel
                         reportException(it)
                     }
             }
+        }
+
+        private suspend fun resolveAlbumKinds() {
+            val albums = itemsPage.value?.items.orEmpty().filterIsInstance<AlbumItem>()
+            if (albums.isEmpty()) return
+            val name =
+                database.artist(routeArtistId).first()?.artist?.name?.takeIf { it.isNotBlank() }
+                    ?: YouTube.artist(routeArtistId).getOrNull()?.artist?.title?.takeIf { it.isNotBlank() }
+                    ?: return
+            val entries =
+                albumKindRepository.entriesFor(name, allowNetwork = !context.isLowDataModeActive())
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: return
+            val overrides = HashMap<String, ArtistAlbumGrouping.Override>()
+            for (album in albums) {
+                val entry = AlbumKindCatalog.lookup(entries, album.title, album.year) ?: continue
+                overrides[album.id] = ArtistAlbumGrouping.Override(entry.kind, entry.year ?: album.year)
+            }
+            if (overrides.isNotEmpty()) albumOverrides.value = overrides
         }
 
         private suspend fun loadRemainingAlbumPages() {

@@ -6141,3 +6141,34 @@ Work Log:
 
 Stage Summary:
 - Pending CI compile and on-device verification. Limit: a live album whose title has no live marker (e.g. "S&M 2") stays in the Albums group.
+
+---
+Task ID: NET-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Playback cut for about a second when the mobile network changes (5G to LTE) in the car. Make caching/buffering ride through handovers.
+
+Work Log:
+- Cause: the player had no load error policy. ExoPlayer's default gives up after 3 load retries (0 s, 1 s, 2 s delays) and the failure of the next song's preparation (URL lookup plus first request over a dead socket) is raised as a PlaybackException even while the current song still has buffered audio. `onPlayerError` then re-prepared the player, which dropped the buffer and produced the gap. Dead sockets also waited up to the 30 s OkHttp read timeout.
+- New `NetworkResilientLoadErrorPolicy`: media loads that fail with a network exception (reset, timeout, unknown host, SSL, HttpDataSourceException, unresolved address) are retried up to 10 times with 0.25/0.6/1.2/2/3 s delays (about 22 s) instead of failing after 3; HTTP status errors and other failures keep the old 3 attempts. Wired through `DefaultMediaSourceFactory` (main and crossfade players).
+- New `NetworkHandoverWatcher` (default network callback): when the default network, its IP addresses or its transport changes, the media OkHttp client drops its connection pool and cancels in-flight calls (debounced 400 ms) so the retry immediately uses a fresh connection on the new network.
+- Media OkHttp client connect/read timeouts 30 s to 15 s.
+- Buffer: min 20 s to 40 s, max 60 s to 150 s, resume after a rebuffer waits 2.5 s of audio instead of 0.75 s (fewer stutters on weak signal). Downloaded bytes keep going through the existing player cache.
+
+Stage Summary:
+- Pending CI compile and on-device verification (needs a real network switch).
+
+---
+Task ID: AL-2
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Some live albums have no marker in their title, so the albums page could not separate them. Use a certified catalog, with an offline fallback.
+
+Work Log:
+- New `AlbumKindRepository` (Hilt singleton): looks the artist up on MusicBrainz (exact name, score at least 90), then pages through its release groups (album, EP, single; max 500) and keeps title, original first release year and kind (Live, Compilation/Remix/Demo/Soundtrack..., EP, Single, Album). Requests are throttled to 1 per 1.1 s with a descriptive User-Agent, as MusicBrainz asks. Results are cached on disk (`album_kinds_v1.json`, 30 days when found, 3 days when the artist is unknown, max 400 artists, stale data is used when offline). Skipped in low-data mode.
+- New `AlbumKindCatalog` (pure, tested): title normalization (accents, brackets, "remastered/deluxe/edition", spacing, "&"), MusicBrainz JSON parsing (kotlinx.serialization), ambiguous titles resolved by closest year.
+- `ArtistItemsViewModel` resolves the kinds after the album list is complete and publishes overrides; `ArtistAlbumGrouping` uses MusicBrainz kind and original year first (so a 2017 reissue sorts at 1986), title heuristic only when the catalog has no match. New "Compilations and other" group. `ArtistViewModel` warms the cache when an artist page opens, so the albums page is instant and works offline afterwards.
+- Strings `artist_group_compilations` en/fr; tests `AlbumKindCatalogTest`, `NetworkResilientLoadErrorPolicyTest`.
+
+Stage Summary:
+- Pending CI compile and on-device verification. MusicBrainz could not be reached from the build sandbox, so the response format follows its documented API and is only unit-tested on sample JSON.

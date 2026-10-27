@@ -583,6 +583,7 @@ class MusicService :
 
     private lateinit var connectivityManager: ConnectivityManager
     lateinit var connectivityObserver: NetworkConnectivityObserver
+    private var networkHandoverWatcher: NetworkHandoverWatcher? = null
     val waitingForNetworkConnection = MutableStateFlow(false)
     private val isNetworkConnected = MutableStateFlow(false)
 
@@ -621,8 +622,8 @@ class MusicService :
             .proxy(YouTube.streamOkHttpProxy)
             .followRedirects(true)
             .followSslRedirects(true)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
             .dispatcher(
                 okhttp3.Dispatcher()
                     .apply {
@@ -1745,6 +1746,11 @@ class MusicService :
 
         connectivityManager = getSystemService()!!
         connectivityObserver = NetworkConnectivityObserver(this)
+        networkHandoverWatcher =
+            NetworkHandoverWatcher(this) {
+                runCatching { mediaOkHttpClient.connectionPool.evictAll() }
+                runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
+            }.also { it.register() }
 
         scope.launch {
             connectivityObserver.networkStatus.collect { isConnected ->
@@ -11717,6 +11723,7 @@ class MusicService :
                 .setConstantBitrateSeekingEnabled(true),
         )
 
+            .setLoadErrorHandlingPolicy(NetworkResilientLoadErrorPolicy())
             .setDrmSessionManagerProvider { mediaItem ->
                 val appleTrack = mediaItem.mediaId?.let { appleDrmTrackInfo[it] }
                 when {
@@ -13225,6 +13232,7 @@ class MusicService :
         unregisterBluetoothReceiver()
         unregisterMuteRecoveryObserver()
         try {
+            networkHandoverWatcher?.unregister()
             connectivityObserver.unregister()
         } catch (_: Exception) {
         }
@@ -13519,11 +13527,11 @@ class MusicService :
         const val CROSSFADE_INCOMING_STALL_MS = 1_500L
         const val CROSSFADE_MIN_BUFFER_BEFORE_START_MS = 5_000L
         const val CROSSFADE_MAX_BUFFER_BEFORE_START_MS = 12_500L
-        const val PRIMARY_MIN_BUFFER_MS = 20_000
-        const val PRIMARY_MAX_BUFFER_MS = 60_000
+        const val PRIMARY_MIN_BUFFER_MS = 40_000
+        const val PRIMARY_MAX_BUFFER_MS = 150_000
 
         const val PRIMARY_BUFFER_FOR_PLAYBACK_MS = 150
-        const val PRIMARY_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 750
+        const val PRIMARY_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2_500
         const val CROSSFADE_MIN_BUFFER_MS = 15_000
         const val CROSSFADE_MAX_BUFFER_MS = 45_000
         const val CROSSFADE_FRAME_MS = 32L

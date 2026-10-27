@@ -184,4 +184,5 @@
     <string name="artist_group_live">Albums live et tournées</string>
     <string name="artist_group_eps">EP</string>
     <string name="artist_group_singles">Singles</string>
+    <string name="artist_group_compilations">Compilations et autres</string>
 </resources>

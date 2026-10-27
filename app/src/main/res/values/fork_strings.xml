@@ -395,4 +395,5 @@
     <string name="artist_group_live">Live albums and tours</string>
     <string name="artist_group_eps">EPs</string>
     <string name="artist_group_singles">Singles</string>
+    <string name="artist_group_compilations">Compilations and other</string>
 </resources>

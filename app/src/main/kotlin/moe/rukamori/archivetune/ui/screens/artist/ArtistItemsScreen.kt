@@ -127,11 +127,12 @@ fun ArtistItemsScreen(
     val title by viewModel.title.collectAsStateWithLifecycle()
     val itemsPage by viewModel.itemsPage.collectAsStateWithLifecycle()
     val itemsLayout by viewModel.itemsLayout.collectAsStateWithLifecycle()
+    val albumOverrides by viewModel.albumOverrides.collectAsStateWithLifecycle()
     val albumGroupsOrNull =
-        remember(itemsPage, itemsLayout) {
+        remember(itemsPage, itemsLayout, albumOverrides) {
             val items = itemsPage?.items.orEmpty().distinctBy { it.id }
             if (itemsLayout == ArtistItemsPageLayout.GRID && items.isNotEmpty() && items.all { it is AlbumItem }) {
-                ArtistAlbumGrouping.group(items.filterIsInstance<AlbumItem>())
+                ArtistAlbumGrouping.group(items.filterIsInstance<AlbumItem>(), albumOverrides)
             } else {
                 null
             }
@@ -638,6 +639,7 @@ private fun ArtistAlbumGrouping.Kind.titleRes(): Int =
     when (this) {
         ArtistAlbumGrouping.Kind.ALBUMS -> R.string.artist_group_albums
         ArtistAlbumGrouping.Kind.LIVE -> R.string.artist_group_live
+        ArtistAlbumGrouping.Kind.COMPILATIONS -> R.string.artist_group_compilations
         ArtistAlbumGrouping.Kind.EPS -> R.string.artist_group_eps
         ArtistAlbumGrouping.Kind.SINGLES -> R.string.artist_group_singles
     }

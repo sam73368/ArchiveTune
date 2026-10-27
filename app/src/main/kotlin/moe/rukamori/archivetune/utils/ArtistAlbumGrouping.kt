@@ -13,7 +13,12 @@ import java.text.Normalizer
 import java.util.Locale
 
 object ArtistAlbumGrouping {
-    enum class Kind { ALBUMS, LIVE, EPS, SINGLES }
+    enum class Kind { ALBUMS, LIVE, COMPILATIONS, EPS, SINGLES }
+
+    data class Override(
+        val kind: Kind,
+        val year: Int?,
+    )
 
     data class Group(
         val kind: Kind,
@@ -36,25 +41,35 @@ object ArtistAlbumGrouping {
         return liveWords.any { " $it " in text }
     }
 
-    fun kindOf(album: AlbumItem): Kind =
-        when {
+    fun kindOf(
+        album: AlbumItem,
+        overrides: Map<String, Override> = emptyMap(),
+    ): Kind =
+        overrides[album.id]?.kind ?: when {
             album.releaseType == AlbumReleaseType.SINGLE -> Kind.SINGLES
             album.releaseType == AlbumReleaseType.EP -> Kind.EPS
             isLive(album.title) -> Kind.LIVE
             else -> Kind.ALBUMS
         }
 
-    fun newestFirst(albums: List<AlbumItem>): List<AlbumItem> =
+    fun newestFirst(
+        albums: List<AlbumItem>,
+        overrides: Map<String, Override> = emptyMap(),
+    ): List<AlbumItem> =
         albums
             .withIndex()
             .sortedWith(
-                compareByDescending<IndexedValue<AlbumItem>> { it.value.year ?: Int.MIN_VALUE }
-                    .thenBy { it.index },
+                compareByDescending<IndexedValue<AlbumItem>> {
+                    overrides[it.value.id]?.year ?: it.value.year ?: Int.MIN_VALUE
+                }.thenBy { it.index },
             ).map { it.value }
 
-    fun group(albums: List<AlbumItem>): List<Group> =
+    fun group(
+        albums: List<AlbumItem>,
+        overrides: Map<String, Override> = emptyMap(),
+    ): List<Group> =
         albums
-            .groupBy(::kindOf)
-            .map { (kind, items) -> Group(kind, newestFirst(items)) }
+            .groupBy { kindOf(it, overrides) }
+            .map { (kind, items) -> Group(kind, newestFirst(items, overrides)) }
             .sortedBy { it.kind.ordinal }
 }
