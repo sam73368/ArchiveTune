@@ -26,7 +26,7 @@ object ArtistSectionRegistry {
         key: String,
         items: List<YTItem>,
     ) {
-        if (sections.size >= MAX_ENTRIES && key !in sections) sections.keys.firstOrNull()?.let(sections::remove)
+        if (sections.size >= MAX_ENTRIES && !sections.containsKey(key)) sections.keys.firstOrNull()?.let(sections::remove)
         sections[key] = items
     }
 
