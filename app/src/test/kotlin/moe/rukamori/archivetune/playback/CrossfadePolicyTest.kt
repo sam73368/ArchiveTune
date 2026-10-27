@@ -208,4 +208,15 @@ class CrossfadePolicyTest {
         assertFalse(CrossfadePolicy.isShuffleOrder(intArrayOf(0, 1), 3))
         assertFalse(CrossfadePolicy.isShuffleOrder(intArrayOf(0, 1, 3), 3))
     }
+
+    @Test
+    fun onlyLiveOrMixedAlbumsAreTreatedAsContinuous() {
+        assertTrue(CrossfadePolicy.albumLooksContinuous("S&M2 (Live)"))
+        assertTrue(CrossfadePolicy.albumLooksContinuous("MTV Unplugged in New York"))
+        assertTrue(CrossfadePolicy.albumLooksContinuous("Ibiza Continuous Mix"))
+        assertFalse(CrossfadePolicy.albumLooksContinuous("Master of Puppets"))
+        assertFalse(CrossfadePolicy.albumLooksContinuous("2001"))
+        assertFalse(CrossfadePolicy.albumLooksContinuous("Alive Again"))
+        assertFalse(CrossfadePolicy.albumLooksContinuous(null))
+    }
 }

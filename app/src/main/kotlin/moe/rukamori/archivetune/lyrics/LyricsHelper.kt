@@ -149,7 +149,12 @@ class LyricsHelper
                     )
                 }
 
-                val cached = cache.get(cacheKey)?.firstOrNull()
+                val cached =
+                    cache
+                        .get(cacheKey)
+                        ?.map { LyricsRanking.Candidate(it.providerName, it.lyrics) }
+                        ?.let { LyricsRanking.pickBest(it, mediaMetadata.duration) }
+                        ?.let { LyricsResult(providerName = it.providerName, lyrics = it.lyrics) }
                 if (cached != null) {
                     val cachedIsWordSynced = LyricsUtils.hasWordSyncedLyrics(cached.lyrics)
                     if (!prioritizeWordSynced || cachedIsWordSynced) {
@@ -341,50 +346,65 @@ class LyricsHelper
             if (found.isNotEmpty()) cache.put(cacheKey, found)
         }
 
+        private suspend fun fetchCandidates(
+            providers: List<LyricsProvider>,
+            mediaMetadata: MediaMetadata,
+            timeoutMs: Long,
+        ): List<LyricsRanking.Candidate> {
+            if (providers.isEmpty()) return emptyList()
+            val artist = mediaMetadata.artists.joinToString { it.name }
+            return supervisorScope {
+                providers
+                    .map { provider ->
+                        async(Dispatchers.IO) {
+                            val lyrics =
+                                withTimeoutOrNull(timeoutMs) {
+                                    fetchProviderLyrics(provider, mediaMetadata, artist)
+                                }
+                            if (lyrics == null) null else LyricsRanking.Candidate(provider.name, lyrics)
+                        }
+                    }.mapNotNull { it.await() }
+            }
+        }
+
         private suspend fun fetchPriorityLyricsResult(
             providers: List<LyricsProvider>,
             mediaMetadata: MediaMetadata,
         ): LyricsResult {
-            if (providers.isEmpty()) return LyricsResult(providerName = "", lyrics = LYRICS_NOT_FOUND)
+            val candidates = fetchCandidates(providers, mediaMetadata, PROVIDER_TIMEOUT_MS)
+            candidates.forEach { candidate ->
+                GlobalLog.append(
+                    Log.DEBUG,
+                    "LyricsHelper",
+                    "${candidate.providerName}: sync tier ${LyricsRanking.syncTier(candidate.lyrics)}",
+                )
+            }
+            val best =
+                LyricsRanking.pickBest(candidates, mediaMetadata.duration)
+                    ?: return LyricsResult(providerName = "", lyrics = LYRICS_NOT_FOUND)
+            return LyricsResult(providerName = best.providerName, lyrics = best.lyrics)
+        }
 
-            val artist = mediaMetadata.artists.joinToString { it.name }
-            val results =
-                supervisorScope {
-                    providers
-                        .map { provider ->
-                            async(Dispatchers.IO) {
-                                val lyrics =
-                                    withTimeoutOrNull(PROVIDER_TIMEOUT_MS) {
-                                        fetchProviderLyrics(provider, mediaMetadata, artist)
-                                    }
-                                if (lyrics == null) null else provider.name to lyrics
-                            }
-                        }.mapNotNull { it.await() }
+        suspend fun findSyncedUpgrade(mediaMetadata: MediaMetadata): LyricsResult? {
+            val isNetworkAvailable =
+                try {
+                    networkConnectivity.isCurrentlyConnected()
+                } catch (e: Exception) {
+                    true
                 }
-
-            if (results.isEmpty()) return LyricsResult(providerName = "", lyrics = LYRICS_NOT_FOUND)
-
-            // Lyrics that end far before the song does are partial: prefer any complete candidate,
-            // and if every candidate is partial keep the one that reaches furthest into the song.
-            val complete = results.filter { !LyricsUtils.isLikelyTruncated(it.second, mediaMetadata.duration) }
-            val pool =
-                if (complete.isNotEmpty()) {
-                    complete
-                } else {
-                    listOf(results.maxBy { LyricsUtils.lastTimedLineMs(it.second) ?: -1L })
-                }
-
-            val leastCensored = pool.minOf { LyricsUncensor.maskedWordCount(it.second) }
-            val uncensoredPool = pool.filter { LyricsUncensor.maskedWordCount(it.second) == leastCensored }
-
-            val wordSynced = uncensoredPool.firstOrNull { LyricsUtils.hasWordSyncedLyrics(it.second) }
-            if (wordSynced != null) return LyricsResult(providerName = wordSynced.first, lyrics = wordSynced.second)
-
-            val lineSynced = uncensoredPool.firstOrNull { LyricsUtils.isLineSyncedLrc(it.second) }
-            if (lineSynced != null) return LyricsResult(providerName = lineSynced.first, lyrics = lineSynced.second)
-
-            val first = uncensoredPool.first()
-            return LyricsResult(providerName = first.first, lyrics = first.second)
+            if (!isNetworkAvailable) return null
+            val providers =
+                orderedProviders()
+                    .filter { it.isEnabled(context) }
+                    .filter { supportsMediaId(it, mediaMetadata.id) }
+            val synced =
+                fetchCandidates(providers, mediaMetadata, UPGRADE_PROVIDER_TIMEOUT_MS)
+                    .filter { LyricsRanking.isSynced(it.lyrics) && isMeaningfulLyrics(it.lyrics) }
+            val best = LyricsRanking.pickBest(synced, mediaMetadata.duration) ?: return null
+            if (!LyricsRanking.isSynced(best.lyrics)) return null
+            val result = LyricsResult(providerName = best.providerName, lyrics = best.lyrics)
+            singleLyricsCache.put(mediaMetadata.lyricsCacheKey, result)
+            return result
         }
 
         private suspend fun fetchProviderLyrics(
@@ -541,6 +561,7 @@ class LyricsHelper
             private const val PROVIDER_TIMEOUT_MS = 8_000L
 
             private const val WORD_SYNC_PROVIDER_TIMEOUT_MS = 15_000L
+            private const val UPGRADE_PROVIDER_TIMEOUT_MS = 15_000L
 
             private const val PROVIDER_TEST_TIMEOUT_MS = 12_000L
 

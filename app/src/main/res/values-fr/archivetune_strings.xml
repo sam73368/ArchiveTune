@@ -238,8 +238,8 @@
     <string name="lyrics_share_export_not_supported">Le partage d\'images nécessite Android 6.0 ou une version plus récente</string>
     <string name="lyrics_sync_offset">Décalage de la synchronisation des paroles</string>
     <string name="audio_crossfade_seconds">%1$s s</string>
-    <string name="crossfade_gapless_title">Fondu enchaîné sans interruption</string>
-    <string name="crossfade_gapless_description">Effectuez un fondu sortant et un fondu entrant sans chevauchement audio.</string>
+    <string name="crossfade_gapless_title">Pas de fondu dans les albums continus</string>
+    <string name="crossfade_gapless_description">Aucun fondu entre les titres d\'un album live ou mixé en continu : ils s\'enchaînent déjà.</string>
     <string name="history_local_summary">Joué sur cet appareil</string>
     <string name="history_remote_summary">Synchronisé depuis YouTube Music</string>
     <string name="history_local_empty_title">Il n\'y a pas encore d\'historique local</string>

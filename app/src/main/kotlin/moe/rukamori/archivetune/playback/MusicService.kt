@@ -1819,6 +1819,25 @@ class MusicService :
                             providerName = lyricsResult.providerName,
                         )
                     }
+                } else if (
+                    stored != null &&
+                    stored.source == LyricsEntity.Source.REMOTE.value &&
+                    System.currentTimeMillis() - stored.updatedAt > UNSYNCED_LYRICS_RETRY_MS &&
+                    !moe.rukamori.archivetune.lyrics.LyricsRanking.isSynced(stored.lyrics)
+                ) {
+                    val upgrade = lyricsHelper.findSyncedUpgrade(mediaMetadata)
+                    database.query {
+                        if (upgrade != null) {
+                            upgradeRemoteLyrics(
+                                id = mediaMetadata.id,
+                                previousLyrics = stored.lyrics,
+                                lyrics = upgrade.lyrics,
+                                providerName = upgrade.providerName,
+                            )
+                        } else {
+                            touchRemoteLyrics(id = mediaMetadata.id, previousLyrics = stored.lyrics)
+                        }
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -3942,7 +3961,14 @@ class MusicService :
                 ?: targetItem.mediaMetadata.albumTitle
                     ?.toString()
                     ?.takeIf { it.isNotBlank() }
-        return currentAlbum != null && currentAlbum == targetAlbum
+        if (currentAlbum == null || currentAlbum != targetAlbum) return false
+        val albumTitle =
+            currentItem.metadata
+                ?.album
+                ?.title
+                ?.takeIf { it.isNotBlank() }
+                ?: currentItem.mediaMetadata.albumTitle?.toString()
+        return CrossfadePolicy.albumLooksContinuous(albumTitle)
     }
 
     private fun prepareSecondaryCrossfadePlayer(
@@ -4299,7 +4325,7 @@ class MusicService :
         }
         return crossfadePlayer.playbackState == Player.STATE_READY &&
             crossfadePlayer.playerError == null &&
-            hasBufferedForSmoothStart(crossfadePlayer, minimumBufferedMs)
+            hasBufferedForSmoothStart(crossfadePlayer, minimumBufferedMs.coerceAtMost(CROSSFADE_FALLBACK_START_BUFFER_MS))
     }
 
     private suspend fun awaitAudioPositionAdvancement(
@@ -13443,6 +13469,7 @@ class MusicService :
 
         private const val TIDAL_CACHE_KEY_PREFIX = "tidal:"
         private const val ALTERNATE_UPLOAD_CACHE_KEY_PREFIX = "ytalt:"
+        private const val UNSYNCED_LYRICS_RETRY_MS = 12L * 60 * 60 * 1000
         private const val ALTERNATE_SEARCH_TIMEOUT_MS = 8_000L
         private const val STUDIO_MIN_TITLE_SCORE = 0.92
         private const val MAX_LYRICS_PRELOAD_LOOKAHEAD = 10
@@ -13523,6 +13550,7 @@ class MusicService :
         const val CROSSFADE_END_GUARD_MS = 150L
         const val CROSSFADE_PREPARE_AHEAD_MS = 30_000L
         const val CROSSFADE_READY_TIMEOUT_MS = 5_000L
+        const val CROSSFADE_FALLBACK_START_BUFFER_MS = 2_500L
         const val MAX_CONSECUTIVE_CROSSFADE_FAILURES = 3
         const val CROSSFADE_HANDOFF_BUFFER_MS = 5_000L
         const val CROSSFADE_AUDIO_ADVANCE_TIMEOUT_MS = 2_000L

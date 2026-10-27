@@ -6256,3 +6256,20 @@ Work Log:
 
 Stage Summary:
 - Pending CI and a new log from the user's device. The WEB_REMIX logged-in attempt was hidden by the backoff in the first log; the next log will show it and the probe results.
+
+---
+Task ID: LY-1 / CF-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Lyrics too often plain while another provider has synced lyrics; crossfade "always cuts" between songs.
+
+Work Log:
+- Lyrics cause: `fetchPriorityLyricsResult` filtered on censorship BEFORE sync level (a masked "f***" in synced lyrics lost to an uncensored plain text, although `LyricsUncensor.restore` fixes it at display), the cache path returned the first provider that answered (`cache.get(...).firstOrNull()`), and plain lyrics stored in the database were never searched again.
+- New `LyricsRanking` (pure, tested): complete lyrics first (truncation rule unchanged), then sync tier (word > line, TTML included > plain), then residual masked words after restoration, then the user's provider order. Used by the normal flow and the cached-results path.
+- `LyricsHelper.findSyncedUpgrade` (all enabled providers, 15 s timeout, synced results only). `MusicService` lyrics collector: REMOTE lyrics that are not synced and older than 12 h are searched again when the song plays; a synced result replaces them through `DatabaseDao.upgradeRemoteLyrics` (only if the row is still the same REMOTE text, so user picks/edits are never overwritten), otherwise `touchRemoteLyrics` bumps the date.
+- Crossfade cause: "Skip gapless albums" is ON by default and skipped the crossfade for every pair of consecutive songs from the same album (YouTube tracks are separate encodes, so that transition is an audible cut). It now only applies to albums that really flow (live, unplugged, concert, mixed/continuous, medley: `CrossfadePolicy.albumLooksContinuous`); the setting title/description (en, fr — the French text was a wrong translation) says so.
+- The incoming player readiness no longer aborts the fade when it is READY with at least 2.5 s buffered at the 5 s deadline (it required fade + 5 s of buffer, which aborted on slower networks and fell back to a hard cut).
+- Tests: `LyricsRankingTest`, `CrossfadePolicyTest.onlyLiveOrMixedAlbumsAreTreatedAsContinuous`.
+
+Stage Summary:
+- Pending CI and on-device verification. If cuts remain, the `MusicService` crossfade[...] log lines show which abort path ran.

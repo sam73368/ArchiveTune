@@ -85,6 +85,25 @@ object CrossfadePolicy {
 
     fun mustAbortReadiness(snapshot: ReadinessSnapshot): Boolean = snapshot.hasError || snapshot.isEnded
 
+    private val continuousAlbumWords =
+        listOf(
+            "live", "concert", "unplugged", "en vivo", "ao vivo", "en direct", "en concierto", "in concert",
+            "mixed", "mix", "megamix", "continuous", "nonstop", "non stop", "medley", "dj set", "mixtape",
+        )
+
+    fun albumLooksContinuous(albumTitle: String?): Boolean {
+        val text =
+            " " +
+                java.text.Normalizer
+                    .normalize(albumTitle.orEmpty(), java.text.Normalizer.Form.NFD)
+                    .replace(Regex("""\p{Mn}+"""), "")
+                    .lowercase(java.util.Locale.ROOT)
+                    .replace(Regex("""[^\p{L}\p{N}]+"""), " ")
+                    .trim() +
+                " "
+        return continuousAlbumWords.any { " $it " in text }
+    }
+
     data class AudioAdvancementSnapshot(
         val isReady: Boolean,
         val isPlaying: Boolean,

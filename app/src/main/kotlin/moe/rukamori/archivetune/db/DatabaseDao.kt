@@ -2002,6 +2002,34 @@ interface DatabaseDao {
     @Query(
         """
         UPDATE lyrics
+        SET lyrics = :lyrics, providerName = :providerName, updatedAt = :updatedAt
+        WHERE id = :id AND source = 'REMOTE' AND lyrics = :previousLyrics
+        """,
+    )
+    fun upgradeRemoteLyrics(
+        id: String,
+        previousLyrics: String,
+        lyrics: String,
+        providerName: String,
+        updatedAt: Long = System.currentTimeMillis(),
+    ): Int
+
+    @Query(
+        """
+        UPDATE lyrics
+        SET updatedAt = :updatedAt
+        WHERE id = :id AND source = 'REMOTE' AND lyrics = :previousLyrics
+        """,
+    )
+    fun touchRemoteLyrics(
+        id: String,
+        previousLyrics: String,
+        updatedAt: Long = System.currentTimeMillis(),
+    ): Int
+
+    @Query(
+        """
+        UPDATE lyrics
         SET providerName = :providerName, updatedAt = :updatedAt
         WHERE id = :id AND (providerName IS NULL OR providerName = '') AND :providerName != ''
         """,

@@ -640,8 +640,8 @@
     <string name="audio_crossfade_description">Overlap the next song while the current song fades out.</string>
     <string name="audio_crossfade_dialog_title">Crossfade duration</string>
     <string name="audio_crossfade_seconds">%1$s s</string>
-    <string name="crossfade_gapless_title">Skip gapless albums</string>
-    <string name="crossfade_gapless_description">Do not crossfade consecutive songs from the same album.</string>
+    <string name="crossfade_gapless_title">Skip continuous albums</string>
+    <string name="crossfade_gapless_description">Do not crossfade between songs of a live or continuously mixed album: they already flow into each other.</string>
     <string name="automix_title">Automix</string>
     <string name="automix_enabled_subtitle">Times and blends every transition from the tracks themselves. Turn it off if the phone gets hot or playback stutters.</string>
     <string name="automix_disabled_subtitle">Times and blends transitions automatically, without a slider. Performance may vary on slower devices.</string>
