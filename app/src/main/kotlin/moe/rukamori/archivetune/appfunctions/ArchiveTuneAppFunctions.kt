@@ -81,8 +81,6 @@ abstract class BaseArchiveTuneAppFunctionService : AppFunctionService() {
             controller.setMediaItem(request)
             controller.prepare()
             controller.play()
-            // The session resolves the search asynchronously; keep the controller connected until a real
-            // track replaces the placeholder request or the wait ends.
             withTimeoutOrNull(PLAY_WAIT_MS) {
                 while (controller.currentMediaItem.let { it == null || it.mediaId == request.mediaId }) {
                     delay(POLL_MS)
