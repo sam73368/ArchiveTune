@@ -785,6 +785,9 @@ class MusicService :
     private val playbackStreamRecoveryTracker = PlaybackStreamRecoveryTracker()
 
     private var initialBufferRecoveryJob: Job? = null
+    private var playbackStallWatchdogJob: Job? = null
+    private var playbackStallKickMediaId: String? = null
+    private var playbackStallKicks = 0
     private var initialBufferRecoveryAttemptedMediaId: String? = null
 
     @Volatile
@@ -5305,6 +5308,63 @@ class MusicService :
         extractorPlaybackUrlCache.clear()
     }
 
+    private fun updatePlaybackStallWatchdog() {
+        if (!::player.isInitialized) return
+        if (!player.isPlaying || isCastSessionConnected()) {
+            playbackStallWatchdogJob?.cancel()
+            playbackStallWatchdogJob = null
+            return
+        }
+        if (playbackStallWatchdogJob?.isActive == true) return
+        playbackStallWatchdogJob =
+            scope.launch(SilentHandler) {
+                var watchedMediaId = player.currentMediaItem?.mediaId
+                var lastPositionMs = player.currentPosition
+                var lastAdvanceAt = android.os.SystemClock.elapsedRealtime()
+                while (isActive && player.isPlaying) {
+                    delay(PLAYBACK_STALL_POLL_MS)
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    val mediaId = player.currentMediaItem?.mediaId
+                    val positionMs = player.currentPosition
+                    val advanced = mediaId != watchedMediaId || positionMs != lastPositionMs
+                    if (advanced || isCrossfading || crossfadeHandoffInProgress || player.playbackState != Player.STATE_READY) {
+                        if (advanced && mediaId == watchedMediaId && positionMs > lastPositionMs) {
+                            playbackStallKicks = 0
+                        }
+                        watchedMediaId = mediaId
+                        lastPositionMs = positionMs
+                        lastAdvanceAt = now
+                        continue
+                    }
+                    if (now - lastAdvanceAt < PLAYBACK_STALL_KICK_MS) continue
+                    if (playbackStallKickMediaId != mediaId) {
+                        playbackStallKickMediaId = mediaId
+                        playbackStallKicks = 0
+                    }
+                    if (playbackStallKicks >= PLAYBACK_STALL_MAX_KICKS) continue
+                    playbackStallKicks++
+                    lastAdvanceAt = now
+                    val index = player.currentMediaItemIndex
+                    if (playbackStallKicks == 1) {
+                        Timber.tag(TAG).w("Playback stalled for %s at %dms; flushing the audio output", mediaId, positionMs)
+                        player.seekTo(index, positionMs)
+                    } else {
+                        Timber.tag(TAG).w("Playback still stalled for %s at %dms; rebuilding the audio output", mediaId, positionMs)
+                        player.stop()
+                        player.seekTo(index, positionMs)
+                        player.prepare()
+                        player.play()
+                    }
+                }
+            }
+    }
+
+    private fun Throwable.isStuckPlayerFailure(): Boolean =
+        generateSequence(this) { it.cause }.take(8).any { cause ->
+            cause.javaClass.simpleName == "StuckPlayerException" ||
+                cause.message?.contains("Player stuck playing", ignoreCase = true) == true
+        }
+
     private fun updateInitialBufferRecovery(@Player.State playbackState: Int) {
         val mediaId = player.currentMediaItem?.mediaId
         val shouldWatch =
@@ -7707,6 +7767,7 @@ class MusicService :
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         super.onIsPlayingChanged(isPlaying)
         updateInitialBufferRecovery(player.playbackState)
+        updatePlaybackStallWatchdog()
         secondaryCrossfadePlayer?.let { secondaryPlayer ->
             if (isCrossfading && !crossfadeHandoffInProgress) {
                 if (isPlaying) {
@@ -8353,6 +8414,17 @@ class MusicService :
                     attemptNumber - 1,
                 )
             }
+        }
+
+        if (error.isStuckPlayerFailure() && playbackStreamRecoveryTracker.registerRetryAttempt(currentMediaId)) {
+            val shouldResume = player.playWhenReady
+            val resumeIndex = player.currentMediaItemIndex
+            val resumePosition = player.currentPosition.coerceAtLeast(0L)
+            Timber.tag("MusicService").w("Player stuck on %s; restarting the output at %dms without re-resolving", currentMediaId, resumePosition)
+            player.seekTo(resumeIndex, resumePosition)
+            player.prepare()
+            if (shouldResume) player.play()
+            return
         }
 
         if (
@@ -13519,6 +13591,9 @@ class MusicService :
         const val CHUNK_LENGTH = 8 * 1024 * 1024L
         val RETRYABLE_STREAM_RESPONSE_CODES = setOf(403, 404, 410, 416)
         private const val INITIAL_BUFFER_STALL_DELAY_MS = 15_000L
+        private const val PLAYBACK_STALL_POLL_MS = 500L
+        private const val PLAYBACK_STALL_KICK_MS = 2_500L
+        private const val PLAYBACK_STALL_MAX_KICKS = 2
         private const val INITIAL_BUFFER_STALL_POSITION_MS = 5_000L
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
         const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"

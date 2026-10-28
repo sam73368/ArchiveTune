@@ -6273,3 +6273,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI and on-device verification. If cuts remain, the `MusicService` crossfade[...] log lines show which abort path ran.
+
+---
+Task ID: PB-3
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Song froze (user log, "Blinded in Chains", Bluetooth WH-1000XM5).
+
+Work Log:
+- Log: playback READY and playing at 13:13:05.6 (right after a Bluetooth route restore), position never advanced; Media3's StuckPlayerDetector raised `StuckPlayerException` after 10 s, the generic retry then invalidated every stream cache and re-resolved the song (Tidal/SoundCloud/YouTube) before sound came back at 13:13:19 — about 14 s of silence. The stream itself was fine.
+- `MusicService.updatePlaybackStallWatchdog`: 500 ms position poll while playing; 2.5 s without progress flushes the audio output (seek to the same position), a second stall rebuilds it (stop + prepare + play). Kick count persists per song and resets once the position advances. Skipped while crossfading or casting.
+- `onPlayerError`: a stuck-player error re-prepares at the same position without clearing caches or re-resolving.
+
+Stage Summary:
+- Pending CI and on-device verification. Worst case silence drops from ~14 s to ~3-5 s.
