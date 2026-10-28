@@ -441,6 +441,7 @@ kotlin {
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+    arg("appfunctions:aggregateAppFunctions", "true")
 }
 
 // Protobuf codegen for the Listen Together wire protocol (app/src/main/proto/
@@ -529,6 +530,9 @@ dependencies {
     // LastWave's userspace USB Audio Class driver module (exclusive USB DAC)
     implementation(project(":audio:decent-usb-audio-driver"))
     implementation(libs.media3.session)
+    // AppFunctions (Android 16+): lets assistants such as Gemini call playback actions.
+    implementation(libs.androidx.appfunctions)
+    ksp(libs.androidx.appfunctions.compiler)
 
     implementation(libs.car.app)
     implementation(libs.media3.okhttp)

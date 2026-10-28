@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AppFunctionAppMetadata xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions"
+    appfn:description="ArchiveTune is a music player. It can play a song, album or artist by name, pause, resume, skip to the next or previous track, and tell what is currently playing.
+Operational Patterns:
+  - Call 'getNowPlaying' to know what is playing before answering questions about the current song.
+  - Call 'playMusic' with the song title and, when known, the artist (for example 'Fuck You Dr. Dre').
+Constraints:
+  - 'playMusic' needs a non-empty query."
+    appfn:displayDescription="@string/app_functions_display_description" />

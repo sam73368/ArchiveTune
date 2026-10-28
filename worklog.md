@@ -6287,3 +6287,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI and on-device verification. Worst case silence drops from ~14 s to ~3-5 s.
+
+---
+Task ID: AF-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Let assistants (Gemini) interact with the app through Android AppFunctions.
+
+Work Log:
+- Added `androidx.appfunctions` 1.0.0-beta01 (+ compiler via KSP, `appfunctions:aggregateAppFunctions`), manifest service/property, `app_functions_metadata.xml`, en/fr description strings.
+- `BaseArchiveTuneAppFunctionService`: `playMusic(query)`, `pauseMusic`, `resumeMusic`, `skipToNext`, `skipToPrevious`, `getNowPlaying`, all routed through a short-lived `MediaController` on `MusicService`'s session (search via `RequestMetadata.searchQuery`, same path as voice search).
+- Could not compile locally (Google Maven is not reachable from the sandbox); syntax copied from android/appfunctions ChatApp sample.
+
+Stage Summary:
+- Pending CI and on-device check with `adb shell cmd app_function list-app-functions`.

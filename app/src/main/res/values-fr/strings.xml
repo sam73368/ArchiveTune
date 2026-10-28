@@ -918,4 +918,5 @@
     <string name="updates_canary_channel_confirmation">Passez sur le canal Canary pour recevoir les versions de développement.\n\nLes versions Canary sont publiées automatiquement à partir de la dernière branche de développement.\nRemarque : le téléchargement direct depuis GitHub contourne tout contrôle supplémentaire effectué par la boutique à partir de laquelle vous avez initialement installé l\'application.</string>
     <string name="onboarding_permission_device_audio_capture_title">Reconnaissance audio intégrée à l\'appareil</string>
     <string name="onboarding_permission_device_audio_capture_desc">Identifiez la musique diffusée dans d\'autres applications sans utiliser le microphone. Android vous demande à chaque fois l\'autorisation de capturer l\'écran et le son, tandis qu\'ArchiveTune traite uniquement le son.</string>
+    <string name="app_functions_display_description">Lire de la musique, mettre en pause, changer de piste et voir ce qui joue</string>
 </resources>

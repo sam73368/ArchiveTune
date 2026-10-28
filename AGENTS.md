@@ -72,6 +72,12 @@ here must preserve the invariants below.
 - **Year-in-music page hides the compact bottom UI**: while `isYearInMusicScreen` is true, `isBottomUiCompact` is forced false and the navbar scroll-hide connection ignores gestures (`yearInMusicScreenUpdated`), so neither the compact control row nor its liquid-glass side pills render on the immersive stats page; leaving the page restores the normal ADAPTIVE/ALWAYS_COMPACT behaviour.
 - **Direct-stream format persistence on every path**: `persistDirectStreamFormat` must run on BOTH the fresh-resolution path (`applyDirectStream`) AND the `directStreamCache` HIT path in `resolveMultiSourceDataSpec` — cache-hit plays used to skip it, leaving a stale FormatEntity so the player's quality tag only appeared after a manual "play from" source pick. TIDAL streams carry REAL `sampleRate`/`bitDepth`/`contentLength` end-to-end (`Resolved` → `DirectStream` → `CurrentStreamInfo`/`FormatEntity`): the manifest parsers read `bitDepth`, the account-manifest DirectStreams pass manifest sampleRate/bitDepth/bitrate, the main resolve estimates `contentLength` from the local file or `bitrate × duration` when the live stream has none — never rely on the `persistDirectStreamFormat` label fallbacks (they fabricate 96kHz/2304kbps for HI_RES labels). The play-from popup's `sourceQualityDetail` derives the TIDAL nominal specs from the user's `TidalAudioQualityKey` setting, not a hardcoded 16-bit/44.1kHz.
 - **No comment blocks in code** (rules.md Rule 3): never add `//` or `/* */` comments beyond the GPL header — code must be self-explanatory through naming. Files created or modified by agents are kept comment-clean.
+- **AppFunctions (`appfunctions/ArchiveTuneAppFunctions.kt`).** Android 16+ only (`@RequiresApi(36)`), experimental
+  `androidx.appfunctions:1.0.0-beta01`. Functions never touch the player directly: they connect a `MediaController`
+  to `MusicService`'s session (same path as Bluetooth remotes / voice search) and release it afterwards. The KSP arg
+  `appfunctions:aggregateAppFunctions=true` and the manifest `<service>` + app-metadata `<property>` must stay in sync with
+  `serviceName` / `appFunctionXmlFileName`. Gemini access is a private preview; verify with
+  `adb shell cmd app_function list-app-functions`.
 
 ## Modules & submodules
 
