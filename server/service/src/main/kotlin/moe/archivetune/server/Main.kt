@@ -20,28 +20,34 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.header
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.receive
+import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.RoutingContext
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.utils.io.ByteReadChannel
-import kotlinx.serialization.json.Json
-import moe.rukamori.archivetune.innertube.YouTube
-import moe.rukamori.archivetune.innertube.models.AlbumItem
-import moe.rukamori.archivetune.innertube.models.SongItem
-import moe.rukamori.archivetune.innertube.models.YouTubeLocale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
+import moe.rukamori.archivetune.innertube.YouTube
+import moe.rukamori.archivetune.innertube.models.YouTubeLocale
 import java.security.MessageDigest
 
-private const val VERSION = "0.2.0"
+const val VERSION = "0.3.0"
 private const val DEFAULT_PORT = 8780
 private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
 
 fun main() {
     val port = System.getenv("ARCHIVETUNE_PORT")?.toIntOrNull() ?: DEFAULT_PORT
-    val token = System.getenv("ARCHIVETUNE_TOKEN")
-    if (token.isNullOrBlank()) {
+    val token = System.getenv("ARCHIVETUNE_TOKEN")?.takeIf { it.isNotBlank() }
+    if (token == null) {
         System.err.println("ARCHIVETUNE_TOKEN is not set: the API is open to everything that can reach port $port")
     }
     YouTube.locale =
@@ -55,109 +61,199 @@ fun main() {
             ?.onFailure { System.err.println("visitorData lookup failed: $it") }
     }
     System.err.println("YouTube locale=${YouTube.locale} visitorData=${if (YouTube.visitorData != null) "set" else "missing"}")
-    embeddedServer(CIO, port = port, host = "0.0.0.0") { serverModule(token) }.start(wait = true)
+    val discovery = CastDiscovery(System.getenv("ARCHIVETUNE_CAST_DEVICES"))
+    discovery.start()
+    embeddedServer(CIO, port = port, host = "0.0.0.0") {
+        serverModule(
+            token = token,
+            port = port,
+            discovery = discovery,
+            publicBaseUrl = System.getenv("ARCHIVETUNE_BASE_URL")?.takeIf { it.isNotBlank() },
+        )
+    }.start(wait = true)
 }
 
-fun Application.serverModule(token: String?) {
+fun Application.serverModule(
+    token: String?,
+    port: Int,
+    discovery: CastDiscovery,
+    publicBaseUrl: String?,
+) {
     install(ContentNegotiation) {
         json(
             Json {
                 prettyPrint = true
                 encodeDefaults = true
+                ignoreUnknownKeys = true
             },
         )
     }
     val startedAt = System.currentTimeMillis()
     val resolver = StreamResolver()
+    val library = Library()
+    val cast = CastController(discovery)
+    val player = PlayerService(library, cast, port, token, publicBaseUrl)
+    val mcp = McpHandler(player, library, cast, VERSION)
     val upstream = HttpClient(OkHttp)
 
     routing {
-        get("/") {
-            call.respondText(INDEX_HTML, ContentType.Text.Html)
-        }
-
+        get("/") { call.respondText(WebAssets.indexHtml, ContentType.Text.Html) }
+        get("/manifest.webmanifest") { call.respondText(WebAssets.manifest, ContentType.parse("application/manifest+json")) }
         get("/api/health") {
             call.respond(Health("ok", VERSION, (System.currentTimeMillis() - startedAt) / 1000))
         }
+        get("/api/help") { call.respondText(AgentDocs.guide(mcp), ContentType.Text.Plain) }
+        get("/llms.txt") { call.respondText(AgentDocs.guide(mcp), ContentType.Text.Plain) }
+        get("/openapi.json") { call.respondText(AgentDocs.openApi, ContentType.Application.Json) }
 
         get("/api/search") {
-            if (!call.authorized(token)) return@get
-            val query = call.request.queryParameters["q"]?.trim().orEmpty()
-            if (query.isEmpty()) {
-                call.respond(HttpStatusCode.BadRequest, ErrorBody("missing q"))
-                return@get
+            guarded(token) {
+                val query = call.request.queryParameters["q"]?.trim().orEmpty()
+                if (query.isEmpty()) throw BadRequest("missing q")
+                val response =
+                    when (val type = call.request.queryParameters["type"] ?: "song") {
+                        "album" -> SearchResponse(query, type, albums = library.searchAlbums(query))
+                        "artist" -> SearchResponse(query, type, artists = library.searchArtists(query))
+                        else -> SearchResponse(query, "song", tracks = library.searchTracks(query))
+                    }
+                call.respond(response)
             }
-            val type = if (call.request.queryParameters["type"] == "album") "album" else "song"
-            val filter = if (type == "album") YouTube.SearchFilter.FILTER_ALBUM else YouTube.SearchFilter.FILTER_SONG
-            val items =
-                YouTube
-                    .search(query, filter)
-                    .getOrElse {
-                        logFailure("search '$query'", it)
-                        call.respond(HttpStatusCode.BadGateway, ErrorBody("search failed: ${it.message}"))
-                        return@get
-                    }.items
-            call.respond(
-                SearchResponse(
-                    query = query,
-                    type = type,
-                    tracks =
-                        items.filterIsInstance<SongItem>().map { song ->
-                            TrackResult(
-                                id = song.id,
-                                title = song.title,
-                                artists = song.artists.map { it.name },
-                                album = song.album?.name,
-                                albumId = song.album?.id,
-                                durationSeconds = song.duration,
-                                thumbnail = song.thumbnail,
-                                explicit = song.explicit,
-                            )
-                        },
-                    albums =
-                        items.filterIsInstance<AlbumItem>().map { album ->
-                            AlbumResult(
-                                id = album.browseId,
-                                title = album.title,
-                                artists = album.artists.orEmpty().map { it.name },
-                                year = album.year,
-                                thumbnail = album.thumbnail,
-                                explicit = album.explicit,
-                            )
-                        },
-                ),
-            )
+        }
+
+        get("/api/album/{id}") {
+            guarded(token) { call.respond(library.album(call.parameters["id"].orEmpty())) }
+        }
+
+        get("/api/artist/{id}") {
+            guarded(token) { call.respond(library.artist(call.parameters["id"].orEmpty())) }
+        }
+
+        get("/api/radio/{id}") {
+            guarded(token) {
+                val id = call.parameters["id"].orEmpty()
+                val seed = library.track(id) ?: throw BadRequest("unknown song $id")
+                call.respond(library.radio(seed))
+            }
+        }
+
+        get("/api/devices") {
+            guarded(token) {
+                if (call.request.queryParameters["refresh"] == "true") discovery.refresh()
+                call.respond(cast.devices())
+            }
+        }
+
+        route("/api/play") {
+            get {
+                guarded(token) {
+                    val p = call.request.queryParameters
+                    call.respond(
+                        player.play(
+                            PlayRequest(
+                                query = p["q"] ?: p["query"],
+                                type = p["type"],
+                                trackId = p["trackId"],
+                                albumId = p["albumId"],
+                                artistId = p["artistId"],
+                                device = p["device"],
+                                radio = p["radio"] != "false",
+                                enqueue = p["enqueue"] == "true",
+                            ),
+                        ),
+                    )
+                }
+            }
+            post {
+                guarded(token) { call.respond(player.play(call.receive<PlayRequest>())) }
+            }
+        }
+
+        post("/api/play/tracks") {
+            guarded(token) {
+                val request = call.receive<PlayTracksRequest>()
+                if (request.tracks.isEmpty()) throw BadRequest("tracks is empty")
+                call.respond(player.playTracks(request.tracks, request.startIndex, request.device))
+            }
+        }
+
+        get("/api/queue") {
+            guarded(token) {
+                val p = call.request.queryParameters
+                call.respond(
+                    player.buildQueue(
+                        PlayRequest(
+                            query = p["q"] ?: p["query"],
+                            type = p["type"],
+                            trackId = p["trackId"],
+                            albumId = p["albumId"],
+                            artistId = p["artistId"],
+                            radio = p["radio"] != "false",
+                        ),
+                    ),
+                )
+            }
+        }
+
+        route("/api/control") {
+            get {
+                guarded(token) {
+                    val p = call.request.queryParameters
+                    call.respond(
+                        player.control(
+                            ControlRequest(
+                                device = p["device"],
+                                action = p["action"] ?: throw BadRequest("missing action"),
+                                value = p["value"]?.toDoubleOrNull(),
+                            ),
+                        ),
+                    )
+                }
+            }
+            post {
+                guarded(token) { call.respond(player.control(call.receive<ControlRequest>())) }
+            }
+        }
+
+        get("/api/status") {
+            guarded(token) { call.respond(player.status(call.request.queryParameters["device"])) }
+        }
+
+        route("/mcp") {
+            post {
+                if (!call.authorized(token)) return@post
+                val response = mcp.handle(call.receiveText())
+                if (response == null) {
+                    call.respond(HttpStatusCode.Accepted, "")
+                } else {
+                    call.respondText(response.toString(), ContentType.Application.Json)
+                }
+            }
+            get { call.respond(HttpStatusCode.MethodNotAllowed, ErrorBody("use POST (MCP streamable HTTP, JSON responses)")) }
+            delete { call.respond(HttpStatusCode.OK, "") }
         }
 
         get("/api/resolve") {
-            if (!call.authorized(token)) return@get
-            val id = call.request.queryParameters["id"].orEmpty()
-            if (!VIDEO_ID.matches(id)) {
-                call.respond(HttpStatusCode.BadRequest, ErrorBody("invalid id"))
-                return@get
+            guarded(token) {
+                val id = call.request.queryParameters["id"].orEmpty()
+                if (!VIDEO_ID.matches(id)) throw BadRequest("invalid id")
+                val stream = resolver.resolve(id).getOrThrow()
+                call.respond(
+                    ResolveResponse(
+                        id = id,
+                        itag = stream.itag,
+                        mimeType = stream.mimeType,
+                        bitrate = stream.bitrate,
+                        contentLength = stream.contentLength,
+                        durationMs = stream.durationMs,
+                        streamPath = "/stream/$id",
+                    ),
+                )
             }
-            val stream =
-                resolver.resolve(id).getOrElse {
-                    logFailure("resolve $id", it)
-                    call.respond(HttpStatusCode.BadGateway, ErrorBody("resolve failed: ${it.message}"))
-                    return@get
-                }
-            call.respond(
-                ResolveResponse(
-                    id = id,
-                    itag = stream.itag,
-                    mimeType = stream.mimeType,
-                    bitrate = stream.bitrate,
-                    contentLength = stream.contentLength,
-                    durationMs = stream.durationMs,
-                    streamPath = "/stream/$id",
-                ),
-            )
         }
 
         get("/stream/{id}") {
             if (!call.authorized(token)) return@get
-            val id = call.parameters["id"].orEmpty()
+            val id = call.parameters["id"].orEmpty().substringBefore('.')
             if (!VIDEO_ID.matches(id)) {
                 call.respond(HttpStatusCode.BadRequest, ErrorBody("invalid id"))
                 return@get
@@ -194,6 +290,7 @@ fun Application.serverModule(token: String?) {
                             override val headers: Headers =
                                 Headers.build {
                                     append(HttpHeaders.AcceptRanges, "bytes")
+                                    append(HttpHeaders.AccessControlAllowOrigin, "*")
                                     if (contentRange != null) append(HttpHeaders.ContentRange, contentRange)
                                 }
 
@@ -202,6 +299,27 @@ fun Application.serverModule(token: String?) {
                     )
                 }
         }
+    }
+}
+
+class BadRequest(
+    message: String,
+) : Exception(message)
+
+private suspend fun RoutingContext.guarded(
+    token: String?,
+    block: suspend RoutingContext.() -> Unit,
+) {
+    if (!call.authorized(token)) return
+    try {
+        block()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (bad: BadRequest) {
+        call.respond(HttpStatusCode.BadRequest, ErrorBody(bad.message ?: "bad request"))
+    } catch (error: Exception) {
+        logFailure("${call.request.httpMethod.value} ${call.request.local.uri}", error)
+        call.respond(HttpStatusCode.BadGateway, ErrorBody(error.message ?: error::class.simpleName ?: "error"))
     }
 }
 
@@ -221,125 +339,3 @@ private suspend fun ApplicationCall.authorized(token: String?): Boolean {
     if (!accepted) respond(HttpStatusCode.Unauthorized, ErrorBody("invalid or missing token"))
     return accepted
 }
-
-private val INDEX_HTML =
-    """
-    <!doctype html>
-    <html lang="fr">
-    <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>ArchiveTune Server</title>
-    <style>
-    body{font-family:system-ui,sans-serif;max-width:680px;margin:1rem auto;padding:0 1rem;background:#111;color:#eee}
-    input,button,select{font-size:1rem;padding:.5rem;border-radius:8px;border:1px solid #444;background:#222;color:#eee}
-    button{cursor:pointer}
-    .row{display:flex;gap:.5rem;margin:.5rem 0;flex-wrap:wrap}
-    .row input{flex:1;min-width:0}
-    #status{min-height:1.5rem;color:#9cf;margin:.5rem 0;white-space:pre-wrap}
-    #status.err{color:#f88}
-    li{display:flex;gap:.75rem;align-items:center;margin:.5rem 0;padding:.5rem;background:#1b1b1b;border-radius:8px}
-    li img{width:48px;height:48px;border-radius:6px;object-fit:cover}
-    li .t{flex:1;min-width:0}
-    li .t small{color:#aaa}
-    audio{width:100%;margin:.5rem 0}
-    </style>
-    </head>
-    <body>
-    <h1>ArchiveTune Server <small id="ver" style="font-size:.9rem;color:#888"></small></h1>
-    <div class="row"><input id="token" type="password" placeholder="Jeton (ARCHIVETUNE_TOKEN)"><button id="save">Enregistrer</button></div>
-    <form id="f" class="row"><input id="q" placeholder="Artiste, chanson ou album"><select id="type"><option value="song">Chansons</option><option value="album">Albums</option></select><button>Chercher</button></form>
-    <div id="status"></div>
-    <div id="now"></div>
-    <audio id="a" controls></audio>
-    <ul id="r" style="list-style:none;padding:0"></ul>
-    <script>
-    fetch('/api/health').then(function (r) { return r.json(); }).then(function (h) { document.getElementById('ver').textContent = 'v' + h.version; }).catch(function () {});
-    var tokenInput = document.getElementById('token');
-    var statusBox = document.getElementById('status');
-    var audio = document.getElementById('a');
-    var params = new URLSearchParams(location.search);
-    var token = params.get('token') || '';
-    try { token = token || localStorage.getItem('archivetuneToken') || ''; } catch (e) {}
-    tokenInput.value = token;
-    document.getElementById('save').onclick = function () {
-      token = tokenInput.value.trim();
-      try { localStorage.setItem('archivetuneToken', token); } catch (e) {}
-      setStatus('Jeton enregistré.');
-    };
-    function setStatus(text, isError) {
-      statusBox.textContent = text;
-      statusBox.className = isError ? 'err' : '';
-    }
-    function withToken(path) {
-      if (!token) return path;
-      return path + (path.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(token);
-    }
-    function getJson(path) {
-      return fetch(withToken(path)).then(function (r) {
-        return r.text().then(function (body) {
-          var data = null;
-          try { data = JSON.parse(body); } catch (e) {}
-          if (!r.ok) {
-            var reason = data && data.error ? data.error : body;
-            if (r.status === 401) reason = 'jeton invalide ou manquant';
-            throw new Error('HTTP ' + r.status + ' : ' + reason);
-          }
-          return data;
-        });
-      });
-    }
-    function playTrack(t) {
-      setStatus('Préparation de « ' + t.title + ' »...');
-      getJson('/api/resolve?id=' + encodeURIComponent(t.id)).then(function (info) {
-        document.getElementById('now').textContent = 'En lecture : ' + t.title + ' - ' + t.artists.join(', ') + ' (' + info.mimeType.split(';')[0] + ', ' + Math.round(info.bitrate / 1000) + ' kb/s)';
-        audio.src = withToken(info.streamPath);
-        return audio.play();
-      }).then(function () {
-        setStatus('');
-      }).catch(function (e) {
-        setStatus('Lecture impossible : ' + e.message, true);
-      });
-    }
-    audio.addEventListener('error', function () {
-      setStatus('Le navigateur ne peut pas lire le flux (code ' + (audio.error ? audio.error.code : '?') + '). Regarde docker logs archivetune-server.', true);
-    });
-    function item(title, subtitle, thumb, actionLabel, action) {
-      var li = document.createElement('li');
-      if (thumb) { var img = document.createElement('img'); img.src = thumb; img.loading = 'lazy'; li.appendChild(img); }
-      var t = document.createElement('div'); t.className = 't';
-      var strong = document.createElement('div'); strong.textContent = title; t.appendChild(strong);
-      var small = document.createElement('small'); small.textContent = subtitle; t.appendChild(small);
-      li.appendChild(t);
-      var b = document.createElement('button'); b.textContent = actionLabel; b.onclick = action; li.appendChild(b);
-      return li;
-    }
-    document.getElementById('f').onsubmit = function (e) {
-      e.preventDefault();
-      var q = document.getElementById('q').value.trim();
-      var type = document.getElementById('type').value;
-      if (!q) return;
-      var list = document.getElementById('r');
-      list.innerHTML = '';
-      setStatus('Recherche...');
-      getJson('/api/search?type=' + type + '&q=' + encodeURIComponent(q)).then(function (data) {
-        var tracks = data.tracks || [];
-        var albums = data.albums || [];
-        tracks.forEach(function (t) {
-          list.appendChild(item(t.title, t.artists.join(', ') + (t.album ? ' - ' + t.album : ''), t.thumbnail, 'Écouter', function () { playTrack(t); }));
-        });
-        albums.forEach(function (a) {
-          list.appendChild(item(a.title, a.artists.join(', ') + (a.year ? ' - ' + a.year : ''), a.thumbnail, 'Chercher', function () {
-            document.getElementById('q').value = a.title + ' ' + a.artists.join(' ');
-            document.getElementById('type').value = 'song';
-          }));
-        });
-        setStatus(tracks.length + albums.length === 0 ? 'Aucun résultat.' : '');
-      }).catch(function (e) {
-        setStatus('Recherche impossible : ' + e.message, true);
-      });
-    };
-    </script>
-    </body>
-    </html>
-    """.trimIndent()

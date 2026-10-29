@@ -1,0 +1,9 @@
+{
+  "name": "ArchiveTune",
+  "short_name": "ArchiveTune",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e1014",
+  "theme_color": "#0e1014",
+  "icons": []
+}

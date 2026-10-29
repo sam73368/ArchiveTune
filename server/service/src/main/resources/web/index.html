@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1014">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>ArchiveTune</title>
+<style>
+:root{
+  --bg:#0e1014;--surface:#161a20;--surface2:#1d222a;--surface3:#262c36;--line:#2c333e;
+  --text:#e8eaf0;--muted:#9aa3b2;--primary:#a8c7fa;--on-primary:#062e6f;--accent:#7cacf8;--danger:#ffb4ab;
+  --radius:18px;--player-h:76px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Google Sans","Roboto",system-ui,-apple-system,sans-serif}
+body{padding-bottom:calc(var(--player-h) + 24px + env(safe-area-inset-bottom))}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit}
+img{display:block}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+header{position:sticky;top:0;z-index:20;background:linear-gradient(var(--bg) 70%,transparent);padding:12px 0 8px}
+.top{display:flex;align-items:center;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;letter-spacing:.2px}
+.logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--primary),#c3a6ff);display:grid;place-items:center;color:var(--on-primary)}
+.spacer{flex:1}
+.pill{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:var(--surface2);color:var(--text);max-width:52vw}
+.pill span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--surface2)}
+.icon-btn:active,.pill:active{background:var(--surface3)}
+svg{width:22px;height:22px;fill:currentColor;flex:none}
+.search{margin-top:12px;display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:999px;padding:4px 6px 4px 16px}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0;padding:10px 0;font-size:16px}
+.chips{display:flex;gap:8px;margin-top:12px;overflow-x:auto;scrollbar-width:none}
+.chip{padding:8px 16px;border-radius:10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.on{background:var(--primary);color:var(--on-primary);border-color:transparent;font-weight:600}
+h2{font-size:20px;margin:22px 0 10px}
+.muted{color:var(--muted)}
+.list{display:flex;flex-direction:column;gap:2px}
+.row{display:flex;align-items:center;gap:14px;padding:8px;border-radius:14px;cursor:pointer}
+.row:hover{background:var(--surface)}
+.row.playing .t1{color:var(--primary)}
+.thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--surface3);flex:none}
+.thumb.round{border-radius:50%}
+.num{width:28px;text-align:center;color:var(--muted);flex:none}
+.txt{flex:1;min-width:0}
+.t1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.t2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:var(--muted);margin-top:2px}
+.e{display:inline-grid;place-items:center;width:15px;height:15px;font-size:10px;border-radius:3px;background:var(--muted);color:var(--bg);font-weight:700;margin-right:6px;vertical-align:1px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px}
+.card{cursor:pointer;min-width:0}
+.card img{width:100%;aspect-ratio:1;border-radius:14px;object-fit:cover;background:var(--surface3)}
+.card .t1{margin-top:8px}
+.hscroll{display:grid;grid-auto-flow:column;grid-auto-columns:150px;gap:16px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.hero{display:flex;gap:20px;align-items:flex-end;margin-top:8px;flex-wrap:wrap}
+.hero img{width:200px;height:200px;border-radius:20px;object-fit:cover;box-shadow:0 20px 50px rgba(0,0,0,.5);background:var(--surface3)}
+.hero.artist img{border-radius:50%}
+.hero h1{margin:0 0 6px;font-size:28px;line-height:1.15}
+.actions{display:flex;gap:10px;margin:18px 0 6px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:999px;background:var(--surface2);font-weight:600}
+.btn.primary{background:var(--primary);color:var(--on-primary)}
+.empty{padding:60px 10px;text-align:center;color:var(--muted)}
+.empty .big{font-size:44px;margin-bottom:10px}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);margin-top:4px}
+.player{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:936px;margin:0 auto;height:var(--player-h);background:var(--surface2);border-radius:20px;display:flex;align-items:center;gap:12px;padding:10px 12px;box-shadow:0 10px 40px rgba(0,0,0,.55);z-index:30;overflow:hidden}
+.player.hidden{display:none}
+.player img{width:54px;height:54px;border-radius:12px;object-fit:cover;background:var(--surface3)}
+.player .txt{cursor:pointer}
+.progress{position:absolute;left:0;bottom:0;height:3px;background:var(--primary);width:0;transition:width .5s linear}
+.ctrl{width:44px;height:44px;border-radius:50%;display:grid;place-items:center}
+.ctrl.main{background:var(--primary);color:var(--on-primary)}
+.ctrl svg{width:26px;height:26px}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40;display:none}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;background:var(--surface);border-radius:24px 24px 0 0;z-index:41;padding:10px 18px calc(22px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .25s ease;max-height:86vh;overflow:auto}
+.sheet.open{transform:none}
+.sheet .grab{width:36px;height:4px;border-radius:4px;background:var(--line);margin:4px auto 12px}
+.sheet h3{margin:4px 0 14px;font-size:18px}
+.opt{display:flex;align-items:center;gap:14px;padding:12px;border-radius:14px;cursor:pointer}
+.opt:hover{background:var(--surface2)}
+.opt.on{background:var(--surface3)}
+.field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.field input{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px;outline:0}
+code,.code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--surface2);padding:10px;border-radius:10px;display:block;word-break:break-all;white-space:pre-wrap}
+.now{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px}
+.now img{width:min(72vw,320px);aspect-ratio:1;border-radius:22px;object-fit:cover;box-shadow:0 20px 60px rgba(0,0,0,.5);background:var(--surface3);margin:8px 0 12px}
+.now .controls{display:flex;align-items:center;gap:18px;margin:12px 0}
+.now .ctrl{width:56px;height:56px}
+.now .ctrl.main{width:68px;height:68px}
+.vol{width:100%;accent-color:var(--primary)}
+.toast{position:fixed;left:50%;bottom:calc(var(--player-h) + 34px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--surface3);color:var(--text);padding:12px 18px;border-radius:14px;opacity:0;transition:.25s;z-index:60;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.toast.err{background:#5c1a14;color:var(--danger)}
+.spinner{width:28px;height:28px;border:3px solid var(--surface3);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:40px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.more{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--muted);flex:none}
+.more:hover{background:var(--surface3)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="#/" style="color:inherit;text-decoration:none"><div class="logo"><svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>ArchiveTune</a>
+      <div class="spacer"></div>
+      <button class="pill" id="deviceBtn" title="Appareil de lecture"><svg viewBox="0 0 24 24"><path d="M1 18v3h3a3 3 0 0 0-3-3zm0-4v2a5 5 0 0 1 5 5h2a7 7 0 0 0-7-7zm0-4v2a9 9 0 0 1 9 9h2A11 11 0 0 0 1 10zm20-7H3a2 2 0 0 0-2 2v3h2V5h18v14h-7v2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg><span id="deviceName">Ce navigateur</span></button>
+      <button class="icon-btn" id="settingsBtn" title="Réglages"><svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7 7 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.84a.5.5 0 0 0-.49.42l-.36 2.54a7.3 7.3 0 0 0-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.67 8.48a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54a.5.5 0 0 0 .49.42h3.84a.5.5 0 0 0 .49-.42l.36-2.54a7.3 7.3 0 0 0 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg></button>
+    </div>
+    <form class="search" id="searchForm">
+      <svg viewBox="0 0 24 24" style="color:var(--muted)"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16a6.47 6.47 0 0 0 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+      <input id="q" type="search" placeholder="Chansons, albums, artistes" autocomplete="off" enterkeyhint="search">
+    </form>
+    <div class="chips" id="chips">
+      <button class="chip on" data-type="song">Chansons</button>
+      <button class="chip" data-type="album">Albums</button>
+      <button class="chip" data-type="artist">Artistes</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="view"></main>
+
+<div class="player hidden" id="player">
+  <img id="pThumb" alt="">
+  <div class="txt" id="pOpen"><div class="t1" id="pTitle"></div><div class="t2" id="pSub"></div></div>
+  <button class="ctrl" id="pPrev" title="Précédent"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+  <button class="ctrl main" id="pPlay" title="Lecture/Pause"><svg viewBox="0 0 24 24" id="pPlayIcon"><path d="M8 5v14l11-7z"/></svg></button>
+  <button class="ctrl" id="pNext" title="Suivant"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+  <div class="progress" id="pProgress"></div>
+</div>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetBody"></div></div>
+<div class="toast" id="toast"></div>
+<audio id="audio" preload="auto"></audio>
+
+<script>
+(function () {
+  var ICON_PLAY = '<path d="M8 5v14l11-7z"/>';
+  var ICON_PAUSE = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+  var view = document.getElementById('view');
+  var audio = document.getElementById('audio');
+  var state = {
+    token: read('archivetune.token') || new URLSearchParams(location.search).get('token') || '',
+    device: read('archivetune.device') || '',
+    type: 'song',
+    queue: [],
+    index: -1,
+    castStatus: null,
+    devices: []
+  };
+
+  function read(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function write(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function thumb(url, size) {
+    if (!url) return '';
+    return url.replace(/=w\d+-h\d+/, '=w' + size + '-h' + size).replace(/=s\d+/, '=s' + size);
+  }
+  function withToken(path) {
+    if (!state.token) return path;
+    return path + (path.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(state.token);
+  }
+  function api(path, body) {
+    var opts = { headers: {} };
+    if (state.token) opts.headers['Authorization'] = 'Bearer ' + state.token;
+    if (body !== undefined) { opts.method = 'POST'; opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    return fetch(path, opts).then(function (r) {
+      return r.text().then(function (text) {
+        var data = null;
+        try { data = text ? JSON.parse(text) : null; } catch (e) {}
+        if (r.status === 401) { openSettings(); throw new Error('Jeton invalide ou manquant'); }
+        if (!r.ok) throw new Error((data && data.error) || ('HTTP ' + r.status));
+        return data;
+      });
+    });
+  }
+  var toastTimer;
+  function toast(text, isError) {
+    var t = document.getElementById('toast');
+    t.textContent = text;
+    t.className = 'toast show' + (isError ? ' err' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = 'toast'; }, isError ? 5000 : 2600);
+  }
+  function spinner() { view.innerHTML = '<div class="spinner"></div>'; }
+  function isCast() { return !!state.device; }
+
+  function trackRow(t, index, opts) {
+    opts = opts || {};
+    var lead = opts.numbered
+      ? '<div class="num">' + (index + 1) + '</div>'
+      : '<img class="thumb" loading="lazy" src="' + esc(thumb(t.thumbnail, 120)) + '" alt="">';
+    var sub = (t.explicit ? '<span class="e">E</span>' : '') + esc(t.artists.join(', ')) + (opts.numbered || !t.album ? '' : ' • ' + esc(t.album));
+    var dur = t.durationSeconds ? '<div class="muted" style="font-size:13px">' + fmt(t.durationSeconds) + '</div>' : '';
+    return '<div class="row" data-i="' + index + '">' + lead + '<div class="txt"><div class="t1">' + esc(t.title) + '</div><div class="t2">' + sub + '</div></div>' + dur +
+      '<button class="more" data-more="' + index + '" title="Ajouter à la file"><svg viewBox="0 0 24 24"><path d="M14 10H3v2h11v-2zm0-4H3v2h11V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 16h7v-2H3v2z"/></svg></button></div>';
+  }
+  function fmt(sec) {
+    sec = Math.max(0, Math.round(sec || 0));
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function bindTrackList(container, tracks, mode) {
+    container.querySelectorAll('.row').forEach(function (row) {
+      row.addEventListener('click', function (e) {
+        if (e.target.closest('[data-more]')) return;
+        var i = +row.getAttribute('data-i');
+        if (mode === 'album') playList(tracks, i);
+        else playSong(tracks[i]);
+      });
+    });
+    container.querySelectorAll('[data-more]').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        enqueue([tracks[+b.getAttribute('data-more')]]);
+      });
+    });
+  }
+
+  function route() {
+    var hash = location.hash.replace(/^#/, '') || '/';
+    var parts = hash.split('?');
+    var path = parts[0];
+    var params = new URLSearchParams(parts[1] || '');
+    if (path.indexOf('/album/') === 0) return showAlbum(decodeURIComponent(path.slice(7)));
+    if (path.indexOf('/artist/') === 0) return showArtist(decodeURIComponent(path.slice(8)));
+    if (path === '/search') {
+      var q = params.get('q') || '';
+      state.type = params.get('type') || 'song';
+      document.getElementById('q').value = q;
+      syncChips();
+      return showSearch(q, state.type);
+    }
+    showHome();
+  }
+  function syncChips() {
+    document.querySelectorAll('.chip').forEach(function (c) { c.classList.toggle('on', c.getAttribute('data-type') === state.type); });
+  }
+  function showHome() {
+    view.innerHTML = '<div class="empty"><div class="big">🎧</div><div style="font-size:18px;color:var(--text);margin-bottom:6px">Qu\'est-ce qu\'on écoute ?</div>Cherche une chanson, un album ou un artiste.<br>Choisis en haut à droite où jouer : ce navigateur ou un appareil Cast.</div>';
+  }
+  function showSearch(q, type) {
+    if (!q) return showHome();
+    spinner();
+    api('/api/search?type=' + type + '&q=' + encodeURIComponent(q)).then(function (data) {
+      if (type === 'album') {
+        if (!data.albums.length) return empty();
+        view.innerHTML = '<h2>Albums</h2><div class="grid">' + data.albums.map(function (a, i) {
+          return '<div class="card" data-id="' + esc(a.id) + '"><img loading="lazy" src="' + esc(thumb(a.thumbnail, 300)) + '" alt=""><div class="t1">' + (a.explicit ? '<span class="e">E</span>' : '') + esc(a.title) + '</div><div class="t2">' + esc(a.artists.join(', ')) + (a.year ? ' • ' + a.year : '') + '</div></div>';
+        }).join('') + '</div>';
+        view.querySelectorAll('.card').forEach(function (c) { c.onclick = function () { location.hash = '#/album/' + encodeURIComponent(c.getAttribute('data-id')); }; });
+      } else if (type === 'artist') {
+        if (!data.artists.length) return empty();
+        view.innerHTML = '<h2>Artistes</h2><div class="list">' + data.artists.map(function (a) {
+          return '<div class="row" data-id="' + esc(a.id) + '"><img class="thumb round" loading="lazy" src="' + esc(thumb(a.thumbnail, 120)) + '" alt=""><div class="txt"><div class="t1">' + esc(a.name) + '</div><div class="t2">Artiste</div></div></div>';
+        }).join('') + '</div>';
+        view.querySelectorAll('.row').forEach(function (r) { r.onclick = function () { location.hash = '#/artist/' + encodeURIComponent(r.getAttribute('data-id')); }; });
+      } else {
+        if (!data.tracks.length) return empty();
+        view.innerHTML = '<h2>Chansons</h2><div class="list">' + data.tracks.map(function (t, i) { return trackRow(t, i); }).join('') + '</div>';
+        bindTrackList(view, data.tracks, 'song');
+      }
+    }).catch(fail);
+  }
+  function empty() { view.innerHTML = '<div class="empty"><div class="big">🔎</div>Aucun résultat.</div>'; }
+  function fail(e) { view.innerHTML = '<div class="empty"><div class="big">⚠️</div>' + esc(e.message) + '</div>'; }
+
+  function showAlbum(id) {
+    spinner();
+    api('/api/album/' + encodeURIComponent(id)).then(function (d) {
+      var a = d.album;
+      var total = d.tracks.reduce(function (s, t) { return s + (t.durationSeconds || 0); }, 0);
+      view.innerHTML = '<button class="back" onclick="history.back()">‹ Retour</button>' +
+        '<div class="hero"><img src="' + esc(thumb(a.thumbnail, 544)) + '" alt=""><div><div class="muted" style="font-size:13px">Album' + (a.year ? ' • ' + a.year : '') + '</div><h1>' + esc(a.title) + '</h1><div class="muted">' + (a.explicit ? '<span class="e">E</span>' : '') + esc(a.artists.join(', ')) + ' • ' + d.tracks.length + ' titres • ' + Math.round(total / 60) + ' min</div></div></div>' +
+        '<div class="actions"><button class="btn primary" id="playAll"><svg viewBox="0 0 24 24">' + ICON_PLAY + '</svg>Lire</button><button class="btn" id="shuffle"><svg viewBox="0 0 24 24"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>Aléatoire</button><button class="btn" id="queueAll">Ajouter à la file</button></div>' +
+        '<div class="list" id="tracks">' + d.tracks.map(function (t, i) { return trackRow(t, i, { numbered: true }); }).join('') + '</div>';
+      bindTrackList(document.getElementById('tracks'), d.tracks, 'album');
+      document.getElementById('playAll').onclick = function () { playList(d.tracks, 0); };
+      document.getElementById('shuffle').onclick = function () { playList(shuffle(d.tracks.slice()), 0); };
+      document.getElementById('queueAll').onclick = function () { enqueue(d.tracks); };
+    }).catch(fail);
+  }
+  function showArtist(id) {
+    spinner();
+    api('/api/artist/' + encodeURIComponent(id)).then(function (d) {
+      var a = d.artist;
+      function cards(list) {
+        return '<div class="hscroll">' + list.map(function (al) {
+          return '<div class="card" data-id="' + esc(al.id) + '"><img loading="lazy" src="' + esc(thumb(al.thumbnail, 300)) + '" alt=""><div class="t1">' + (al.explicit ? '<span class="e">E</span>' : '') + esc(al.title) + '</div><div class="t2">' + (al.year || '') + '</div></div>';
+        }).join('') + '</div>';
+      }
+      view.innerHTML = '<button class="back" onclick="history.back()">‹ Retour</button>' +
+        '<div class="hero artist"><img src="' + esc(thumb(a.thumbnail, 544)) + '" alt=""><div><div class="muted" style="font-size:13px">Artiste</div><h1>' + esc(a.name) + '</h1></div></div>' +
+        '<div class="actions"><button class="btn primary" id="playTop"><svg viewBox="0 0 24 24">' + ICON_PLAY + '</svg>Lire les populaires</button></div>' +
+        (d.topTracks.length ? '<h2>Populaires</h2><div class="list" id="top">' + d.topTracks.map(function (t, i) { return trackRow(t, i); }).join('') + '</div>' : '') +
+        (d.albums.length ? '<h2>Albums</h2>' + cards(d.albums) : '') +
+        (d.singles.length ? '<h2>Singles et EP</h2>' + cards(d.singles) : '');
+      if (d.topTracks.length) bindTrackList(document.getElementById('top'), d.topTracks, 'album');
+      document.getElementById('playTop').onclick = function () { if (d.topTracks.length) playList(d.topTracks, 0); };
+      view.querySelectorAll('.card').forEach(function (c) { c.onclick = function () { location.hash = '#/album/' + encodeURIComponent(c.getAttribute('data-id')); }; });
+    }).catch(fail);
+  }
+  function shuffle(list) {
+    for (var i = list.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = list[i]; list[i] = list[j]; list[j] = t; }
+    return list;
+  }
+
+  function playSong(track) {
+    if (isCast()) {
+      toast('Envoi vers ' + state.device + '...');
+      api('/api/play', { trackId: track.id, device: state.device, radio: true }).then(afterCast).catch(function (e) { toast(e.message, true); });
+      return;
+    }
+    api('/api/radio/' + encodeURIComponent(track.id)).then(function (list) {
+      playList(list && list.length ? list : [track], 0);
+    }).catch(function () { playList([track], 0); });
+  }
+  function playList(tracks, index) {
+    if (isCast()) {
+      toast('Envoi vers ' + state.device + '...');
+      api('/api/play/tracks', { tracks: tracks, startIndex: index, device: state.device }).then(afterCast).catch(function (e) { toast(e.message, true); });
+      return;
+    }
+    state.queue = tracks.slice();
+    state.index = index;
+    startLocal();
+  }
+  function enqueue(tracks) {
+    if (isCast()) {
+      if (tracks.length === 1) {
+        api('/api/play', { trackId: tracks[0].id, device: state.device, enqueue: true }).then(function () { toast('Ajouté à la file'); }).catch(function (e) { toast(e.message, true); });
+      } else {
+        toast('Sur un appareil Cast, lance l\'album pour le mettre en file');
+      }
+      return;
+    }
+    if (state.index < 0) { playList(tracks, 0); return; }
+    state.queue = state.queue.concat(tracks);
+    toast(tracks.length === 1 ? 'Ajouté à la file' : tracks.length + ' titres ajoutés');
+  }
+  function afterCast(result) {
+    toast(result.message || 'Lecture lancée');
+    state.queue = result.queue || [];
+    state.index = result.startIndex || 0;
+    pollCast(true);
+  }
+  function startLocal() {
+    var t = state.queue[state.index];
+    if (!t) return;
+    audio.src = withToken('/stream/' + t.id);
+    audio.play().catch(function (e) { toast('Lecture impossible : ' + e.message, true); });
+    renderPlayer({ title: t.title, artist: t.artists.join(', '), thumbnail: t.thumbnail, playing: true });
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artists.join(', '), album: t.album || '', artwork: [{ src: thumb(t.thumbnail, 544), sizes: '544x544' }] });
+      navigator.mediaSession.setActionHandler('nexttrack', next);
+      navigator.mediaSession.setActionHandler('previoustrack', prev);
+    }
+    highlight();
+  }
+  function highlight() {
+    var current = state.queue[state.index];
+    document.querySelectorAll('.row.playing').forEach(function (r) { r.classList.remove('playing'); });
+    if (!current) return;
+    document.querySelectorAll('.row').forEach(function (r) {
+      var title = r.querySelector('.t1');
+      if (title && title.textContent === current.title) r.classList.add('playing');
+    });
+  }
+  function next() {
+    if (isCast()) return control('next');
+    if (state.index + 1 < state.queue.length) { state.index++; startLocal(); }
+  }
+  function prev() {
+    if (isCast()) return control('previous');
+    if (audio.currentTime > 4) { audio.currentTime = 0; return; }
+    if (state.index > 0) { state.index--; startLocal(); }
+  }
+  function toggle() {
+    if (isCast()) {
+      var playing = state.castStatus && state.castStatus.playerState === 'PLAYING';
+      return control(playing ? 'pause' : 'resume');
+    }
+    if (audio.paused) audio.play(); else audio.pause();
+  }
+  function control(action, value) {
+    var path = '/api/control?device=' + encodeURIComponent(state.device) + '&action=' + action + (value != null ? '&value=' + value : '');
+    return api(path).then(function (status) { state.castStatus = status; renderCast(); }).catch(function (e) { toast(e.message, true); });
+  }
+  audio.addEventListener('ended', next);
+  audio.addEventListener('play', function () { setPlayIcon(true); });
+  audio.addEventListener('pause', function () { setPlayIcon(false); });
+  audio.addEventListener('timeupdate', function () {
+    if (isCast() || !audio.duration) return;
+    document.getElementById('pProgress').style.width = (100 * audio.currentTime / audio.duration) + '%';
+  });
+  audio.addEventListener('error', function () {
+    if (!audio.src) return;
+    toast('Flux illisible, chanson suivante', true);
+    setTimeout(next, 800);
+  });
+
+  function setPlayIcon(playing) { document.getElementById('pPlayIcon').innerHTML = playing ? ICON_PAUSE : ICON_PLAY; }
+  function renderPlayer(info) {
+    var p = document.getElementById('player');
+    p.classList.remove('hidden');
+    document.getElementById('pThumb').src = thumb(info.thumbnail, 120) || '';
+    document.getElementById('pTitle').textContent = info.title || 'Rien en lecture';
+    document.getElementById('pSub').textContent = (info.artist || '') + (isCast() ? ' • ' + state.device : '');
+    setPlayIcon(!!info.playing);
+  }
+  function renderCast() {
+    var s = state.castStatus;
+    if (!s || !s.title) return;
+    renderPlayer({ title: s.title, artist: s.artist, thumbnail: s.thumbnail, playing: s.playerState === 'PLAYING' || s.playerState === 'BUFFERING' });
+    if (s.durationSeconds) document.getElementById('pProgress').style.width = (100 * (s.currentTimeSeconds || 0) / s.durationSeconds) + '%';
+  }
+  var pollTimer;
+  function pollCast(immediate) {
+    clearTimeout(pollTimer);
+    if (!isCast()) return;
+    var run = function () {
+      api('/api/status?device=' + encodeURIComponent(state.device)).then(function (s) { state.castStatus = s; renderCast(); }).catch(function () {}).then(function () {
+        pollTimer = setTimeout(run, document.hidden ? 15000 : 3000);
+      });
+    };
+    if (immediate) setTimeout(run, 1500); else run();
+  }
+
+  function openSheet(html) {
+    document.getElementById('sheetBody').innerHTML = html;
+    document.getElementById('sheetBg').style.display = 'block';
+    requestAnimationFrame(function () { document.getElementById('sheet').classList.add('open'); });
+  }
+  function closeSheet() {
+    document.getElementById('sheet').classList.remove('open');
+    document.getElementById('sheetBg').style.display = 'none';
+  }
+  document.getElementById('sheetBg').onclick = closeSheet;
+
+  function openDevices(refresh) {
+    openSheet('<h3>Où jouer ?</h3><div id="devList"><div class="spinner"></div></div><button class="btn" id="devRefresh" style="margin-top:10px">Rechercher les appareils</button>');
+    document.getElementById('devRefresh').onclick = function () { openDevices(true); };
+    api('/api/devices' + (refresh ? '?refresh=true' : '')).then(function (devices) {
+      state.devices = devices;
+      var html = '<div class="opt' + (isCast() ? '' : ' on') + '" data-dev=""><svg viewBox="0 0 24 24"><path d="M20 18c1.1 0 2-.9 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg><div class="txt"><div class="t1">Ce navigateur</div><div class="t2">Lecture sur cet appareil</div></div></div>';
+      html += devices.map(function (d) {
+        return '<div class="opt' + (state.device === d.name ? ' on' : '') + '" data-dev="' + esc(d.name) + '"><svg viewBox="0 0 24 24"><path d="M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-5 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm0 16a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg><div class="txt"><div class="t1">' + esc(d.name) + '</div><div class="t2">' + esc(d.isGroup ? 'Groupe d\'enceintes' : (d.model || 'Google Cast')) + ' • ' + esc(d.host) + '</div></div></div>';
+      }).join('');
+      if (!devices.length) html += '<p class="muted" style="padding:6px 12px">Aucun appareil Cast trouvé. Le conteneur doit être en <code style="display:inline;padding:2px 6px">network_mode: host</code>, ou ajoute-les avec ARCHIVETUNE_CAST_DEVICES.</p>';
+      document.getElementById('devList').innerHTML = html;
+      document.querySelectorAll('[data-dev]').forEach(function (o) {
+        o.onclick = function () { selectDevice(o.getAttribute('data-dev')); closeSheet(); };
+      });
+    }).catch(function (e) { document.getElementById('devList').innerHTML = '<p class="muted">' + esc(e.message) + '</p>'; });
+  }
+  function selectDevice(name) {
+    if (name && !audio.paused) audio.pause();
+    state.device = name;
+    write('archivetune.device', name);
+    document.getElementById('deviceName').textContent = name || 'Ce navigateur';
+    state.castStatus = null;
+    if (name) { toast('Lecture sur ' + name); pollCast(); } else { clearTimeout(pollTimer); }
+  }
+  function openSettings() {
+    var origin = location.origin;
+    openSheet('<h3>Réglages</h3>' +
+      '<div class="field"><label class="muted">Jeton du serveur (ARCHIVETUNE_TOKEN)</label><input id="tok" type="password" value="' + esc(state.token) + '" placeholder="Mot de passe défini dans la stack"></div>' +
+      '<button class="btn primary" id="tokSave">Enregistrer</button>' +
+      '<h3 style="margin-top:24px">Pour les agents IA</h3>' +
+      '<p class="muted" style="margin:0 0 8px">Serveur MCP (Claude, Gemini, Home Assistant…)</p><span class="code">' + esc(origin + '/mcp?token=<jeton>') + '</span>' +
+      '<p class="muted" style="margin:14px 0 8px">Guide de l\'API</p><span class="code">' + esc(origin + '/api/help') + '</span>' +
+      '<p class="muted" style="margin:14px 0 8px">Exemple simple</p><span class="code">' + esc(origin + '/api/play?q=Nightmare Avenged Sevenfold&type=album&device=Salon&token=<jeton>') + '</span>' +
+      '<p class="muted" style="margin-top:18px;font-size:13px" id="ver"></p>');
+    document.getElementById('tokSave').onclick = function () {
+      state.token = document.getElementById('tok').value.trim();
+      write('archivetune.token', state.token);
+      closeSheet();
+      toast('Jeton enregistré');
+      route();
+    };
+    fetch('/api/health').then(function (r) { return r.json(); }).then(function (h) { document.getElementById('ver').textContent = 'ArchiveTune Server v' + h.version; }).catch(function () {});
+  }
+  function openNowPlaying() {
+    var cast = isCast();
+    var s = state.castStatus;
+    var t = state.queue[state.index];
+    var title = cast && s ? s.title : (t && t.title);
+    var artist = cast && s ? s.artist : (t && t.artists.join(', '));
+    var cover = cast && s ? s.thumbnail : (t && t.thumbnail);
+    var upNext = state.queue.slice(state.index + 1, state.index + 31);
+    openSheet('<div class="now"><img src="' + esc(thumb(cover, 544)) + '" alt=""><div style="font-size:20px;font-weight:600">' + esc(title || '') + '</div><div class="muted">' + esc(artist || '') + '</div>' +
+      '<div class="muted" style="font-size:13px">' + (cast ? 'Sur ' + esc(state.device) : 'Sur ce navigateur') + '</div>' +
+      '<div class="controls"><button class="ctrl" id="nPrev"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button><button class="ctrl main" id="nPlay"><svg viewBox="0 0 24 24">' + ((cast ? s && s.playerState === 'PLAYING' : !audio.paused) ? ICON_PAUSE : ICON_PLAY) + '</svg></button><button class="ctrl" id="nNext"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button></div>' +
+      (cast ? '<input class="vol" id="vol" type="range" min="0" max="100" value="' + Math.round(((s && s.volume) || 0.5) * 100) + '">' : '') +
+      '</div>' + (upNext.length ? '<h3 style="margin-top:18px">À suivre</h3><div class="list" id="upnext">' + upNext.map(function (u, i) { return trackRow(u, state.index + 1 + i); }).join('') + '</div>' : ''));
+    document.getElementById('nPrev').onclick = function () { prev(); setTimeout(closeSheet, 150); };
+    document.getElementById('nNext').onclick = function () { next(); setTimeout(closeSheet, 150); };
+    document.getElementById('nPlay').onclick = function () { toggle(); setTimeout(closeSheet, 150); };
+    var vol = document.getElementById('vol');
+    if (vol) vol.onchange = function () { control('volume', (vol.value / 100).toFixed(2)); };
+    var list = document.getElementById('upnext');
+    if (list && !cast) {
+      list.querySelectorAll('.row').forEach(function (r) {
+        r.onclick = function () { state.index = +r.getAttribute('data-i'); startLocal(); closeSheet(); };
+      });
+    }
+  }
+
+  document.getElementById('deviceBtn').onclick = function () { openDevices(false); };
+  document.getElementById('settingsBtn').onclick = openSettings;
+  document.getElementById('pPlay').onclick = toggle;
+  document.getElementById('pNext').onclick = next;
+  document.getElementById('pPrev').onclick = prev;
+  document.getElementById('pOpen').onclick = openNowPlaying;
+  document.getElementById('pThumb').onclick = openNowPlaying;
+  document.getElementById('searchForm').onsubmit = function (e) {
+    e.preventDefault();
+    var q = document.getElementById('q').value.trim();
+    if (q) location.hash = '#/search?type=' + state.type + '&q=' + encodeURIComponent(q);
+    document.getElementById('q').blur();
+  };
+  document.querySelectorAll('.chip').forEach(function (c) {
+    c.onclick = function () {
+      state.type = c.getAttribute('data-type');
+      syncChips();
+      var q = document.getElementById('q').value.trim();
+      if (q) location.hash = '#/search?type=' + state.type + '&q=' + encodeURIComponent(q);
+    };
+  });
+  window.addEventListener('hashchange', route);
+  document.getElementById('deviceName').textContent = state.device || 'Ce navigateur';
+  if (state.token) write('archivetune.token', state.token);
+  route();
+  if (!state.token) {
+    api('/api/devices').catch(function () {});
+  }
+  if (isCast()) pollCast();
+})();
+</script>
+</body>
+</html>

@@ -22,6 +22,7 @@ dependencies {
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serialization.json)
     implementation("org.json:json:20240303")
+    implementation("org.jmdns:jmdns:3.5.9")
     runtimeOnly("org.slf4j:slf4j-simple:2.0.16")
     testImplementation(libs.junit)
 }

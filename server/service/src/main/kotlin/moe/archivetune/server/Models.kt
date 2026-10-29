@@ -37,6 +37,14 @@ data class SearchResponse(
     val type: String,
     val tracks: List<TrackResult> = emptyList(),
     val albums: List<AlbumResult> = emptyList(),
+    val artists: List<ArtistResult> = emptyList(),
+)
+
+@Serializable
+data class PlayTracksRequest(
+    val tracks: List<TrackResult>,
+    val startIndex: Int = 0,
+    val device: String? = null,
 )
 
 @Serializable
