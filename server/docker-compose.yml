@@ -1,9 +1,19 @@
 services:
   archivetune-server:
+    container_name: ArchiveTune
     image: ghcr.io/sam73368/archivetune-server:latest
-    container_name: archivetune-server
+    pull_policy: always
     restart: unless-stopped
     network_mode: host
     environment:
       ARCHIVETUNE_TOKEN: "change-me"
       ARCHIVETUNE_PORT: "8780"
+      ARCHIVETUNE_GL: "CA"
+      ARCHIVETUNE_HL: "fr"
+      TZ: America/Montreal
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8780' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

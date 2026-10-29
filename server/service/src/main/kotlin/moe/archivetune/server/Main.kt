@@ -34,7 +34,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import java.security.MessageDigest
 
-private const val VERSION = "0.1.0"
+private const val VERSION = "0.2.0"
 private const val DEFAULT_PORT = 8780
 private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
 
@@ -246,7 +246,7 @@ private val INDEX_HTML =
     </style>
     </head>
     <body>
-    <h1>ArchiveTune Server</h1>
+    <h1>ArchiveTune Server <small id="ver" style="font-size:.9rem;color:#888"></small></h1>
     <div class="row"><input id="token" type="password" placeholder="Jeton (ARCHIVETUNE_TOKEN)"><button id="save">Enregistrer</button></div>
     <form id="f" class="row"><input id="q" placeholder="Artiste, chanson ou album"><select id="type"><option value="song">Chansons</option><option value="album">Albums</option></select><button>Chercher</button></form>
     <div id="status"></div>
@@ -254,6 +254,7 @@ private val INDEX_HTML =
     <audio id="a" controls></audio>
     <ul id="r" style="list-style:none;padding:0"></ul>
     <script>
+    fetch('/api/health').then(function (r) { return r.json(); }).then(function (h) { document.getElementById('ver').textContent = 'v' + h.version; }).catch(function () {});
     var tokenInput = document.getElementById('token');
     var statusBox = document.getElementById('status');
     var audio = document.getElementById('a');
