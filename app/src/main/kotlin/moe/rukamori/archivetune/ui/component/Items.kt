@@ -712,6 +712,7 @@ fun MediaMetadataListItem(
             val smartShuffleLabel =
                 stringResource(R.string.smart_shuffle_suggestion)
                     .takeIf { moe.rukamori.archivetune.utils.SmartShuffleMarks.ids.containsKey(mediaMetadata.id) }
+            if (mediaMetadata.explicit) Icon.Explicit()
             Text(
                 text =
                     joinByBullet(
