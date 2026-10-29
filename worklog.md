@@ -6333,3 +6333,17 @@ Work Log:
 
 Stage Summary:
 - M0 only (search/resolve/stream). Next: queue, Home Assistant play_media bridge, ffmpeg crossfade.
+
+---
+Task ID: PB-4
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Short audio cuts in the car on network handovers (5G -> LTE+, Wi-Fi that fails to connect).
+
+Work Log:
+- Cause from code: stream URLs are IP-bound; after a handover the next range request gets HTTP 403, the load policy retried the same cached URL three times, then `onPlayerError` re-prepared the player (buffer dropped -> audible gap while re-resolving).
+- `NetworkResilientLoadErrorPolicy(onStreamRejected)`: on 403/410 the first two errors invalidate the URL caches (`refreshRejectedStreamInBackground`) and retry after 150 ms / 1 s, so the retry opens a freshly resolved URL without touching the buffer. The stream client is not penalised for an IP change; the second rejection marks the resolved stream rejected.
+- Tests: NetworkResilientLoadErrorPolicyTest.
+
+Stage Summary:
+- Pending CI and a drive test (log lines "answered HTTP 403 mid-playback").

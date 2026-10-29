@@ -41,4 +41,17 @@ class NetworkResilientLoadErrorPolicyTest {
         val total = (1..NetworkResilientLoadErrorPolicy.NETWORK_RETRY_COUNT).sumOf { NetworkResilientLoadErrorPolicy.retryDelayMs(it) }
         assertTrue("retries must cover a long handover or tunnel", total >= 20_000L)
     }
+
+    @Test
+    fun rejectedStreamsAreRefreshedQuicklyWithinTheBuffer() {
+        assertTrue(NetworkResilientLoadErrorPolicy.isRefreshableStreamCode(403))
+        assertTrue(NetworkResilientLoadErrorPolicy.isRefreshableStreamCode(410))
+        assertFalse(NetworkResilientLoadErrorPolicy.isRefreshableStreamCode(404))
+        assertFalse(NetworkResilientLoadErrorPolicy.isRefreshableStreamCode(500))
+        val total =
+            (1..NetworkResilientLoadErrorPolicy.STREAM_REFRESH_ATTEMPTS).sumOf { NetworkResilientLoadErrorPolicy.streamRefreshDelayMs(it) }
+        assertTrue("refreshing must finish well inside the playback buffer", total <= 2_000L)
+        assertEquals(150L, NetworkResilientLoadErrorPolicy.streamRefreshDelayMs(1))
+        assertEquals(null, NetworkResilientLoadErrorPolicy.rejectedStreamCode(SocketException("reset")))
+    }
 }

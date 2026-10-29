@@ -5201,6 +5201,30 @@ class MusicService :
         this is ArrayIndexOutOfBoundsException &&
             stackTrace.any { it.className.startsWith("androidx.media3.extractor") }
 
+    private fun refreshRejectedStreamInBackground(
+        mediaId: String,
+        responseCode: Int,
+        attempt: Int,
+    ): Boolean {
+        if (isFullyDownloaded(mediaId)) return false
+        val cached = playbackUrlCache[mediaId]
+        if (cached != null && isExtractorPlaybackUri(android.net.Uri.parse(cached.url))) return false
+        Timber.tag(TAG).i(
+            "Stream for %s answered HTTP %d mid-playback (attempt %d); re-resolving on the retry while the buffer keeps playing",
+            mediaId,
+            responseCode,
+            attempt,
+        )
+        playbackUrlCache.remove(mediaId)
+        extractorPlaybackUrlCache.remove(mediaId)
+        YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
+        invalidateAlternateStream(mediaId)
+        if (attempt >= NetworkResilientLoadErrorPolicy.STREAM_REFRESH_ATTEMPTS) {
+            YTPlayerUtils.markResolvedStreamRejected(mediaId)
+        }
+        return true
+    }
+
     private fun retryPlaybackAfterStreamFailure(
         mediaId: String,
         isFullyDownloadedMedia: Boolean,
@@ -11824,7 +11848,7 @@ class MusicService :
                 .setConstantBitrateSeekingEnabled(true),
         )
 
-            .setLoadErrorHandlingPolicy(NetworkResilientLoadErrorPolicy())
+            .setLoadErrorHandlingPolicy(NetworkResilientLoadErrorPolicy(::refreshRejectedStreamInBackground))
             .setDrmSessionManagerProvider { mediaItem ->
                 val appleTrack = mediaItem.mediaId?.let { appleDrmTrackInfo[it] }
                 when {
