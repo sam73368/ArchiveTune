@@ -137,7 +137,12 @@ class Library {
             continuation = next.continuation
             pages++
         }
-        return ArtistItemsResult(page.title, items.mapNotNull { it.toCard() }.distinctBy { it.kind + it.id })
+        val cards = items.mapNotNull { it.toCard() }.distinctBy { it.kind + it.id }
+        val explicitAlbumKeys =
+            cards.filter { it.kind == "album" && it.explicit }.map { normalize(it.title) }.toSet()
+        val cleaned = cards.filterNot { it.kind == "album" && !it.explicit && normalize(it.title) in explicitAlbumKeys }
+        val sorted = if (cleaned.all { it.kind == "album" }) cleaned.sortedByDescending { it.year ?: 0 } else cleaned
+        return ArtistItemsResult(page.title, sorted)
     }
 
     suspend fun album(browseId: String): AlbumDetails {
@@ -164,12 +169,14 @@ class Library {
         val albums = mutableListOf<AlbumResult>()
         val singles = mutableListOf<AlbumResult>()
         val shelves = mutableListOf<ArtistShelf>()
+        var topSongsPlaylist: String? = null
         page.sections.forEach { section ->
             val isSingles = Regex("""\b(singles?|eps?)\b""", RegexOption.IGNORE_CASE).containsMatchIn(section.title)
             val sectionSongs = section.items.filterIsInstance<SongItem>()
             val isTopSongs = shelves.isEmpty() && songs.isEmpty() && sectionSongs.isNotEmpty() && sectionSongs.size == section.items.size
             if (isTopSongs) {
                 sectionSongs.forEach { item -> if (songs.none { it.id == item.id }) songs += item.toTrack() }
+                topSongsPlaylist = section.moreEndpoint?.browseId
                 return@forEach
             }
             section.items.forEach { item ->
@@ -197,10 +204,18 @@ class Library {
                     moreParams = section.moreEndpoint?.params,
                 )
         }
+        val fullTop =
+            topSongsPlaylist
+                ?.let { playlistId ->
+                    runCatching {
+                        YouTube.playlist(playlistId.removePrefix("VL")).getOrThrow().songs.map { it.toTrack() }
+                    }.getOrNull()
+                }?.let(::dropCleanTwins)
+                ?.takeIf { it.size > songs.size }
         return ArtistDetails(
             artist = page.artist.toArtist(),
             description = page.description,
-            topTracks = songs,
+            topTracks = (fullTop ?: songs).take(50),
             albums = albums.sortedByDescending { it.year ?: 0 },
             singles = singles.sortedByDescending { it.year ?: 0 },
             shelves = shelves,
