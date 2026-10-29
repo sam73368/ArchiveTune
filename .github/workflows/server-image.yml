@@ -31,12 +31,13 @@ jobs:
         run: |
           chmod +x gradlew
           if ! ./gradlew -p server :server:installDist :server:test --console=plain > server-build.log 2>&1; then
-            grep -E "^e: |^w: .*server|error:|What went wrong|FAILED|Could not|Unresolved|Caused by" -A2 server-build.log | head -60 | while IFS= read -r line; do
-              echo "::error::${line}"
-            done
-            tail -40 server-build.log | while IFS= read -r line; do
-              echo "::error::tail: ${line}"
-            done
+            block=$(sed -n '/What went wrong/,/Try:/p' server-build.log | head -80)
+            errors=$(grep -E "^e: " server-build.log | head -40)
+            msg=$(printf '%s\n---\n%s' "$block" "$errors")
+            msg="${msg//'%'/'%25'}"
+            msg="${msg//$'\n'/'%0A'}"
+            msg="${msg//$'\r'/'%0D'}"
+            echo "::error title=server build failed::${msg}"
             exit 1
           fi
 
