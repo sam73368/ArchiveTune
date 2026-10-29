@@ -1,0 +1,9 @@
+services:
+  archivetune-server:
+    image: ghcr.io/sam73368/archivetune-server:latest
+    container_name: archivetune-server
+    restart: unless-stopped
+    ports:
+      - "8780:8780"
+    environment:
+      ARCHIVETUNE_TOKEN: "change-me"

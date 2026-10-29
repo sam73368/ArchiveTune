@@ -1,0 +1,7 @@
+**
+!gradle
+!gradlew
+!core
+!server
+**/build
+**/.gradle

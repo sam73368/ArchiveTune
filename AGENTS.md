@@ -79,6 +79,7 @@ here must preserve the invariants below.
   `serviceName` / `appFunctionXmlFileName`. Gemini access is a private preview; verify with
   `adb shell cmd app_function list-app-functions`.
 - **Voice requests (`playback/VoiceRequest.kt`, `MediaLibrarySessionCallback`).** An album request is recognised from the assistant focus (`.../album`), an album-only or album==title extra without a song focus, or the spoken word "album"; it resolves through `searchOnlineAlbumItems` which requires a title match (never plays the first unrelated album), picks the edition with `AlbumEditions`/`AlbumEditionService` (original explicit studio album, or its update within the year window) unless "Hide explicit" is on, and falls back to the album reference of matching songs. A song request keeps the best match plus only the same artist's studio songs (`coherentSongQueue`) when the query names that song. Every voice request is logged under the `VoiceSearch` tag.
+- **`server/` is an independent Gradle build** (own `settings.gradle.kts`, own Docker image `archivetune-server`, workflow `server-image.yml`). It includes `../core` as a read-only project and the shared version catalog; the Android app never depends on it and the app's `settings.gradle.kts` must not include it. Never change `core` in a way the app needs only if it breaks the JVM-only build (no Android imports in `core`).
 
 ## Modules & submodules
 

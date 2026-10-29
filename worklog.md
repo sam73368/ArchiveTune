@@ -6318,3 +6318,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI and on-device check; ask for a new log after a voice request.
+
+---
+Task ID: SV-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: ArchiveTune Server (Docker, x86 NAS) so a home server can serve songs to Google Home through Home Assistant.
+
+Work Log:
+- New independent build under `server/`: Ktor CIO server, includes `../core` (YouTube Music client + SimpMusic extractor) and the shared version catalog; Dockerfile (JDK 21 build, JRE 21 runtime), compose example, README.
+- Endpoints: `/` test page, `/api/health`, `/api/search`, `/api/resolve`, `/stream/{id}` (Range proxy, token via `ARCHIVETUNE_TOKEN`).
+- Workflow `server-image.yml` builds linux/amd64 and pushes `ghcr.io/<owner>/archivetune-server:latest` (only on changes under `server/`, `core/`, the catalog).
+- Not compiled locally (Maven unreachable from the sandbox): CI is the first compile.
+
+Stage Summary:
+- M0 only (search/resolve/stream). Next: queue, Home Assistant play_media bridge, ffmpeg crossfade.
