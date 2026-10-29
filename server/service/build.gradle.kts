@@ -28,3 +28,11 @@ dependencies {
 configurations.all {
     exclude(group = "com.google.protobuf", module = "protobuf-java")
 }
+
+tasks.withType<Sync>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.withType<AbstractCopyTask>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
