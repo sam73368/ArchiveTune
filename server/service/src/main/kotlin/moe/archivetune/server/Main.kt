@@ -37,8 +37,6 @@ import java.security.MessageDigest
 private const val VERSION = "0.1.0"
 private const val DEFAULT_PORT = 8780
 private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
-private const val BROWSER_USER_AGENT =
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
 
 fun main() {
     val port = System.getenv("ARCHIVETUNE_PORT")?.toIntOrNull() ?: DEFAULT_PORT
@@ -173,9 +171,11 @@ fun Application.serverModule(token: String?) {
             val range = call.request.header(HttpHeaders.Range)
             upstream
                 .prepareGet(stream.url) {
-                    header(HttpHeaders.UserAgent, BROWSER_USER_AGENT)
-                    header(HttpHeaders.Origin, "https://music.youtube.com")
-                    header(HttpHeaders.Referrer, "https://music.youtube.com/")
+                    header(HttpHeaders.UserAgent, stream.userAgent ?: BROWSER_USER_AGENT)
+                    if (stream.userAgent == null) {
+                        header(HttpHeaders.Origin, "https://music.youtube.com")
+                        header(HttpHeaders.Referrer, "https://music.youtube.com/")
+                    }
                     if (range != null) header(HttpHeaders.Range, range)
                 }.execute { response ->
                     if (response.status.value >= 400) {

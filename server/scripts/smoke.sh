@@ -25,7 +25,7 @@ except Exception:
     echo "stream: $(curl -s --max-time 60 -o /dev/null -r 0-65535 -w '%{http_code} %{size_download} %{content_type}' "$BASE/stream/$id?token=$TOKEN")"
   fi
   echo "--- server log"
-  tail -60 server-run.log
+  grep -E "^(YouTube locale|visitorData|resolve:|probe|stream )" server-run.log | head -40
 } > smoke.log 2>&1
 kill "$PID" 2>/dev/null || true
 msg=$(cat smoke.log)
