@@ -29,6 +29,9 @@ import kotlinx.serialization.json.Json
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.AlbumItem
 import moe.rukamori.archivetune.innertube.models.SongItem
+import moe.rukamori.archivetune.innertube.models.YouTubeLocale
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import java.security.MessageDigest
 
 private const val VERSION = "0.1.0"
@@ -43,6 +46,17 @@ fun main() {
     if (token.isNullOrBlank()) {
         System.err.println("ARCHIVETUNE_TOKEN is not set: the API is open to everything that can reach port $port")
     }
+    YouTube.locale =
+        YouTubeLocale(
+            gl = System.getenv("ARCHIVETUNE_GL")?.takeIf { it.isNotBlank() } ?: "CA",
+            hl = System.getenv("ARCHIVETUNE_HL")?.takeIf { it.isNotBlank() } ?: "fr",
+        )
+    runBlocking {
+        withTimeoutOrNull(15_000) { YouTube.visitorData() }
+            ?.onSuccess { YouTube.visitorData = it }
+            ?.onFailure { System.err.println("visitorData lookup failed: $it") }
+    }
+    System.err.println("YouTube locale=${YouTube.locale} visitorData=${if (YouTube.visitorData != null) "set" else "missing"}")
     embeddedServer(CIO, port = port, host = "0.0.0.0") { serverModule(token) }.start(wait = true)
 }
 
