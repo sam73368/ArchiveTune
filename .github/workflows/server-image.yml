@@ -38,6 +38,12 @@ jobs:
             msg="${msg//$'\n'/'%0A'}"
             msg="${msg//$'\r'/'%0D'}"
             echo "::error title=server build failed::${msg}"
+            ./gradlew -p server projects :core:outgoingVariants --console=plain > server-diag.log 2>&1 || true
+            diag=$(head -70 server-diag.log)
+            diag="${diag//'%'/'%25'}"
+            diag="${diag//$'\n'/'%0A'}"
+            diag="${diag//$'\r'/'%0D'}"
+            echo "::error title=diagnostics::${diag}"
             exit 1
           fi
 
