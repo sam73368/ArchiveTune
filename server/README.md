@@ -20,6 +20,8 @@ When `ARCHIVETUNE_TOKEN` is set, every endpoint except `/` and `/api/health` nee
 
 ## Run
 
+The compose file uses `network_mode: host` so speakers on the LAN can reach `/stream` directly.
+
 ```
 docker compose up -d
 ```

@@ -49,6 +49,9 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke test
+        run: bash server/scripts/smoke.sh
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3

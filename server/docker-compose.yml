@@ -3,7 +3,7 @@ services:
     image: ghcr.io/sam73368/archivetune-server:latest
     container_name: archivetune-server
     restart: unless-stopped
-    ports:
-      - "8780:8780"
+    network_mode: host
     environment:
       ARCHIVETUNE_TOKEN: "change-me"
+      ARCHIVETUNE_PORT: "8780"
