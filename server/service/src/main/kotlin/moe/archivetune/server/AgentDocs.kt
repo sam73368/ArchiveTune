@@ -14,6 +14,8 @@ object AgentDocs {
         ## MCP (recommended for AI agents)
         Endpoint: POST /mcp  (Model Context Protocol, streamable HTTP transport, JSON responses)
         Example URL for a client that cannot send headers: http://<server>:<port>/mcp?token=<token>
+        Legacy SSE transport (used by Home Assistant's "Model Context Protocol" integration):
+          GET http://<server>:<port>/sse?token=<token>
         Tools: search_music, list_devices, play_music, control_playback, now_playing, get_album, get_artist
 
         ## REST (simple GET calls also work, handy for Home Assistant rest_command)

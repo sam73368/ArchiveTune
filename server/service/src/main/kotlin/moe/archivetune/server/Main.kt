@@ -23,7 +23,9 @@ import io.ktor.server.request.header
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveText
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.delete
@@ -32,6 +34,9 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.writeStringUtf8
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -40,7 +45,7 @@ import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.YouTubeLocale
 import java.security.MessageDigest
 
-const val VERSION = "0.3.0"
+const val VERSION = "0.4.0"
 private const val DEFAULT_PORT = 8780
 private val VIDEO_ID = Regex("[A-Za-z0-9_-]{11}")
 
@@ -95,6 +100,7 @@ fun Application.serverModule(
     val player = PlayerService(library, cast, port, token, publicBaseUrl)
     val mcp = McpHandler(player, library, cast, VERSION)
     val upstream = HttpClient(OkHttp)
+    val sseSessions = java.util.concurrent.ConcurrentHashMap<String, Channel<String>>()
 
     routing {
         get("/") { call.respondText(WebAssets.indexHtml, ContentType.Text.Html) }
@@ -110,13 +116,26 @@ fun Application.serverModule(
             guarded(token) {
                 val query = call.request.queryParameters["q"]?.trim().orEmpty()
                 if (query.isEmpty()) throw BadRequest("missing q")
-                val response =
-                    when (val type = call.request.queryParameters["type"] ?: "song") {
-                        "album" -> SearchResponse(query, type, albums = library.searchAlbums(query))
-                        "artist" -> SearchResponse(query, type, artists = library.searchArtists(query))
-                        else -> SearchResponse(query, "song", tracks = library.searchTracks(query))
-                    }
-                call.respond(response)
+                when (val type = call.request.queryParameters["type"] ?: "song") {
+                    "all" -> call.respond(library.searchAll(query))
+                    "album" -> call.respond(SearchResponse(query, type, albums = library.searchAlbums(query)))
+                    "artist" -> call.respond(SearchResponse(query, type, artists = library.searchArtists(query)))
+                    else -> call.respond(SearchResponse(query, "song", tracks = library.searchTracks(query)))
+                }
+            }
+        }
+
+        get("/api/suggest") {
+            guarded(token) {
+                val query = call.request.queryParameters["q"]?.trim().orEmpty()
+                call.respond(if (query.isEmpty()) emptyList() else library.suggestions(query))
+            }
+        }
+
+        get("/api/artist-items") {
+            guarded(token) {
+                val browseId = call.request.queryParameters["browseId"] ?: throw BadRequest("missing browseId")
+                call.respond(library.artistItems(browseId, call.request.queryParameters["params"]))
             }
         }
 
@@ -216,6 +235,52 @@ fun Application.serverModule(
 
         get("/api/status") {
             guarded(token) { call.respond(player.status(call.request.queryParameters["device"])) }
+        }
+
+        get("/sse") {
+            if (!call.authorized(token)) return@get
+            val sessionId = java.util.UUID.randomUUID().toString()
+            val channel = Channel<String>(Channel.UNLIMITED)
+            sseSessions[sessionId] = channel
+            val tokenSuffix = call.request.queryParameters["token"]?.let { "&token=" + java.net.URLEncoder.encode(it, "UTF-8") }.orEmpty()
+            call.response.header(HttpHeaders.CacheControl, "no-cache")
+            call.response.header("X-Accel-Buffering", "no")
+            System.err.println("mcp sse: session $sessionId opened")
+            try {
+                call.respondBytesWriter(contentType = ContentType.Text.EventStream) {
+                    writeStringUtf8("event: endpoint\ndata: /messages?sessionId=$sessionId$tokenSuffix\n\n")
+                    flush()
+                    while (true) {
+                        val message = withTimeoutOrNull(15_000) { channel.receive() }
+                        if (message == null) {
+                            writeStringUtf8(": ping\n\n")
+                        } else {
+                            writeStringUtf8("event: message\ndata: $message\n\n")
+                        }
+                        flush()
+                    }
+                }
+            } finally {
+                sseSessions.remove(sessionId)
+                channel.close()
+                System.err.println("mcp sse: session $sessionId closed")
+            }
+        }
+
+        post("/messages") {
+            if (!call.authorized(token)) return@post
+            val sessionId = call.request.queryParameters["sessionId"].orEmpty()
+            val channel = sseSessions[sessionId]
+            if (channel == null) {
+                call.respond(HttpStatusCode.NotFound, ErrorBody("unknown session"))
+                return@post
+            }
+            val body = call.receiveText()
+            call.respond(HttpStatusCode.Accepted, "")
+            call.application.launch {
+                val response = mcp.handle(body)
+                if (response != null) channel.trySend(response.toString())
+            }
         }
 
         route("/mcp") {

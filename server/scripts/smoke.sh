@@ -62,6 +62,36 @@ except Exception as e:
 d=json.load(sys.stdin); print([t["name"] for t in d["result"]["tools"]])')"
   echo "mcp search: $(mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search_music","arguments":{"query":"Nightmare Avenged Sevenfold","type":"album"}}}' | head -c 300)"
   echo "mcp play no device: $(mcp '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"play_music","arguments":{"query":"Nightmare","device":"Salon"}}}' | head -c 300)"
+  (timeout 8 curl -sN "$BASE/sse?token=$TOKEN" > sse.out 2>&1 &)
+  sleep 2
+  endpoint=$(grep -m1 '^data: ' sse.out | sed 's/^data: //' | tr -d '\r')
+  echo "sse endpoint: $endpoint"
+  if [ -n "$endpoint" ]; then
+    echo "sse post: $(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE$endpoint" -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":7,"method":"tools/list"}')"
+    sleep 2
+    echo "sse reply: $(grep -m1 '^data: {' sse.out | head -c 200)"
+  fi
+  echo "all search: $(curl -s "$BASE/api/search?type=all&q=Avenged%20Sevenfold&token=$TOKEN" | python3 -c 'import json,sys
+try:
+    d=json.load(sys.stdin); print("top", d["top"]["kind"], d["top"]["title"], len(d["tracks"]), len(d["albums"]), len(d["artists"]))
+except Exception as e:
+    print("ERR", e)')"
+  echo "suggest: $(curl -s "$BASE/api/suggest?q=nightm&token=$TOKEN" | tr -d '\n ' | head -c 200)"
+  echo "artist shelves: $(curl -s "$BASE/api/artist/$artist_id?token=$TOKEN" | python3 -c 'import json,sys
+try:
+    d=json.load(sys.stdin); print([(s["title"], s["kind"], len(s["items"]), bool(s.get("moreBrowseId"))) for s in d["shelves"]], "desc", bool(d.get("description")), d["artist"].get("subtitle"))
+    sh=[s for s in d["shelves"] if s.get("moreBrowseId")]
+    open("more.txt","w").write((sh[0]["moreBrowseId"]+" "+(sh[0].get("moreParams") or "")) if sh else "")
+except Exception as e:
+    print("ERR", e)')"
+  if [ -s more.txt ]; then
+    read -r mb mp < more.txt
+    echo "artist items: $(curl -s -G "$BASE/api/artist-items" --data-urlencode "browseId=$mb" --data-urlencode "params=$mp" --data-urlencode "token=$TOKEN" | python3 -c 'import json,sys
+try:
+    d=json.load(sys.stdin); print(d["title"], len(d["items"]), [i["title"] for i in d["items"][:5]])
+except Exception as e:
+    print("ERR", e)')"
+  fi
   echo "--- server log"
   grep -E "^(YouTube locale|visitorData|resolve:|probe|stream )" server-run.log | head -40
 } > smoke.log 2>&1
