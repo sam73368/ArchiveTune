@@ -6301,3 +6301,20 @@ Work Log:
 
 Stage Summary:
 - Pending CI and on-device check with `adb shell cmd app_function list-app-functions`.
+
+---
+Task ID: VA-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Android Auto "play the album Nightmare" played the song with a queue of mixed search results.
+
+Work Log:
+- The user log holds no voice-request lines (only `MainActivity` logged them), so the cause is reconstructed from code: album intent was only recognised from `EXTRA_MEDIA_FOCUS == ENTRY_CONTENT_TYPE` or an album extra without a title; any miss fell through to the song search, which queued up to 50 interleaved library/online results (live versions, other albums).
+- `VoiceRequest.albumRequest` also accepts the dir album type, album==title without a song focus, and the spoken word "album"/"l'album".
+- `searchOnlineAlbumItems`: title match required (it used to play the first search hit even with score 0), second query without the artist, edition choice through `AlbumEditions` (explicit/original/update window), `searchOnlineAlbumItemsViaSongs` fallback.
+- `coherentSongQueue` trims song results to the best match plus the same artist's studio songs when the query names the song.
+- `VoiceSearch` log lines for setMediaItems (extras, resolved album/song counts).
+- Tests: VoiceRequestTest.
+
+Stage Summary:
+- Pending CI and on-device check; ask for a new log after a voice request.

@@ -78,6 +78,7 @@ here must preserve the invariants below.
   `appfunctions:aggregateAppFunctions=true` and the manifest `<service>` + app-metadata `<property>` must stay in sync with
   `serviceName` / `appFunctionXmlFileName`. Gemini access is a private preview; verify with
   `adb shell cmd app_function list-app-functions`.
+- **Voice requests (`playback/VoiceRequest.kt`, `MediaLibrarySessionCallback`).** An album request is recognised from the assistant focus (`.../album`), an album-only or album==title extra without a song focus, or the spoken word "album"; it resolves through `searchOnlineAlbumItems` which requires a title match (never plays the first unrelated album), picks the edition with `AlbumEditions`/`AlbumEditionService` (original explicit studio album, or its update within the year window) unless "Hide explicit" is on, and falls back to the album reference of matching songs. A song request keeps the best match plus only the same artist's studio songs (`coherentSongQueue`) when the query names that song. Every voice request is logged under the `VoiceSearch` tag.
 
 ## Modules & submodules
 
