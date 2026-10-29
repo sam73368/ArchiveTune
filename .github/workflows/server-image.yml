@@ -20,6 +20,26 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compile and test
+        run: |
+          chmod +x gradlew
+          if ! ./gradlew -p server :server:installDist :server:test --console=plain > server-build.log 2>&1; then
+            grep -E "^e: |^w: .*server|error:|What went wrong|FAILED|Could not|Unresolved|Caused by" -A2 server-build.log | head -60 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            tail -40 server-build.log | while IFS= read -r line; do
+              echo "::error::tail: ${line}"
+            done
+            exit 1
+          fi
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
