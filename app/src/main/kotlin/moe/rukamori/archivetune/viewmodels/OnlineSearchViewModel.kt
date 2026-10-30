@@ -52,12 +52,16 @@ import moe.rukamori.archivetune.ui.screens.search.OnlineSearchProviderArgument
 import moe.rukamori.archivetune.ui.screens.search.OnlineSearchResultArgument
 import moe.rukamori.archivetune.ui.screens.search.decodeOnlineSearchQuery
 import moe.rukamori.archivetune.extensions.toEnum
+import moe.rukamori.archivetune.constants.PauseSearchHistoryKey
+import moe.rukamori.archivetune.db.MusicDatabase
+import moe.rukamori.archivetune.db.entities.SearchHistory
 import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.utils.reportException
 import javax.inject.Inject
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.setValue
 
 enum class OnlineSearchSort {
@@ -66,6 +70,8 @@ enum class OnlineSearchSort {
 }
 
 val PODCAST_SEARCH_FILTER = YouTube.SearchFilter("CLIENT_PODCASTS_CATEGORY")
+
+private const val SUMMARY_FAILURE_KEY = "summary"
 
 private fun YTItem.isPodcastEpisode(): Boolean {
     val musicVideoType =
@@ -86,6 +92,7 @@ class OnlineSearchViewModel
         private val loadAiContentFilterPolicy: LoadAiContentFilterPolicyUseCase,
         private val filterAiContent: FilterAiContentUseCase,
         private val spotifyGapFinder: SpotifyGapFinder,
+        private val database: MusicDatabase,
     ) : ViewModel() {
         val query =
             decodeOnlineSearchQuery(
@@ -98,6 +105,11 @@ class OnlineSearchViewModel
         val filter = MutableStateFlow<YouTube.SearchFilter?>(null)
         var summaryPage by mutableStateOf<SearchSummaryPage?>(null)
         val viewStateMap = mutableStateMapOf<String, ItemsPage?>()
+        val failedFilters = mutableStateSetOf<String>()
+        var loadMoreFailed by mutableStateOf(false)
+            private set
+        private var loadGeneration = 0
+        private var isLoadingMore = false
 
         private val allModeFilters =
             listOf(
@@ -115,6 +127,14 @@ class OnlineSearchViewModel
         private val loadingFilters = mutableSetOf<String>()
 
         init {
+            val historyQuery = query.trim()
+            if (historyQuery.isNotEmpty()) {
+                viewModelScope.launch {
+                    if (!context.dataStore.get(PauseSearchHistoryKey, false)) {
+                        database.query { insert(SearchHistory(query = historyQuery)) }
+                    }
+                }
+            }
             if (searchProvider == SearchProvider.YOUTUBE) {
                 viewModelScope.launch {
                     filter.collect { selectedFilter -> loadFor(selectedFilter) }
@@ -127,14 +147,23 @@ class OnlineSearchViewModel
                         .distinctUntilChanged()
                         .drop(1)
                         .collect {
+                            loadGeneration++
                             summaryPage = null
                             viewStateMap.clear()
+                            failedFilters.clear()
+                            loadMoreFailed = false
+                            isLoadingMore = false
                             loadingFilters.clear()
                             isSummaryLoading = false
                             loadFor(filter.value)
                         }
                 }
             }
+        }
+
+        fun retry() {
+            failedFilters.clear()
+            loadFor(filter.value)
         }
 
         private fun loadFor(selectedFilter: YouTube.SearchFilter?) {
@@ -241,6 +270,8 @@ class OnlineSearchViewModel
             if (summaryPage != null || isSummaryLoading) return
 
             isSummaryLoading = true
+            val generation = loadGeneration
+            failedFilters.remove(SUMMARY_FAILURE_KEY)
             try {
                 val extraArtists = suggestedArtists()
                 YouTube
@@ -252,7 +283,7 @@ class OnlineSearchViewModel
                             it
                                 .filterExplicit(context.dataStore.get(HideExplicitKey, false))
                                 .filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false))
-                        summaryPage =
+                        val builtSummary =
                             withSpotifyOnlySummary(contentFilteredPage.copy(
                                 summaries =
                                     contentFilteredPage.summaries.mapIndexedNotNull { summaryIndex, summary ->
@@ -269,11 +300,13 @@ class OnlineSearchViewModel
                                             .takeIf { filteredSummary -> filteredSummary.items.isNotEmpty() }
                                     },
                             ))
+                        if (generation == loadGeneration) summaryPage = builtSummary
                     }.onFailure {
                         reportException(it)
+                        if (generation == loadGeneration) failedFilters.add(SUMMARY_FAILURE_KEY)
                     }
             } finally {
-                isSummaryLoading = false
+                if (generation == loadGeneration) isSummaryLoading = false
             }
         }
 
@@ -281,6 +314,8 @@ class OnlineSearchViewModel
             val filterKey = filter.value
             if (viewStateMap.containsKey(filterKey) || !loadingFilters.add(filterKey)) return
 
+            val generation = loadGeneration
+            failedFilters.remove(filterKey)
             try {
                 if (filter == PODCAST_SEARCH_FILTER) {
                     loadPodcastFilter()
@@ -296,7 +331,7 @@ class OnlineSearchViewModel
                     .search(query, filter)
                     .onSuccess { result ->
                         val aiContentFilterPolicy = loadAiContentFilterPolicy()
-                        viewStateMap[filterKey] =
+                        val builtPage =
                             ItemsPage(
                                 withSpotifyOnlyItems(
                                     filter,
@@ -315,24 +350,31 @@ class OnlineSearchViewModel
                                 ),
                                 result.continuation,
                             )
+                        if (generation == loadGeneration) viewStateMap[filterKey] = builtPage
                     }.onFailure {
                         reportException(it)
+                        if (generation == loadGeneration) failedFilters.add(filterKey)
                     }
             } finally {
-                loadingFilters.remove(filterKey)
+                if (generation == loadGeneration) loadingFilters.remove(filterKey)
             }
         }
 
         private suspend fun loadPodcastFilter() {
+            val generation = loadGeneration
             try {
+                val songsResult = YouTube.search(query, FILTER_SONG)
+                val videosResult = YouTube.search(query, FILTER_VIDEO)
+                if (songsResult.isFailure && videosResult.isFailure) {
+                    if (generation == loadGeneration) failedFilters.add(PODCAST_SEARCH_FILTER.value)
+                    return
+                }
                 val episodes =
-                    (
-                        YouTube.search(query, FILTER_SONG).getOrNull()?.items.orEmpty() +
-                            YouTube.search(query, FILTER_VIDEO).getOrNull()?.items.orEmpty()
-                        )
+                    (songsResult.getOrNull()?.items.orEmpty() + videosResult.getOrNull()?.items.orEmpty())
                         .filter { it.isPodcastEpisode() }
                         .distinctBy { it.id }
                 val aiContentFilterPolicy = loadAiContentFilterPolicy()
+                if (generation != loadGeneration) return
                 viewStateMap[PODCAST_SEARCH_FILTER.value] =
                     ItemsPage(
                         filterAiContent(
@@ -342,34 +384,56 @@ class OnlineSearchViewModel
                         null,
                     )
             } finally {
-                loadingFilters.remove(PODCAST_SEARCH_FILTER.value)
+                if (generation == loadGeneration) loadingFilters.remove(PODCAST_SEARCH_FILTER.value)
             }
         }
 
         fun loadMore() {
             val filter = filter.value?.value
+            if (isLoadingMore) return
+            val generation = loadGeneration
+            loadMoreFailed = false
             viewModelScope.launch {
                 if (filter == null) return@launch
                 val viewState = viewStateMap[filter] ?: return@launch
                 val continuation = viewState.continuation
                 if (continuation != null) {
-                    val searchResult =
-                        YouTube.searchContinuation(continuation).getOrNull() ?: return@launch
-                    val aiContentFilterPolicy = loadAiContentFilterPolicy()
-                    val continuedItems =
-                        filterAiContent(
-                            searchResult.items
-                                .filterExplicit(context.dataStore.get(HideExplicitKey, false))
-                                .filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false)),
-                            aiContentFilterPolicy,
-                        )
-                    viewStateMap[filter] =
-                        ItemsPage(
-                            (viewState.items + continuedItems).distinctBy { it.id }.dropCleanTwins(),
-                            searchResult.continuation,
-                        )
+                    isLoadingMore = true
+                    try {
+                        loadMoreInternal(filter, viewState, continuation, generation)
+                    } finally {
+                        isLoadingMore = false
+                    }
                 }
             }
+        }
+
+        private suspend fun loadMoreInternal(
+            filter: String,
+            viewState: ItemsPage,
+            continuation: String,
+            generation: Int,
+        ) {
+            val searchResult = YouTube.searchContinuation(continuation).getOrNull()
+            if (searchResult == null) {
+                if (generation == loadGeneration) loadMoreFailed = true
+                return
+            }
+            if (generation != loadGeneration) return
+            val aiContentFilterPolicy = loadAiContentFilterPolicy()
+            val continuedItems =
+                filterAiContent(
+                    searchResult.items
+                        .filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                        .filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false)),
+                    aiContentFilterPolicy,
+                )
+            if (generation != loadGeneration) return
+            viewStateMap[filter] =
+                ItemsPage(
+                    (viewState.items + continuedItems).distinctBy { it.id }.dropCleanTwins(),
+                    searchResult.continuation,
+                )
         }
 
         fun sortedItems(

@@ -38,7 +38,7 @@ class LocalSearchViewModel
 
         val result =
             combine(query, filter) { query, filter ->
-                query to filter
+                query.trim().escapeLike() to filter
             }.flatMapLatest { (query, filter) ->
                 if (query.isEmpty()) {
                     flowOf(LocalSearchResult("", filter, emptyMap()))
@@ -46,14 +46,14 @@ class LocalSearchViewModel
                     when (filter) {
                         LocalFilter.ALL -> {
                             combine(
-                                database.searchSongs(query, PREVIEW_SIZE),
-                                database.searchAlbums(query, PREVIEW_SIZE),
-                                database.searchArtists(query, PREVIEW_SIZE),
+                                database.searchSongs(query, PREVIEW_SIZE * OVERFETCH_FACTOR),
+                                database.searchAlbums(query, PREVIEW_SIZE * OVERFETCH_FACTOR),
+                                database.searchArtists(query, PREVIEW_SIZE * OVERFETCH_FACTOR),
                                 database.searchPlaylists(query, PREVIEW_SIZE),
                             ) { songs, albums, artists, playlists ->
-                                songs.filter { song -> song.artists.none { it.blockedAt != null } } +
-                                    albums.filter { album -> album.artists.none { it.blockedAt != null } } +
-                                    artists.filter { artist -> artist.artist.blockedAt == null } +
+                                songs.filter { song -> song.artists.none { it.blockedAt != null } }.take(PREVIEW_SIZE) +
+                                    albums.filter { album -> album.artists.none { it.blockedAt != null } }.take(PREVIEW_SIZE) +
+                                    artists.filter { artist -> artist.artist.blockedAt == null }.take(PREVIEW_SIZE) +
                                     playlists
                             }
                         }
@@ -103,8 +103,12 @@ class LocalSearchViewModel
 
         companion object {
             const val PREVIEW_SIZE = 3
+            private const val OVERFETCH_FACTOR = 4
         }
     }
+
+private fun String.escapeLike(): String =
+    replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 enum class LocalFilter {
     ALL,

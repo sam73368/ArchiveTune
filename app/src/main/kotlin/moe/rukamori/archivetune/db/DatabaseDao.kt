@@ -1370,7 +1370,14 @@ interface DatabaseDao {
     }
 
     @Transaction
-    @Query("SELECT * FROM song WHERE title LIKE '%' || :query || '%' AND inLibrary IS NOT NULL LIMIT :previewSize")
+    @Query(
+        "SELECT * FROM song WHERE (title LIKE '%' || :query || '%' ESCAPE '\\' " +
+            "OR EXISTS(SELECT 1 FROM song_artist_map JOIN artist ON artist.id = song_artist_map.artistId " +
+            "WHERE song_artist_map.songId = song.id AND artist.name LIKE '%' || :query || '%' ESCAPE '\\') " +
+            "OR EXISTS(SELECT 1 FROM album WHERE album.id = song.albumId AND album.title LIKE '%' || :query || '%' ESCAPE '\\')) " +
+            "AND inLibrary IS NOT NULL " +
+            "ORDER BY (title LIKE :query || '%' ESCAPE '\\') DESC, title COLLATE NOCASE LIMIT :previewSize",
+    )
     fun searchSongs(
         query: String,
         previewSize: Int = Int.MAX_VALUE,
@@ -1382,7 +1389,7 @@ interface DatabaseDao {
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query(
-        "SELECT *, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = artist.id AND song.inLibrary IS NOT NULL) AS songCount FROM artist WHERE name LIKE '%' || :query || '%' AND songCount > 0 LIMIT :previewSize",
+        "SELECT *, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = artist.id AND song.inLibrary IS NOT NULL) AS songCount FROM artist WHERE name LIKE '%' || :query || '%' ESCAPE '\\' AND songCount > 0 ORDER BY (name LIKE :query || '%' ESCAPE '\\') DESC, name COLLATE NOCASE LIMIT :previewSize",
     )
     fun searchArtists(
         query: String,
@@ -1397,7 +1404,7 @@ interface DatabaseDao {
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query(
-        "SELECT * FROM album WHERE title LIKE '%' || :query || '%' AND EXISTS(SELECT * FROM song WHERE song.albumId = album.id AND song.inLibrary IS NOT NULL) LIMIT :previewSize",
+        "SELECT * FROM album WHERE title LIKE '%' || :query || '%' ESCAPE '\\' AND EXISTS(SELECT * FROM song WHERE song.albumId = album.id AND song.inLibrary IS NOT NULL) ORDER BY (title LIKE :query || '%' ESCAPE '\\') DESC, title COLLATE NOCASE LIMIT :previewSize",
     )
     fun searchAlbums(
         query: String,
@@ -1411,7 +1418,7 @@ interface DatabaseDao {
 
     @Transaction
     @Query(
-        "SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE name LIKE '%' || :query || '%' LIMIT :previewSize",
+        "SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE name LIKE '%' || :query || '%' ESCAPE '\\' ORDER BY (name LIKE :query || '%' ESCAPE '\\') DESC, name COLLATE NOCASE LIMIT :previewSize",
     )
     fun searchPlaylists(
         query: String,

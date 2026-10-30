@@ -3631,11 +3631,18 @@ class MainActivity : ComponentActivity() {
                                                             query = query.text,
                                                             onQueryChange = onQueryChange,
                                                             navController = navController,
-                                                            onSearch = {
-                                                                navController.navigate(onlineSearchResultRoute(it, provider))
-                                                                if (!pauseSearchHistory) {
-                                                                    database.query {
-                                                                        insert(SearchHistory(query = it))
+                                                            onSearch = { pickedQuery ->
+                                                                val trimmedQuery = pickedQuery.trim()
+                                                                if (trimmedQuery.isNotEmpty()) {
+                                                                    navController.navigate(
+                                                                        onlineSearchResultRoute(trimmedQuery, provider),
+                                                                    ) {
+                                                                        launchSingleTop = true
+                                                                    }
+                                                                    if (!pauseSearchHistory) {
+                                                                        database.query {
+                                                                            insert(SearchHistory(query = trimmedQuery))
+                                                                        }
                                                                     }
                                                                 }
                                                             },

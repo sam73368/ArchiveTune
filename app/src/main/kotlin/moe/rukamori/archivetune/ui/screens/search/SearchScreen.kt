@@ -106,13 +106,14 @@ import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.constants.HideExplicitKey
-import moe.rukamori.archivetune.constants.HideVideoKey
+import moe.rukamori.archivetune.constants.ShowVideosInSearchKey
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.AlbumItem
 import moe.rukamori.archivetune.innertube.models.ArtistItem
@@ -153,7 +154,8 @@ fun SearchScreen(
     var liveSuggestions by remember { mutableStateOf<SearchSuggestions?>(null) }
     var liveSummary by remember { mutableStateOf<SearchSummaryPage?>(null) }
     val (hideExplicit) = rememberPreference(HideExplicitKey, defaultValue = false)
-    val (hideVideo) = rememberPreference(HideVideoKey, defaultValue = true)
+    val (showVideosInSearch) = rememberPreference(ShowVideosInSearchKey, defaultValue = false)
+    val hideVideo = !showVideosInSearch
     val artistsSectionTitle = stringResource(R.string.artists)
     LaunchedEffect(searchQuery, searchProvider, hideExplicit, hideVideo) {
         val query = searchQuery.trim()
@@ -165,6 +167,7 @@ fun SearchScreen(
 
         delay(250)
         if (searchQuery.trim() != query) return@LaunchedEffect
+        if (searchProvider != SearchProvider.YOUTUBE) liveSummary = null
 
         val suggestionPage = YouTube.searchSuggestions(query).getOrNull()
         suggestionPage?.let { page ->
@@ -520,8 +523,8 @@ private fun LiveSearchSuggestionsPanel(
                     .fillMaxWidth(),
         ) {
             if (summarySections.isNotEmpty()) {
-                summarySections.forEach { section ->
-                    item(key = "summary_header_${section.title}") {
+                summarySections.forEachIndexed { sectionIndex, section ->
+                    item(key = "summary_header_$sectionIndex") {
                         Text(
                             text = if (section.title == "Top results") stringResource(R.string.top_results) else section.title,
                             style = MaterialTheme.typography.titleMedium,
@@ -538,11 +541,11 @@ private fun LiveSearchSuggestionsPanel(
                                     ),
                         )
                     }
-                    items(
+                    itemsIndexed(
                         items = section.items,
-                        key = { it.id },
-                        contentType = { 2 },
-                    ) { item ->
+                        key = { index, item -> "summary_${sectionIndex}_${index}_${item.id}" },
+                        contentType = { _, _ -> 2 },
+                    ) { _, item ->
                         SuggestedResultRow(
                             item = item,
                             currentMediaId = mediaMetadata?.id,
@@ -555,11 +558,11 @@ private fun LiveSearchSuggestionsPanel(
                     }
                 }
             } else if (fallbackItems.isNotEmpty()) {
-                items(
+                itemsIndexed(
                     items = fallbackItems,
-                    key = { it.id },
-                    contentType = { 2 },
-                ) { item ->
+                    key = { index, item -> "fallback_${index}_${item.id}" },
+                    contentType = { _, _ -> 2 },
+                ) { _, item ->
                     SuggestedResultRow(
                         item = item,
                         currentMediaId = mediaMetadata?.id,

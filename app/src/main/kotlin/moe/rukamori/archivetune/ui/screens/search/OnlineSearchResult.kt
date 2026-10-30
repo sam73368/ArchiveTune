@@ -99,6 +99,7 @@ import moe.rukamori.archivetune.ui.component.LocalMenuState
 import moe.rukamori.archivetune.ui.component.SearchSourcePicker
 import moe.rukamori.archivetune.ui.component.YouTubeListItem
 import moe.rukamori.archivetune.ui.component.shimmer.ListItemPlaceHolder
+import moe.rukamori.archivetune.ui.component.RetryPlaceholder
 import moe.rukamori.archivetune.ui.component.shimmer.ShimmerHost
 import moe.rukamori.archivetune.ui.menu.YouTubeAlbumMenu
 import moe.rukamori.archivetune.ui.menu.YouTubeArtistMenu
@@ -518,10 +519,16 @@ fun OnlineSearchResult(
                 )
 
                 if (itemsPage?.continuation != null) {
-                    item(key = "loading", contentType = "loading") {
-                        ShimmerHost {
-                            repeat(3) {
-                                ListItemPlaceHolder()
+                    if (viewModel.loadMoreFailed) {
+                        item(key = "load_more_error", contentType = "error") {
+                            RetryPlaceholder(onRetry = viewModel::loadMore)
+                        }
+                    } else {
+                        item(key = "loading", contentType = "loading") {
+                            ShimmerHost {
+                                repeat(3) {
+                                    ListItemPlaceHolder()
+                                }
                             }
                         }
                     }
@@ -537,11 +544,26 @@ fun OnlineSearchResult(
                 }
             }
 
-            if (searchFilter == null && allModeSections.isEmpty() && !isAllModeLoaded || searchFilter != null && itemsPage == null) {
-                item(key = "initial_loading", contentType = "loading") {
-                    ShimmerHost {
-                        repeat(8) {
-                            ListItemPlaceHolder()
+            val initialLoadPending =
+                searchFilter == null && allModeSections.isEmpty() && !isAllModeLoaded ||
+                    searchFilter != null && itemsPage == null
+            if (initialLoadPending) {
+                val loadFailed =
+                    if (searchFilter == null) {
+                        viewModel.failedFilters.isNotEmpty()
+                    } else {
+                        searchFilter?.value?.let { it in viewModel.failedFilters } == true
+                    }
+                if (loadFailed) {
+                    item(key = "initial_error", contentType = "error") {
+                        RetryPlaceholder(onRetry = viewModel::retry)
+                    }
+                } else {
+                    item(key = "initial_loading", contentType = "loading") {
+                        ShimmerHost {
+                            repeat(8) {
+                                ListItemPlaceHolder()
+                            }
                         }
                     }
                 }

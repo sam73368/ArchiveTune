@@ -64,7 +64,7 @@ class OnlineSearchSuggestionViewModel
         init {
             viewModelScope.launch {
                 query
-                    .combine(provider) { query, provider -> query to provider }
+                    .combine(provider) { query, provider -> query.trim() to provider }
                     // Live search while typing: wait for a short pause so every keystroke does
                     // not fire a network request (clearing the field still updates instantly).
                     .debounce { (query, _) -> if (query.isBlank()) 0L else 250L }
@@ -152,7 +152,7 @@ class OnlineSearchSuggestionViewModel
                                 SearchSuggestionViewState(
                                     history = history,
                                     suggestions =
-                                        live.suggestions.filter { suggestion ->
+                                        live.suggestions.distinct().filter { suggestion ->
                                             history.none { it.query == suggestion }
                                         },
                                     items = live.items,
