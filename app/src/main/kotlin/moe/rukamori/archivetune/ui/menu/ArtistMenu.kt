@@ -44,8 +44,12 @@ import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.ArtistSongSortType
 import moe.rukamori.archivetune.constants.HiddenHomeItemsKey
+import moe.rukamori.archivetune.constants.HideExplicitKey
+import moe.rukamori.archivetune.constants.HideVideoKey
 import moe.rukamori.archivetune.constants.SpeedDialSongIdsKey
 import moe.rukamori.archivetune.db.entities.Artist
+import moe.rukamori.archivetune.extensions.filterExplicit
+import moe.rukamori.archivetune.extensions.filterVideo
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.playback.queues.ListQueue
 import moe.rukamori.archivetune.ui.component.ArtistListItem
@@ -56,6 +60,7 @@ import moe.rukamori.archivetune.ui.component.MenuSectionDivider
 import moe.rukamori.archivetune.utils.SpeedDialPin
 import moe.rukamori.archivetune.utils.SpeedDialPinType
 import moe.rukamori.archivetune.utils.dataStore
+import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.utils.parseSpeedDialPins
 import moe.rukamori.archivetune.utils.rememberPreference
 import moe.rukamori.archivetune.utils.serializeSpeedDialPins
@@ -132,6 +137,8 @@ fun ArtistMenu(
                                                         database
                                                             .artistSongs(artist.id, ArtistSongSortType.CREATE_DATE, true)
                                                             .first()
+                                                            .filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                                                            .filterVideo(context.dataStore.get(HideVideoKey, true))
                                                             .map { it.toMediaItem() }
                                                     }
                                                 playerConnection.playQueue(
@@ -164,6 +171,8 @@ fun ArtistMenu(
                                                         database
                                                             .artistSongs(artist.id, ArtistSongSortType.CREATE_DATE, true)
                                                             .first()
+                                                            .filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                                                            .filterVideo(context.dataStore.get(HideVideoKey, true))
                                                             .map { it.toMediaItem() }
                                                             .shuffled()
                                                     }

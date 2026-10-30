@@ -138,6 +138,10 @@ class ArtistViewModel
         val canvasArtwork = MutableStateFlow<CanvasArtwork?>(null)
 
         var isManuallyRefreshing by mutableStateOf(false)
+        var loadFailed by mutableStateOf(false)
+            private set
+        private var fetchJob: Job? = null
+        private var rankJob: Job? = null
         private val eventChannel = Channel<ArtistEvent>(capacity = Channel.BUFFERED)
         val events = eventChannel.receiveAsFlow()
         private var blockJob: Job? = null
@@ -200,9 +204,17 @@ class ArtistViewModel
         }
 
         fun fetchArtistsFromYTM(manual: Boolean = false) {
+            if (artistId.startsWith(LOCAL_ARTIST_PREFIX)) {
+                if (manual) isManuallyRefreshing = false
+                return
+            }
             inlineExpandJob?.cancel()
             inlineExpandJob = null
-            viewModelScope.launch {
+            rankJob?.cancel()
+            rankJob = null
+            fetchJob?.cancel()
+            loadFailed = false
+            fetchJob = viewModelScope.launch {
                 try {
                     fetchArtistFromYTM()
                 } catch (e: kotlinx.coroutines.CancellationException) {
@@ -237,7 +249,9 @@ class ArtistViewModel
                                 }
 
                         artistPage = page.copy(sections = filteredSections)
+                        loadFailed = false
                         if (spotifyAlbumsChecked) {
+                            warmAlbumKinds(page)
                             applySpotifyOnlyAlbums()
                         } else {
                             loadSpotifyOnlyAlbums(page)
@@ -245,9 +259,10 @@ class ArtistViewModel
 
                         expandInlineCarouselSections(filteredSections, hideExplicit, hideVideo, blockedArtistIds)
 
-                        viewModelScope.launch(Dispatchers.IO) {
-                            rankTopSongs(filteredSections, hideExplicit, hideVideo, blockedArtistIds)
-                        }
+                        rankJob =
+                            viewModelScope.launch(Dispatchers.IO) {
+                                rankTopSongs(filteredSections, hideExplicit, hideVideo, blockedArtistIds)
+                            }
 
                         viewModelScope.launch(Dispatchers.IO) {
                             fetchArtistCanvas(page)
@@ -260,6 +275,7 @@ class ArtistViewModel
                         }
                     }.onFailure {
                         reportException(it)
+                        if (artistPage == null) loadFailed = true
                     }
             }
         }
@@ -312,7 +328,7 @@ class ArtistViewModel
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Throwable) {
-                        emptyList()
+                        return@launch
                     }
                 spotifyAlbumsChecked = true
                 if (missing.isEmpty()) return@launch
@@ -489,8 +505,8 @@ class ArtistViewModel
 
         fun onAction(action: ArtistAction) {
             when (action) {
-                ArtistAction.Share -> eventChannel.trySend(ArtistEvent.Share(artistShareLink()))
-                ArtistAction.CopyLink -> eventChannel.trySend(ArtistEvent.CopyLink(artistShareLink()))
+                ArtistAction.Share -> artistShareLink()?.let { eventChannel.trySend(ArtistEvent.Share(it)) }
+                ArtistAction.CopyLink -> artistShareLink()?.let { eventChannel.trySend(ArtistEvent.CopyLink(it)) }
                 ArtistAction.ToggleBlock -> toggleBlocked()
             }
         }
@@ -566,9 +582,12 @@ class ArtistViewModel
                 }
         }
 
-        private fun artistShareLink(): String = artistPage?.artist?.shareLink ?: "https://music.youtube.com/channel/$artistId"
+        private fun artistShareLink(): String? =
+            artistPage?.artist?.shareLink
+                ?: artistId.takeIf { it.startsWith("UC") }?.let { "https://music.youtube.com/channel/$it" }
 
         private companion object {
+            const val LOCAL_ARTIST_PREFIX = "LA"
             const val MAX_INLINE_CAROUSEL_PAGES = 40
         }
     }

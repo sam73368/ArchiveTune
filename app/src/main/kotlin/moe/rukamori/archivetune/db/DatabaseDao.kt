@@ -604,12 +604,13 @@ interface DatabaseDao {
             JOIN song ON album_artist_map.albumId = song.albumId
         WHERE artistId = :artistId
         GROUP BY album.id
+        ORDER BY album.year DESC, album.title COLLATE NOCASE
         LIMIT :previewSize
     """,
     )
     fun artistAlbumsPreview(
         artistId: String,
-        previewSize: Int = 6,
+        previewSize: Int = Int.MAX_VALUE,
     ): Flow<List<Album>>
 
     @Query("SELECT sum(count) from playCount WHERE song = :songId")

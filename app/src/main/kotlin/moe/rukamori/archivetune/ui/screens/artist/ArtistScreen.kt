@@ -191,6 +191,7 @@ import moe.rukamori.archivetune.ui.component.liquidGlass
 import moe.rukamori.archivetune.ui.component.liquidGlassContentColor
 import moe.rukamori.archivetune.ui.component.shimmer.ButtonPlaceholder
 import moe.rukamori.archivetune.ui.component.shimmer.ListItemPlaceHolder
+import moe.rukamori.archivetune.ui.component.RetryPlaceholder
 import moe.rukamori.archivetune.ui.component.shimmer.ShimmerHost
 import moe.rukamori.archivetune.ui.component.shimmer.TextPlaceholder
 import moe.rukamori.archivetune.ui.component.rememberLayerBackdropSettled
@@ -347,9 +348,11 @@ fun ArtistScreen(
         }
     }
 
-    LaunchedEffect(libraryArtist) {
-        showLocal = libraryArtist?.artist?.isLocal == true
+    val isLocalLibraryArtist = libraryArtist?.artist?.isLocal == true
+    LaunchedEffect(isLocalLibraryArtist) {
+        showLocal = isLocalLibraryArtist
     }
+    val unknownArtistLabel = stringResource(R.string.unknown)
 
     val latestRelease =
         remember(showLocal, artistPage, libraryAlbums) {
@@ -1146,7 +1149,11 @@ fun ArtistScreen(
                     }
                 }
 
-                if (!showLocal && artistPage == null && !isManuallyRefreshing) {
+                if (!showLocal && artistPage == null && !isManuallyRefreshing && viewModel.loadFailed) {
+                    item(key = "auto_fetch_error") {
+                        RetryPlaceholder(onRetry = { viewModel.fetchArtistsFromYTM() })
+                    }
+                } else if (!showLocal && artistPage == null && !isManuallyRefreshing) {
                     item(key = "auto_fetch_shimmer") {
                         ShimmerHost {
                             Column(
@@ -1252,7 +1259,7 @@ fun ArtistScreen(
                                                 } else {
                                                     playerConnection.playQueue(
                                                         ListQueue(
-                                                            title = libraryArtist?.artist?.name ?: "Unknown Artist",
+                                                            title = libraryArtist?.artist?.name ?: unknownArtistLabel,
                                                             items = filteredLibrarySongs.map { it.toMediaItem() },
                                                             startIndex = index,
                                                         ),

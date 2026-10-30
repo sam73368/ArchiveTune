@@ -98,6 +98,9 @@ import moe.rukamori.archivetune.ui.screens.GlassScreenHeaderOverlay
 import dev.chrisbanes.haze.hazeSource
 import moe.rukamori.archivetune.ui.screens.rememberGlassScreenHeader
 import moe.rukamori.archivetune.ui.menu.YouTubeAlbumMenu
+import moe.rukamori.archivetune.ui.component.RetryPlaceholder
+import moe.rukamori.archivetune.spotify.SpotifyOnly
+import moe.rukamori.archivetune.spotify.isSpotifyOnlyId
 import moe.rukamori.archivetune.ui.menu.YouTubeArtistMenu
 import moe.rukamori.archivetune.ui.menu.YouTubePlaylistMenu
 import moe.rukamori.archivetune.ui.menu.YouTubeSongMenu
@@ -207,7 +210,15 @@ fun ArtistItemsScreen(
                 )
             }
 
-            if (itemsPage == null) {
+            if (itemsPage == null && viewModel.loadFailed) {
+                RetryPlaceholder(
+                    onRetry = viewModel::retry,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current),
+                )
+            } else if (itemsPage == null) {
                 ShimmerHost(
                     modifier =
                         Modifier
@@ -242,6 +253,7 @@ fun ArtistItemsScreen(
                         trailingContent = {
                             IconButton(
                                 onClick = {
+                                    if (item is AlbumItem && item.id.isSpotifyOnlyId()) return@IconButton
                                     menuState.show {
                                         when (item) {
                                             is SongItem -> {
@@ -311,7 +323,7 @@ fun ArtistItemsScreen(
                                         }
 
                                         is AlbumItem -> {
-                                            navController.navigate("album/${item.id}")
+                                            navController.navigate(SpotifyOnly.albumRoute(item.id))
                                         }
 
                                         is ArtistItem -> {
@@ -340,10 +352,16 @@ fun ArtistItemsScreen(
                 }
 
                 if (itemsPage?.continuation != null) {
-                    item(key = "loading") {
-                        ShimmerHost {
-                            repeat(3) {
-                                ListItemPlaceHolder()
+                    if (viewModel.loadMoreFailed) {
+                        item(key = "load_more_error") {
+                            RetryPlaceholder(onRetry = viewModel::loadMore)
+                        }
+                    } else {
+                        item(key = "loading") {
+                            ShimmerHost {
+                                repeat(3) {
+                                    ListItemPlaceHolder()
+                                }
                             }
                         }
                     }
@@ -382,7 +400,7 @@ fun ArtistItemsScreen(
                                             }
 
                                             is AlbumItem -> {
-                                                navController.navigate("album/${item.id}")
+                                                navController.navigate(SpotifyOnly.albumRoute(item.id))
                                             }
 
                                             is ArtistItem -> {
@@ -408,6 +426,7 @@ fun ArtistItemsScreen(
                                         }
                                     },
                                     onLongClick = {
+                                        if (item is AlbumItem && item.id.isSpotifyOnlyId()) return@YouTubeGridItem
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         menuState.show {
                                             when (item) {
@@ -481,9 +500,18 @@ fun ArtistItemsScreen(
                 }
 
                 if (itemsPage?.continuation != null) {
-                    item(key = "loading") {
-                        ShimmerHost(Modifier.animateItem()) {
-                            GridItemPlaceHolder(fillMaxWidth = true)
+                    if (viewModel.loadMoreFailed) {
+                        item(
+                            key = "load_more_error",
+                            span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) },
+                        ) {
+                            RetryPlaceholder(onRetry = viewModel::loadMore)
+                        }
+                    } else {
+                        item(key = "loading") {
+                            ShimmerHost(Modifier.animateItem()) {
+                                GridItemPlaceHolder(fillMaxWidth = true)
+                            }
                         }
                     }
                 }

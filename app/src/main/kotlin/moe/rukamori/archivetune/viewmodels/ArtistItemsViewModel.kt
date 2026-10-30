@@ -8,12 +8,16 @@
 package moe.rukamori.archivetune.viewmodels
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
@@ -71,6 +75,12 @@ class ArtistItemsViewModel
 
         val title = MutableStateFlow(routeTitle.orEmpty())
         val itemsPage = MutableStateFlow<ItemsPage?>(null)
+        var loadFailed by mutableStateOf(false)
+            private set
+        var loadMoreFailed by mutableStateOf(false)
+            private set
+        @Volatile
+        private var isLoadingMore = false
         val itemsLayout = MutableStateFlow(ArtistItemsPageLayout.LIST)
         val albumOverrides = MutableStateFlow<Map<String, ArtistAlbumGrouping.Override>>(emptyMap())
         val albumReplacements = MutableStateFlow<Map<String, AlbumItem>>(emptyMap())
@@ -87,6 +97,7 @@ class ArtistItemsViewModel
 
         private companion object {
             const val MAX_ALBUM_PAGES = 12
+            const val RANKING_WAIT_MS = 300L
         }
 
         private fun startAlbumPipeline(
@@ -135,9 +146,19 @@ class ArtistItemsViewModel
         init {
             if (browseId == ArtistSectionRegistry.LOCAL_BROWSE_ID) {
                 viewModelScope.launch { loadLocalSection() }
+            } else {
+                loadRemote()
             }
+        }
+
+        fun retry() {
+            if (browseId == ArtistSectionRegistry.LOCAL_BROWSE_ID) return
+            loadFailed = false
+            loadRemote()
+        }
+
+        private fun loadRemote() {
             viewModelScope.launch {
-                if (browseId == ArtistSectionRegistry.LOCAL_BROWSE_ID) return@launch
                 YouTube
                     .artistItems(
                         BrowseEndpoint(
@@ -145,7 +166,8 @@ class ArtistItemsViewModel
                             params = params,
                         ),
                     ).onSuccess { artistItemsPage ->
-                        title.value = artistItemsPage.title
+                        loadFailed = false
+                        title.value = artistItemsPage.title.ifBlank { title.value }
                         itemsLayout.value = artistItemsPage.layout
                         itemsPage.value =
                             ItemsPage(
@@ -183,6 +205,7 @@ class ArtistItemsViewModel
                         }
                     }.onFailure {
                         reportException(it)
+                        if (itemsPage.value == null) loadFailed = true
                     }
             }
         }
@@ -251,28 +274,39 @@ class ArtistItemsViewModel
         }
 
         fun loadMore() {
-            if (ranking) return
+            if (isLoadingMore) return
+            isLoadingMore = true
+            loadMoreFailed = false
             viewModelScope.launch {
-                val oldItemsPage = itemsPage.value ?: return@launch
-                val continuation = oldItemsPage.continuation ?: return@launch
-                YouTube
-                    .artistItemsContinuation(continuation)
-                    .onSuccess { artistItemsContinuationPage ->
-                        itemsPage.update {
-                            ItemsPage(
-                                items =
-                                    (oldItemsPage.items + artistItemsContinuationPage.items)
-                                        .distinctBy { it.id }
-                                        .filterExplicit(context.dataStore.get(HideExplicitKey, false))
-                                        .filterVideo(context.dataStore.get(HideVideoKey, true))
-                                        .filterBlockedArtists(database.getBlockedArtistIds().toSet())
-                                        .dropCleanTwins(),
-                                continuation = artistItemsContinuationPage.continuation,
-                            )
+                try {
+                    while (ranking) delay(RANKING_WAIT_MS)
+                    val oldItemsPage = itemsPage.value ?: return@launch
+                    val continuation = oldItemsPage.continuation ?: return@launch
+                    YouTube
+                        .artistItemsContinuation(continuation)
+                        .onSuccess { artistItemsContinuationPage ->
+                            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                            val hideVideo = context.dataStore.get(HideVideoKey, true)
+                            val blocked = database.getBlockedArtistIds().toSet()
+                            itemsPage.update { current ->
+                                ItemsPage(
+                                    items =
+                                        ((current ?: oldItemsPage).items + artistItemsContinuationPage.items)
+                                            .distinctBy { it.id }
+                                            .filterExplicit(hideExplicit)
+                                            .filterVideo(hideVideo)
+                                            .filterBlockedArtists(blocked)
+                                            .dropCleanTwins(),
+                                    continuation = artistItemsContinuationPage.continuation,
+                                )
+                            }
+                        }.onFailure {
+                            reportException(it)
+                            loadMoreFailed = true
                         }
-                    }.onFailure {
-                        reportException(it)
-                    }
+                } finally {
+                    isLoadingMore = false
+                }
             }
         }
     }
