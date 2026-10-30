@@ -89,7 +89,16 @@ internal class PRDownloaderDataSource private constructor(
         val safeName = "dl_$nameHash"
         val target = File(tempDir, safeName)
 
+        if (!staleTempFilesCleared) {
+            staleTempFilesCleared = true
+            val cutoff = System.currentTimeMillis() - STALE_TEMP_AGE_MS
+            tempDir.listFiles()?.forEach { stale ->
+                if (stale != target && stale.lastModified() < cutoff) runCatching { stale.delete() }
+            }
+        }
+
         target.delete()
+        tempFile = target
 
         val requestBuilder = PRDownloader.download(url, tempDir.absolutePath, safeName)
 
@@ -329,6 +338,11 @@ internal class PRDownloaderDataSource private constructor(
         private const val MAX_DOWNLOAD_ATTEMPTS = 2
 
         private const val RETRY_DELAY_MS = 1_500L
+
+        private const val STALE_TEMP_AGE_MS = 30 * 60_000L
+
+        @Volatile
+        private var staleTempFilesCleared = false
     }
 }
 

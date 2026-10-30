@@ -690,21 +690,13 @@ class MediaLibrarySessionCallback
                         }
 
                         MusicService.HOME_QUICK_PICKS -> {
-                            database
-                                .quickPicks()
-                                .first()
-                                .shuffled()
-                                .take(AUTO_BROWSE_LIMIT)
+                            drawBrowseSelection(MusicService.HOME_QUICK_PICKS) { database.quickPicks().first() }
                                 .availableForCar(localSongsAllowed, onlineContentAllowed)
                                 .map { it.toMediaItem(parentId) }
                         }
 
                         MusicService.HOME_FORGOTTEN_FAVORITES -> {
-                            database
-                                .forgottenFavorites()
-                                .first()
-                                .shuffled()
-                                .take(AUTO_BROWSE_LIMIT)
+                            drawBrowseSelection(MusicService.HOME_FORGOTTEN_FAVORITES) { database.forgottenFavorites().first() }
                                 .availableForCar(localSongsAllowed, onlineContentAllowed)
                                 .map { it.toMediaItem(parentId) }
                         }
@@ -1340,23 +1332,16 @@ class MediaLibrarySessionCallback
                 when (path.firstOrNull()) {
                     MusicService.HOME_QUICK_PICKS -> {
                         val songs =
-                            database
-                                .quickPicks()
-                                .first()
-                                .shuffled()
-                                .take(AUTO_BROWSE_LIMIT)
+                            replayBrowseSelection(MusicService.HOME_QUICK_PICKS, path.getOrNull(1)) { database.quickPicks().first() }
                                 .let { if (isCarController) it.availableForCar(localSongsAllowed, onlineContentAllowed) else it }
                         songs.toMediaItemsWithStartPosition(path.getOrNull(1), startPositionMs)
                     }
 
                     MusicService.HOME_FORGOTTEN_FAVORITES -> {
                         val songs =
-                            database
-                                .forgottenFavorites()
-                                .first()
-                                .shuffled()
-                                .take(AUTO_BROWSE_LIMIT)
-                                .let { if (isCarController) it.availableForCar(localSongsAllowed, onlineContentAllowed) else it }
+                            replayBrowseSelection(MusicService.HOME_FORGOTTEN_FAVORITES, path.getOrNull(1)) {
+                                database.forgottenFavorites().first()
+                            }.let { if (isCarController) it.availableForCar(localSongsAllowed, onlineContentAllowed) else it }
                         songs.toMediaItemsWithStartPosition(path.getOrNull(1), startPositionMs)
                     }
 
@@ -2903,6 +2888,27 @@ class MediaLibrarySessionCallback
                 .take(previewSize)
                 .map { it.toMediaItem() }
                 .toList()
+        }
+
+        private val browseSelections = java.util.concurrent.ConcurrentHashMap<String, List<Song>>()
+
+        private suspend fun drawBrowseSelection(
+            key: String,
+            loader: suspend () -> List<Song>,
+        ): List<Song> {
+            val drawn = loader().shuffled().take(AUTO_BROWSE_LIMIT)
+            browseSelections[key] = drawn
+            return drawn
+        }
+
+        private suspend fun replayBrowseSelection(
+            key: String,
+            tappedSongId: String?,
+            loader: suspend () -> List<Song>,
+        ): List<Song> {
+            val shown = browseSelections[key]
+            if (shown != null && (tappedSongId == null || shown.any { it.id == tappedSongId })) return shown
+            return loader().shuffled().take(AUTO_BROWSE_LIMIT)
         }
 
         companion object {

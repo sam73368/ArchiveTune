@@ -57,7 +57,10 @@ class NetworkHandoverWatcher(
                 network: Network,
                 linkProperties: LinkProperties,
             ) {
-                val addresses = linkProperties.linkAddresses.map { it.address.hostAddress.orEmpty() }.toSet()
+                val all = linkProperties.linkAddresses.map { it.address }
+                val v4 = all.filter { it is java.net.Inet4Address }
+                val stable = if (v4.isNotEmpty()) v4 else all.filter { !it.isLinkLocalAddress }
+                val addresses = stable.map { it.hostAddress.orEmpty() }.toSet()
                 val changed = lastAddresses.isNotEmpty() && addresses != lastAddresses
                 lastAddresses = addresses
                 if (changed && network == lastNetwork) schedule()

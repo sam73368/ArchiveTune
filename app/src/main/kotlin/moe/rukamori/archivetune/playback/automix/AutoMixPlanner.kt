@@ -95,6 +95,7 @@ object AutoMixPlanner {
 
             filterable -> planFilterRide(
                 current = current,
+                next = next,
                 outgoingAnchor = outgoingAnchor,
                 incomingCue = incomingCue,
                 availableMs = availableMs,
@@ -179,6 +180,7 @@ object AutoMixPlanner {
 
     private fun planFilterRide(
         current: AutoMixAnalysis,
+        next: AutoMixAnalysis,
         outgoingAnchor: Long,
         incomingCue: Long,
         availableMs: Long,
@@ -189,7 +191,7 @@ object AutoMixPlanner {
             .coerceAtMost(availableMs)
             .coerceAtLeast(minFadeMs)
             .coerceAtMost(MAX_OVERLAP_MS)
-        val vocalOverlap = vocalClashAcross(current, current, outgoingAnchor, incomingCue, fadeMs)
+        val vocalOverlap = vocalClashAcross(current, next, outgoingAnchor, incomingCue, fadeMs)
         return filterRidePlan(
             outgoingAnchor = outgoingAnchor,
             incomingCue = incomingCue,

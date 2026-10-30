@@ -831,6 +831,7 @@ fun Queue(
                             selection = false
                             selectedSongs.clear()
                             selectedItems.clear()
+                            playerConnection.service.dropQueueContinuation()
                         }
 
                         if (infiniteQueueEnabled) {

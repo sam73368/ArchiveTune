@@ -12,6 +12,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,11 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.FileOutputStream
+import java.util.concurrent.TimeUnit
+import moe.rukamori.archivetune.utils.StreamClientUtils
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
@@ -42,7 +48,14 @@ class AutoMixAnalyzer(
     private val json = Json { ignoreUnknownKeys = true }
 
     private val analyses = ConcurrentHashMap<String, AutoMixAnalysis>()
-    private val failed = ConcurrentHashMap.newKeySet<String>()
+    private val failed = ConcurrentHashMap<String, Long>()
+    private val httpClient =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(ANALYSIS_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(ANALYSIS_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .callTimeout(ANALYSIS_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build()
     private val inFlight = ConcurrentHashMap.newKeySet<String>()
     private val persistenceMutex = Mutex()
     private val storeDir = File(appContext.filesDir, "automix_analysis")
@@ -56,7 +69,7 @@ class AutoMixAnalyzer(
         durationMs: Long,
     ) {
         if (durationMs <= 0L || trackId.isBlank()) return
-        if (analyses.containsKey(trackId) || failed.contains(trackId)) return
+        if (analyses.containsKey(trackId) || hasRecentFailure(trackId)) return
         if (!inFlight.add(trackId)) return
         scope.launch {
             try {
@@ -66,16 +79,23 @@ class AutoMixAnalyzer(
                     persist(trackId, analysis)
                     Log.i(TAG, "analysed $trackId bpm=%.1f conf=%.2f".format(analysis.bpm, analysis.beatConfidence))
                 } else {
-                    failed.add(trackId)
+                    failed[trackId] = System.currentTimeMillis()
                 }
             } catch (t: Throwable) {
                 if (t is kotlinx.coroutines.CancellationException) throw t
-                failed.add(trackId)
+                failed[trackId] = System.currentTimeMillis()
                 Log.w(TAG, "analysis failed for $trackId: ${t.message}")
             } finally {
                 inFlight.remove(trackId)
             }
         }
+    }
+
+    private fun hasRecentFailure(trackId: String): Boolean {
+        val at = failed[trackId] ?: return false
+        if (System.currentTimeMillis() - at < FAILED_RETRY_DELAY_MS) return true
+        failed.remove(trackId)
+        return false
     }
 
     fun analysisFor(trackId: String): AutoMixAnalysis? = analyses[trackId]
@@ -135,9 +155,11 @@ class AutoMixAnalyzer(
 
         var extractor: MediaExtractor? = null
         var codec: MediaCodec? = null
+        val tempFiles = arrayOfNulls<File>(1)
+        val deadlineAt = SystemClock.elapsedRealtime() + ANALYSIS_DEADLINE_MS
         try {
             extractor = MediaExtractor()
-            if (!openDataSource(trackId, uri, extractor)) return null
+            if (!openDataSource(trackId, uri, extractor, tempFiles)) return null
             val trackIndex = selectAudioTrack(extractor) ?: return null
             extractor.selectTrack(trackIndex)
             val format = extractor.getTrackFormat(trackIndex)
@@ -232,7 +254,7 @@ class AutoMixAnalyzer(
                 lastSample = mono
             }
 
-            while (!outputDone && scope.isActive) {
+            while (!outputDone && scope.isActive && SystemClock.elapsedRealtime() < deadlineAt) {
                 if (!inputDone) {
                     val index = codec.dequeueInputBuffer(10_000)
                     if (index >= 0) {
@@ -297,6 +319,7 @@ class AutoMixAnalyzer(
             runCatching { codec?.stop() }
             runCatching { codec?.release() }
             runCatching { extractor?.release() }
+            tempFiles[0]?.let { runCatching { it.delete() } }
         }
     }
 
@@ -480,12 +503,14 @@ class AutoMixAnalyzer(
         var bestLag = -1
         var bestScore = 0.0
         var scoreSum = 0.0
+        val scores = DoubleArray(maxLag - minLag + 1)
         for (lag in minLag..maxLag) {
             var dot = 0.0
             for (t in 0 until centered.size - lag) {
                 dot += centered[t].toDouble() * centered[t + lag]
             }
             val score = dot / power
+            scores[lag - minLag] = score
             scoreSum += score
             if (score > bestScore) {
                 bestScore = score
@@ -498,20 +523,33 @@ class AutoMixAnalyzer(
         val prominence = (bestScore - avg) / (abs(bestScore) + abs(avg) + 1e-9)
         val confidence = (prominence * 2.0).coerceIn(0.0, 1.0)
 
-        val rawIntervalMs = 1000.0 * bestLag / compactRate
+        var refinedLag = bestLag.toDouble()
+        if (bestLag > minLag && bestLag < maxLag) {
+            val before = scores[bestLag - minLag - 1]
+            val peak = scores[bestLag - minLag]
+            val after = scores[bestLag - minLag + 1]
+            val curvature = before - 2.0 * peak + after
+            if (curvature < -1e-12) {
+                refinedLag += (0.5 * (before - after) / curvature).coerceIn(-0.5, 0.5)
+            }
+        }
+        val rawIntervalMs = 1000.0 * refinedLag / compactRate
         var bpm = 60_000.0 / rawIntervalMs
         while (bpm < 70.0) bpm *= 2.0
         while (bpm > 180.0) bpm /= 2.0
 
-        val bar = bestLag * 4
+        val barExact = refinedLag * 4.0
+        val bar = Math.round(barExact).toInt().coerceAtLeast(1)
         var bestPhase = 0
         var bestComb = -1.0
         for (phase in 0 until bar) {
             var comb = 0.0
+            var step = 0
             var t = phase
             while (t < centered.size) {
                 comb += centered[t].toDouble()
-                t += bar
+                step++
+                t = Math.round(phase + step * barExact).toInt()
             }
             if (comb > bestComb) {
                 bestComb = comb
@@ -574,6 +612,7 @@ class AutoMixAnalyzer(
         trackId: String,
         uri: Uri,
         extractor: MediaExtractor,
+        tempFiles: Array<File?>,
     ): Boolean {
         val scheme = uri.scheme ?: ""
         if (scheme == "file" || scheme == "content" || scheme.isEmpty()) {
@@ -583,11 +622,81 @@ class AutoMixAnalyzer(
         }
         val remote = runBlocking { runCatching { resolveStreamUrl(trackId) }.getOrNull() }
         if (remote.isNullOrBlank()) return false
-        return runCatching { extractor.setDataSource(remote) }.isSuccess
+        val downloaded = downloadForAnalysis(trackId, remote) ?: return false
+        tempFiles[0] = downloaded
+        return runCatching { extractor.setDataSource(downloaded.absolutePath) }.isSuccess
+    }
+
+    private fun downloadForAnalysis(
+        trackId: String,
+        url: String,
+    ): File? {
+        val directory = File(appContext.cacheDir, TEMP_DIRECTORY_NAME).apply { mkdirs() }
+        val file = File(directory, "${trackId.hashCode()}_${System.nanoTime()}.tmp")
+        val builder = Request.Builder().url(url)
+        StreamClientUtils.applyRequestProfile(builder, StreamClientUtils.resolveRequestProfile(url))
+        return try {
+            httpClient.newCall(builder.build()).execute().use { response ->
+                val body = response.body
+                if (!response.isSuccessful || body == null) {
+                    runCatching { file.delete() }
+                    return null
+                }
+                var total = 0L
+                var overCap = false
+                body.byteStream().use { input ->
+                    FileOutputStream(file).use { output ->
+                        val buffer = ByteArray(DOWNLOAD_BUFFER_BYTES)
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            total += read
+                            if (total > MAX_ANALYSIS_DOWNLOAD_BYTES) {
+                                overCap = true
+                                break
+                            }
+                            output.write(buffer, 0, read)
+                        }
+                    }
+                }
+                if (overCap || total < MIN_ANALYSIS_DOWNLOAD_BYTES) {
+                    runCatching { file.delete() }
+                    null
+                } else {
+                    file
+                }
+            }
+        } catch (t: Throwable) {
+            runCatching { file.delete() }
+            Log.w(TAG, "download for analysis failed for $trackId: ${t.message}")
+            null
+        }
+    }
+
+    private fun clearStaleTemporaryFiles() {
+        val directory = File(appContext.cacheDir, TEMP_DIRECTORY_NAME)
+        val cutoff = System.currentTimeMillis() - STALE_TEMP_AGE_MS
+        directory.listFiles()?.forEach { file ->
+            if (file.lastModified() < cutoff) runCatching { file.delete() }
+        }
+    }
+
+    init {
+        scope.launch(Dispatchers.IO) { clearStaleTemporaryFiles() }
     }
 
     private companion object {
         private const val TAG = "AutoMix"
+        private const val TEMP_DIRECTORY_NAME = "automix_tmp"
+        private const val ANALYSIS_CONNECT_TIMEOUT_SECONDS = 15L
+        private const val ANALYSIS_READ_TIMEOUT_SECONDS = 20L
+        private const val ANALYSIS_CALL_TIMEOUT_SECONDS = 90L
+        private const val ANALYSIS_DEADLINE_MS = 120_000L
+        private const val FAILED_RETRY_DELAY_MS = 5 * 60_000L
+        private const val MAX_ANALYSIS_DOWNLOAD_BYTES = 48L * 1024L * 1024L
+        private const val MIN_ANALYSIS_DOWNLOAD_BYTES = 64L * 1024L
+        private const val DOWNLOAD_BUFFER_BYTES = 64 * 1024
+        private const val STALE_TEMP_AGE_MS = 60 * 60_000L
         private const val MAX_PERSISTED_ANALYSES = 600
 
         private const val FINAL_FADE_WINDOW_MS = 15_000L

@@ -1300,6 +1300,7 @@ class MusicService :
     val autoAddedMediaIds: MutableSet<String> = java.util.Collections.synchronizedSet(mutableSetOf())
 
     private var consecutivePlaybackErr = 0
+    private var playbackErrResetJob: Job? = null
 
     val maxSafeGainFactor = MAX_AUDIO_NORMALIZATION_FACTOR
 
@@ -4247,6 +4248,9 @@ class MusicService :
                         } else {
                             incomingPlayer.pause()
                             lastIncomingAdvanceMs = nowMs
+                            lastTickMs = nowMs
+                            delay(CROSSFADE_PAUSED_FRAME_MS)
+                            continue
                         }
                         lastTickMs = nowMs
                         delay(CROSSFADE_FRAME_MS)
@@ -5848,7 +5852,6 @@ class MusicService :
         suppressAutoPlayback = false
         val currentMediaMetadata = player.currentMetadata ?: return
 
-        val currentIndex = player.currentMediaItemIndex
         val currentMediaId = currentMediaMetadata.id
         if (currentSong.value?.song?.isLocal == true ||
             currentMediaId.isLocalMediaId() ||
@@ -5856,6 +5859,7 @@ class MusicService :
         ) {
             return
         }
+        val radioGeneration = initialQueueLoadGeneration
 
         scope.launch(SilentHandler) {
             val radioQueue =
@@ -5873,6 +5877,10 @@ class MusicService :
                         )
                 }
 
+            if (radioGeneration != initialQueueLoadGeneration || player.currentMediaItem?.mediaId != currentMediaId) {
+                return@launch
+            }
+
             if (initialStatus.title != null) {
                 queueTitle = initialStatus.title
             }
@@ -5881,6 +5889,7 @@ class MusicService :
                 initialStatus.items.filter { item ->
                     item.mediaId != currentMediaId
                 }
+            val currentIndex = player.currentMediaItemIndex
 
             if (radioItems.isNotEmpty()) {
                 val itemCount = player.mediaItemCount
@@ -6156,6 +6165,10 @@ class MusicService :
         player.playWhenReady = true
     }
 
+    fun dropQueueContinuation() {
+        currentQueue = EmptyQueue
+    }
+
     fun clearQueueKeepingCurrent() {
         val count = player.mediaItemCount
         val index = player.currentMediaItemIndex
@@ -6164,6 +6177,7 @@ class MusicService :
         if (index < count - 1) player.removeMediaItems(index + 1, count)
         if (index > 0) player.removeMediaItems(0, index)
         onInfiniteQueueDisabled()
+        currentQueue = EmptyQueue
     }
 
     fun stopAndClearPlayback(clearPersistentState: Boolean = false) {
@@ -6181,6 +6195,7 @@ class MusicService :
         queueTitle = null
         waitingForNetworkConnection.value = false
         currentMediaMetadata.value = null
+        if (::sleepTimer.isInitialized) sleepTimer.clear()
         player.playWhenReady = false
         player.stop()
         player.clearMediaItems()
@@ -7427,9 +7442,8 @@ class MusicService :
             cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
         }
 
-        if (sleepTimer.pauseWhenSongEnd) {
+        if (sleepTimer.pauseWhenSongEnd && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
             pauseFromSleepTimer()
-            return
         }
 
         beginHistorySession(mediaItem?.mediaId, forceNew = true)
@@ -7790,6 +7804,15 @@ class MusicService :
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         super.onIsPlayingChanged(isPlaying)
+        playbackErrResetJob?.cancel()
+        playbackErrResetJob = null
+        if (isPlaying && consecutivePlaybackErr != 0) {
+            playbackErrResetJob =
+                scope.launch {
+                    delay(PLAYBACK_ERR_RESET_DELAY_MS)
+                    if (player.isPlaying) consecutivePlaybackErr = 0
+                }
+        }
         updateInitialBufferRecovery(player.playbackState)
         updatePlaybackStallWatchdog()
         secondaryCrossfadePlayer?.let { secondaryPlayer ->
@@ -8114,8 +8137,15 @@ class MusicService :
                 }.getOrDefault(false)
 
         val isConnectionError =
-            (error.cause?.cause is PlaybackException) &&
-                (error.cause?.cause as PlaybackException).errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
+            generateSequence<Throwable>(error) { it.cause }
+                .take(MAX_ERROR_CAUSE_DEPTH)
+                .any { cause ->
+                    cause is PlaybackException &&
+                        (
+                            cause.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                                cause.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
+                        )
+                }
 
         if (!isLocalMedia && !isFullyDownloadedMedia && !hasAnyCachedData &&
             (!isNetworkConnected.value || isConnectionError)
@@ -8168,7 +8198,7 @@ class MusicService :
             }
         }
 
-        if (!isLocalMedia && isCacheCorruptionError(error, hasAnyCachedData)) {
+        if (!isLocalMedia && !isConnectionError && isCacheCorruptionError(error, hasAnyCachedData)) {
             val mediaItemIndex = player.currentMediaItemIndex
             val resumePosition = player.currentPosition.coerceAtLeast(0L)
 
@@ -13488,6 +13518,17 @@ class MusicService :
         }
     }
 
+    private fun runWhenQueueRestored(action: () -> Unit) {
+        if (queueRestoreCompleted.value) {
+            action()
+            return
+        }
+        scope.launch {
+            withTimeoutOrNull(QUEUE_RESTORE_WAIT_MS) { queueRestoreCompleted.first { restored -> restored } }
+            action()
+        }
+    }
+
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
@@ -13501,24 +13542,32 @@ class MusicService :
         ensureStartedAsForeground()
         when (intent?.action) {
             "moe.rukamori.archivetune.WIDGET_PLAY_PAUSE" -> {
-                if (player.isPlaying) player.pause() else player.play()
+                runWhenQueueRestored {
+                    if (player.isPlaying) player.pause() else player.play()
+                }
             }
 
             "moe.rukamori.archivetune.WIDGET_SKIP_NEXT" -> {
-                if (player.hasNextMediaItem()) {
-                    prepareForManualSkip()
-                    player.seekToNext()
-                    player.prepare()
-                    player.play()
+                runWhenQueueRestored {
+                    if (player.hasNextMediaItem()) {
+                        prepareForManualSkip()
+                        player.seekToNext()
+                        player.prepare()
+                        player.play()
+                    }
                 }
             }
 
             "moe.rukamori.archivetune.WIDGET_SKIP_PREV" -> {
-                if (player.hasPreviousMediaItem()) {
-                    prepareForManualSkip()
-                    player.seekToPrevious()
-                    player.prepare()
-                    player.play()
+                runWhenQueueRestored {
+                    if (player.hasPreviousMediaItem() || player.currentPosition > PREVIOUS_RESTART_THRESHOLD_MS) {
+                        prepareForManualSkip()
+                        player.seekToPrevious()
+                        player.prepare()
+                        player.play()
+                    } else {
+                        player.seekTo(0L)
+                    }
                 }
             }
         }
@@ -13627,6 +13676,8 @@ class MusicService :
 
         private val PERSISTENT_POSITION_SAVE_INTERVAL = 30.seconds
         const val MAX_CONSECUTIVE_ERR = 5
+        const val PLAYBACK_ERR_RESET_DELAY_MS = 10_000L
+        const val MAX_ERROR_CAUSE_DEPTH = 8
         const val AUDIO_ROUTE_CHANGE_DEBOUNCE_MS = 350L
         const val AUDIO_EFFECT_ROUTE_REBIND_DELAY_MS = 200L
         const val AUDIO_ROUTE_RECOVERY_MIN_INTERVAL_MS = 1_500L
@@ -13665,6 +13716,9 @@ class MusicService :
         const val CROSSFADE_MIN_BUFFER_MS = 15_000
         const val CROSSFADE_MAX_BUFFER_MS = 45_000
         const val CROSSFADE_FRAME_MS = 32L
+        const val CROSSFADE_PAUSED_FRAME_MS = 250L
+        const val QUEUE_RESTORE_WAIT_MS = 4_000L
+        const val PREVIOUS_RESTART_THRESHOLD_MS = 3_000L
 
         const val AUTO_MIX_POLL_MS = 1_000L
         const val AUTO_MIX_RESOLVE_TIMEOUT_MS = 45_000L

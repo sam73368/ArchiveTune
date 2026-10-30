@@ -166,7 +166,7 @@ class DownloadUtil
                 .retryOnConnectionFailure(true)
                 .connectTimeout(8, TimeUnit.SECONDS)
 
-                .readTimeout(300, TimeUnit.SECONDS)
+                .readTimeout(DOWNLOAD_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
                 .callTimeout(0, TimeUnit.SECONDS)
                 .dispatcher(
@@ -220,6 +220,7 @@ class DownloadUtil
         fun prewarmDownloadConnections() {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
             scope.launch {
+                if (appContext.isLowDataModeActive()) return@launch
                 val tidalEnabled = appContext.dataStore[moe.rukamori.archivetune.constants.TidalEnabledKey] ?: true
                 val qobuzEnabled = appContext.dataStore[moe.rukamori.archivetune.constants.QobuzEnabledKey] ?: true
                 val deezerEnabled = appContext.dataStore[moe.rukamori.archivetune.constants.DeezerEnabledKey] ?: false
@@ -592,9 +593,9 @@ class DownloadUtil
 
                                 val retryCount =
                                     autoRetryCounts.merge(download.request.id, 1, Int::plus) ?: 1
-                                if (retryCount <= 1) {
+                                if (retryCount <= DOWNLOAD_MAX_AUTO_RETRIES) {
                                     downloadScope.launch {
-                                        delay(DOWNLOAD_AUTO_RETRY_DELAY_MS)
+                                        delay(DOWNLOAD_AUTO_RETRY_DELAY_MS * retryCount)
                                         runCatching { downloadManager.addDownload(download.request) }
                                     }
                                 }
@@ -1271,6 +1272,8 @@ class DownloadUtil
             internal const val YT_DOWNLOAD_RESOLVE_TIMEOUT_MS = 120_000L
 
             internal const val DOWNLOAD_AUTO_RETRY_DELAY_MS = 4_000L
+            internal const val DOWNLOAD_MAX_AUTO_RETRIES = 3
+            private const val DOWNLOAD_READ_TIMEOUT_SECONDS = 60L
 
             internal const val POOL_REFRESH_TIMEOUT_MS = 10_000L
 
