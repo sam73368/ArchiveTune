@@ -54,6 +54,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -146,6 +147,7 @@ import moe.rukamori.archivetune.models.MediaMetadata
 import moe.rukamori.archivetune.ui.theme.PlayerColorExtractor
 import moe.rukamori.archivetune.ui.utils.supportsArtworkGlowShadow
 import moe.rukamori.archivetune.ui.utils.toComposeShape
+import moe.rukamori.archivetune.utils.LyricsSyncOffsets
 import moe.rukamori.archivetune.utils.makeTimeString
 import moe.rukamori.archivetune.utils.reportException
 import moe.rukamori.archivetune.utils.rememberEnumPreference
@@ -156,28 +158,25 @@ private val White65 = Color.White.copy(alpha = 0.65f)
 private val White35 = Color.White.copy(alpha = 0.35f)
 private val White30 = Color.White.copy(alpha = 0.30f)
 private val White15 = Color.White.copy(alpha = 0.15f)
+private const val AOD_LYRIC_LEAD_MS = 120L
+private const val AOD_SWIPE_COMMIT_PX = 120f
 private val AodLyricsWhitespaceRegex = "\\s+".toRegex()
 
 private data class AodLyricsTickerData(
     val lines: List<LyricsEntry>,
     val isTtml: Boolean,
-    val fallbackText: String?,
 )
 
 private fun parseAodLyricsTickerData(lyrics: String?): AodLyricsTickerData {
     val normalizedLyrics = lyrics?.let(LyricsUtils::normalizeLyricsText).orEmpty()
     if (normalizedLyrics.isBlank() || normalizedLyrics == LyricsEntity.LYRICS_NOT_FOUND) {
-        return AodLyricsTickerData(emptyList(), isTtml = false, fallbackText = null)
+        return AodLyricsTickerData(emptyList(), isTtml = false)
     }
 
     val isTtml = LyricsUtils.isTtml(normalizedLyrics)
     val isLineSynced = LyricsUtils.isLineSyncedLrc(normalizedLyrics)
     if (!isTtml && !isLineSynced) {
-        return AodLyricsTickerData(
-            lines = emptyList(),
-            isTtml = false,
-            fallbackText = normalizedLyrics,
-        )
+        return AodLyricsTickerData(lines = emptyList(), isTtml = false)
     }
 
     val lines =
@@ -192,21 +191,20 @@ private fun parseAodLyricsTickerData(lyrics: String?): AodLyricsTickerData {
             emptyList()
         }
 
-    return AodLyricsTickerData(
-        lines = lines,
-        isTtml = isTtml,
-        fallbackText = null,
-    )
+    return AodLyricsTickerData(lines = lines, isTtml = isTtml)
 }
 
 private fun AodLyricsTickerData.textAt(position: Long): String? {
-    if (lines.isEmpty()) return fallbackText?.takeIf { it.isNotBlank() }
+    if (lines.isEmpty()) return null
+
+    val leadMs = if (isTtml) 0L else AOD_LYRIC_LEAD_MS
+    if (position + leadMs < lines.first().time) return null
 
     val currentLineIndex =
         LyricsUtils.findCurrentLineIndex(
             lines = lines,
             position = position,
-            leadMs = if (isTtml) 0L else 300L,
+            leadMs = leadMs,
         )
     return lines
         .getOrNull(currentLineIndex)
@@ -280,9 +278,15 @@ fun AodPlayerScreen(
     val (proximityBlackoutEnabled) = rememberPreference(AodProximityBlackoutKey, false)
 
     val lyricsTickerData = remember(lyricsText) { parseAodLyricsTickerData(lyricsText) }
+    var lyricsSyncOffsetMs by remember(mediaMetadata.id) { mutableIntStateOf(0) }
+    LaunchedEffect(mediaMetadata.id) {
+        lyricsSyncOffsetMs =
+            runCatching { LyricsSyncOffsets.load(context.applicationContext, mediaMetadata.id) }
+                .getOrDefault(0)
+    }
     val lyricsTickerText =
-        remember(lyricsTickerData, position, sliderPosition) {
-            lyricsTickerData.textAt(sliderPosition ?: position)
+        remember(lyricsTickerData, position, sliderPosition, lyricsSyncOffsetMs) {
+            lyricsTickerData.textAt((sliderPosition ?: position) + lyricsSyncOffsetMs)
         }
 
     var isLocked by remember { mutableStateOf(touchLockEnabled) }
@@ -501,12 +505,27 @@ fun AodPlayerScreen(
                         }
                     )
                 }
-                .pointerInput(gesturesEnabled, isLocked) {
+                .pointerInput(gesturesEnabled, isLocked, canSkipPrevious, canSkipNext) {
+                    var accumHorizontalDrag = 0f
                     detectHorizontalDragGestures(
-                        onDragStart = { resetInteraction() },
-                        onHorizontalDrag = { _, _ -> },
+                        onDragStart = {
+                            resetInteraction()
+                            accumHorizontalDrag = 0f
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            accumHorizontalDrag += dragAmount
+                        },
+                        onDragCancel = { accumHorizontalDrag = 0f },
                         onDragEnd = {
                             resetInteraction()
+                            if (gesturesEnabled && !isLocked) {
+                                if (accumHorizontalDrag <= -AOD_SWIPE_COMMIT_PX && canSkipNext) {
+                                    onSkipNext()
+                                } else if (accumHorizontalDrag >= AOD_SWIPE_COMMIT_PX && canSkipPrevious) {
+                                    onSkipPrevious()
+                                }
+                            }
+                            accumHorizontalDrag = 0f
                         }
                     )
                 }

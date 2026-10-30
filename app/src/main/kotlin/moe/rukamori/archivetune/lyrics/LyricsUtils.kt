@@ -631,6 +631,16 @@ object LyricsUtils {
         return lastMs < durationMs * 65 / 100 && durationMs - lastMs > 40_000L
     }
 
+    fun isLikelyTooLong(
+        lyrics: String,
+        durationSeconds: Int,
+    ): Boolean {
+        if (durationSeconds <= 0) return false
+        val lastMs = lastTimedLineMs(lyrics) ?: return false
+        val durationMs = durationSeconds * 1000L
+        return lastMs > durationMs * 115 / 100 && lastMs - durationMs > 20_000L
+    }
+
     /** Never throws: unreadable lyrics give an empty list, which the screens show as "not found". */
     fun parseTtml(
         lyrics: String,

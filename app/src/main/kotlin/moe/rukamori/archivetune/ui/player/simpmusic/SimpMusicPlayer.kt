@@ -120,6 +120,7 @@ import moe.rukamori.archivetune.ui.player.rememberMeshPalette
 import moe.rukamori.archivetune.ui.utils.ShowMediaInfo
 import moe.rukamori.archivetune.ui.utils.highRes
 import moe.rukamori.archivetune.ui.utils.rememberMediaInfo
+import moe.rukamori.archivetune.utils.rememberPersistedLyricsSyncOffset
 import java.util.Locale
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -934,6 +935,8 @@ private fun SimpMusicLyricsCard(
     val lyricsPositionProvider = remember { { null as Long? } }
 
     val lyricsEntity by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
+    val cardMediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val cardLyricsSyncOffset by rememberPersistedLyricsSyncOffset(cardMediaMetadata?.id)
     val lyricsText = lyricsEntity?.lyrics
     val hasLyrics = lyricsText?.isNotBlank() == true && lyricsText != LYRICS_NOT_FOUND
     if (!hasLyrics) return
@@ -998,7 +1001,7 @@ private fun SimpMusicLyricsCard(
                 } else {
                     LyricsEnhanced(
                         sliderPositionProvider = lyricsPositionProvider,
-                        lyricsSyncOffset = 0,
+                        lyricsSyncOffset = cardLyricsSyncOffset,
                         modifier = Modifier.fillMaxSize(),
                         textColorOverride = Color.White,
                         textSizeOverride = CARD_LYRICS_SIZE_SP,

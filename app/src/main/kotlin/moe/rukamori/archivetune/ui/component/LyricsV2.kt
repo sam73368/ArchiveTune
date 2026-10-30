@@ -161,11 +161,11 @@ import kotlin.math.abs
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
-private const val LRC_LEAD_MS = 300L
+private const val LRC_LEAD_MS = 120L
 
 private const val TTML_LEAD_MS = 0L
 
-private const val LYRIC_VISUAL_TUNING_OFFSET_MS = 150L
+private const val LYRIC_VISUAL_TUNING_OFFSET_MS = 0L
 
 private const val MIN_SWEEP_MS = 180L
 

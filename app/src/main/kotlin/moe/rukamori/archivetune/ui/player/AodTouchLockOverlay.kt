@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +60,8 @@ import kotlinx.coroutines.delay
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.AodUnlockMethod
 
+private const val AodSlideCommitFraction = 0.85f
+
 @Composable
 fun AodSlideToLockButton(
     accentColor: Color,
@@ -66,7 +70,7 @@ fun AodSlideToLockButton(
 ) {
     val haptic = LocalHapticFeedback.current
     var slideOffsetPx by remember { mutableFloatStateOf(0f) }
-    val maxSlidePx = 360f
+    var trackWidthPx by remember { mutableIntStateOf(0) }
 
     val animatedSlideOffset by animateFloatAsState(
         targetValue = slideOffsetPx,
@@ -80,10 +84,13 @@ fun AodSlideToLockButton(
             .height(50.dp)
             .clip(RoundedCornerShape(25.dp))
             .background(Color.White.copy(alpha = 0.12f))
+            .onSizeChanged { trackWidthPx = it.width }
             .pointerInput(Unit) {
+                val knobPx = 50.dp.toPx()
                 detectHorizontalDragGestures(
                     onDragEnd = {
-                        if (slideOffsetPx >= maxSlidePx * 0.70f) {
+                        val maxSlidePx = (trackWidthPx - knobPx).coerceAtLeast(1f)
+                        if (slideOffsetPx >= maxSlidePx * AodSlideCommitFraction) {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onLock()
                         }
@@ -91,6 +98,7 @@ fun AodSlideToLockButton(
                     },
                     onDragCancel = { slideOffsetPx = 0f },
                     onHorizontalDrag = { _, dragAmount ->
+                        val maxSlidePx = (trackWidthPx - knobPx).coerceAtLeast(1f)
                         slideOffsetPx = (slideOffsetPx + dragAmount).coerceIn(0f, maxSlidePx)
                     }
                 )
@@ -136,6 +144,7 @@ fun AodTouchLockOverlay(
 
     val haptic = LocalHapticFeedback.current
     var slideOffsetPx by remember { mutableFloatStateOf(0f) }
+    var trackWidthPx by remember { mutableIntStateOf(0) }
     var holdProgress by remember { mutableFloatStateOf(0f) }
     var isHolding by remember { mutableStateOf(false) }
 
@@ -202,17 +211,19 @@ fun AodTouchLockOverlay(
         ) {
             when (unlockMethod) {
                 AodUnlockMethod.SLIDE -> {
-                    val maxSlidePx = 360f
                     Box(
                         modifier = Modifier
                             .width(260.dp)
                             .height(56.dp)
                             .clip(RoundedCornerShape(28.dp))
                             .background(Color.White.copy(alpha = 0.18f))
+                            .onSizeChanged { trackWidthPx = it.width }
                             .pointerInput(Unit) {
+                                val knobPx = 56.dp.toPx()
                                 detectHorizontalDragGestures(
                                     onDragEnd = {
-                                        if (slideOffsetPx >= maxSlidePx * 0.70f) {
+                                        val maxSlidePx = (trackWidthPx - knobPx).coerceAtLeast(1f)
+                                        if (slideOffsetPx >= maxSlidePx * AodSlideCommitFraction) {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             onUnlock()
                                         }
@@ -220,6 +231,7 @@ fun AodTouchLockOverlay(
                                     },
                                     onDragCancel = { slideOffsetPx = 0f },
                                     onHorizontalDrag = { _, dragAmount ->
+                                        val maxSlidePx = (trackWidthPx - knobPx).coerceAtLeast(1f)
                                         slideOffsetPx = (slideOffsetPx + dragAmount).coerceIn(0f, maxSlidePx)
                                     }
                                 )

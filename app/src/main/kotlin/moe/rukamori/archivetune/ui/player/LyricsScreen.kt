@@ -308,10 +308,15 @@ fun LyricsScreen(
             withContext(Dispatchers.IO) {
                 database.query {
                     if (hasValidLyrics) {
-                        backfillLyricsProviderName(
-                            id = mediaMetadata.id,
-                            providerName = lyricsResult.providerName,
-                        )
+                        if (
+                            lyricsResult.providerName.isNotBlank() &&
+                            lyricsResult.lyrics == existingLyrics?.lyrics
+                        ) {
+                            backfillLyricsProviderName(
+                                id = mediaMetadata.id,
+                                providerName = lyricsResult.providerName,
+                            )
+                        }
                     } else {
                         replaceLyricsIfAbsentOrNotFound(
                             id = mediaMetadata.id,

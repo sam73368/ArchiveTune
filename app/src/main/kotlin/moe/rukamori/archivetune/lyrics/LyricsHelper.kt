@@ -8,6 +8,7 @@
 package moe.rukamori.archivetune.lyrics
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import android.util.LruCache
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,6 +19,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.awaitAll
@@ -82,6 +85,32 @@ class LyricsHelper
         // the same moment: they now share one search instead of hitting every provider two or three times.
         private val inFlightScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private val inFlight = HashMap<String, Deferred<LyricsResult>>()
+        private val notFoundAt = HashMap<String, Long>()
+
+        private fun isRecentlyNotFound(cacheKey: String): Boolean =
+            synchronized(notFoundAt) {
+                val at = notFoundAt[cacheKey] ?: return false
+                if (SystemClock.elapsedRealtime() - at < NOT_FOUND_RETRY_DELAY_MS) {
+                    true
+                } else {
+                    notFoundAt.remove(cacheKey)
+                    false
+                }
+            }
+
+        private fun markNotFound(
+            cacheKey: String,
+            notFound: Boolean,
+        ) {
+            synchronized(notFoundAt) {
+                if (notFound) {
+                    if (notFoundAt.size >= MAX_CACHE_SIZE * 8) notFoundAt.clear()
+                    notFoundAt[cacheKey] = SystemClock.elapsedRealtime()
+                } else {
+                    notFoundAt.remove(cacheKey)
+                }
+            }
+        }
 
         suspend fun getLyrics(
             mediaMetadata: MediaMetadata,
@@ -184,6 +213,10 @@ class LyricsHelper
                 return LyricsResult(providerName = "", lyrics = LYRICS_NOT_FOUND)
             }
 
+            if (!forceRefresh && !preferredProviderOnly && isRecentlyNotFound(cacheKey)) {
+                return LyricsResult(providerName = "", lyrics = LYRICS_NOT_FOUND)
+            }
+
             if (prioritizeWordSynced) {
                 GlobalLog.append(
                     Log.DEBUG,
@@ -216,6 +249,9 @@ class LyricsHelper
             val result = fetchPriorityLyricsResult(providers, mediaMetadata)
             if (isMeaningfulLyrics(result.lyrics)) {
                 singleLyricsCache.put(cacheKey, result)
+            }
+            if (!preferredProviderOnly && providers.isNotEmpty()) {
+                markNotFound(cacheKey, result.lyrics == LYRICS_NOT_FOUND)
             }
 
             return result
@@ -291,7 +327,7 @@ class LyricsHelper
             forceRefresh: Boolean = false,
             callback: (LyricsResult) -> Unit,
         ) {
-            val cacheKey = lyricsCacheKey(songTitle, songArtists)
+            val cacheKey = lyricsCacheKey(songTitle, songArtists, duration)
             if (forceRefresh) {
                 invalidateCache(cacheKey)
             } else {
@@ -313,7 +349,7 @@ class LyricsHelper
             }
 
             val allResult = mutableListOf<LyricsResult>()
-            val providers = orderedProviders().filter { it.isEnabled(context) }
+            val providers = orderedProviders().filter { it.isEnabled(context) && supportsMediaId(it, mediaId) }
 
             withContext(Dispatchers.IO) {
                 supervisorScope {
@@ -367,11 +403,66 @@ class LyricsHelper
             }
         }
 
+        private suspend fun fetchCandidatesProgressive(
+            providers: List<LyricsProvider>,
+            mediaMetadata: MediaMetadata,
+            timeoutMs: Long,
+        ): List<LyricsRanking.Candidate> {
+            if (providers.isEmpty()) return emptyList()
+            val artist = mediaMetadata.artists.joinToString { it.name }
+            val duration = mediaMetadata.duration
+            val channel = Channel<List<Pair<Int, LyricsRanking.Candidate>>>(Channel.UNLIMITED)
+            val jobs =
+                providers.mapIndexed { index, provider ->
+                    inFlightScope.launch {
+                        val lyrics =
+                            withTimeoutOrNull(timeoutMs) {
+                                fetchProviderLyrics(provider, mediaMetadata, artist)
+                            }
+                        channel.trySend(
+                            lyrics?.let { listOf(index to LyricsRanking.Candidate(provider.name, it)) }.orEmpty(),
+                        )
+                    }
+                }
+            val collected = mutableListOf<Pair<Int, LyricsRanking.Candidate>>()
+            try {
+                var remaining = providers.size
+                var graceDeadline = 0L
+                while (remaining > 0) {
+                    val message =
+                        if (graceDeadline == 0L) {
+                            channel.receive()
+                        } else {
+                            val left = graceDeadline - SystemClock.elapsedRealtime()
+                            if (left <= 0L) break
+                            withTimeoutOrNull(left) { channel.receive() } ?: break
+                        }
+                    remaining--
+                    val entry = message.firstOrNull() ?: continue
+                    collected += entry
+                    val lyrics = entry.second.lyrics
+                    val complete =
+                        !LyricsUtils.isLikelyTruncated(lyrics, duration) &&
+                            !LyricsUtils.isLikelyTooLong(lyrics, duration)
+                    if (!complete) continue
+                    val tier = LyricsRanking.syncTier(lyrics)
+                    if (tier == LyricsRanking.TIER_WORD_SYNCED && LyricsRanking.residualMaskedWords(lyrics) == 0) break
+                    if (tier >= LyricsRanking.TIER_LINE_SYNCED && graceDeadline == 0L) {
+                        graceDeadline = SystemClock.elapsedRealtime() + EARLY_RESULT_GRACE_MS
+                    }
+                }
+            } finally {
+                jobs.forEach { it.cancel() }
+                channel.close()
+            }
+            return collected.sortedBy { it.first }.map { it.second }
+        }
+
         private suspend fun fetchPriorityLyricsResult(
             providers: List<LyricsProvider>,
             mediaMetadata: MediaMetadata,
         ): LyricsResult {
-            val candidates = fetchCandidates(providers, mediaMetadata, PROVIDER_TIMEOUT_MS)
+            val candidates = fetchCandidatesProgressive(providers, mediaMetadata, PROVIDER_TIMEOUT_MS)
             candidates.forEach { candidate ->
                 GlobalLog.append(
                     Log.DEBUG,
@@ -484,6 +575,7 @@ class LyricsHelper
         fun clearCache() {
             cache.evictAll()
             singleLyricsCache.evictAll()
+            synchronized(notFoundAt) { notFoundAt.clear() }
         }
 
         suspend fun testAllProviders(): List<LyricsProviderTestResult> {
@@ -541,6 +633,7 @@ class LyricsHelper
         private fun invalidateCache(cacheKey: String) {
             cache.remove(cacheKey)
             singleLyricsCache.remove(cacheKey)
+            markNotFound(cacheKey, false)
         }
 
         private val MediaMetadata.lyricsCacheKey: String
@@ -548,17 +641,25 @@ class LyricsHelper
                 lyricsCacheKey(
                     title = title,
                     artists = artists.joinToString { it.name },
+                    durationSeconds = duration,
                 )
 
         private fun lyricsCacheKey(
             title: String,
             artists: String,
-        ): String = "$artists-$title".replace(" ", "")
+            durationSeconds: Int = 0,
+        ): String {
+            val base = "$artists-$title".replace(" ", "")
+            return if (durationSeconds > 0) "$base#${durationSeconds / LYRICS_KEY_DURATION_BUCKET_SECONDS}" else base
+        }
 
         companion object {
             private const val MAX_CACHE_SIZE = 16
+            private const val LYRICS_KEY_DURATION_BUCKET_SECONDS = 15
 
             private const val PROVIDER_TIMEOUT_MS = 8_000L
+            private const val EARLY_RESULT_GRACE_MS = 2_000L
+            private const val NOT_FOUND_RETRY_DELAY_MS = 10 * 60_000L
 
             private const val WORD_SYNC_PROVIDER_TIMEOUT_MS = 15_000L
             private const val UPGRADE_PROVIDER_TIMEOUT_MS = 15_000L

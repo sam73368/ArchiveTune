@@ -396,12 +396,7 @@ fun LyricsEnhanced(
     val composerWritersRaw =
         resolvedWriters?.takeIf { it.isNotBlank() }
             ?: ttmlWriters.takeIf { it.isNotBlank() }
-            ?: mediaMetadata
-                ?.artists
-                ?.takeIf { it.isNotEmpty() }
-                ?.joinToString { it.name }
-                ?.trim()
-                .orEmpty()
+            ?: ""
     val composerFooterLabel =
         stringResource(R.string.written_by, composerWritersRaw)
             .takeIf { composerWritersRaw.isNotBlank() }

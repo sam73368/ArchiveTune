@@ -115,6 +115,7 @@ import moe.rukamori.archivetune.ui.component.rememberLiquidGlassEnabled
 import moe.rukamori.archivetune.ui.component.layerBackdrop
 import moe.rukamori.archivetune.ui.component.rememberBackdrop
 import moe.rukamori.archivetune.utils.rememberEnumPreference
+import moe.rukamori.archivetune.utils.rememberPersistedLyricsSyncOffset
 import moe.rukamori.archivetune.ui.menu.AnchoredLyricsOverflowMenu
 import moe.rukamori.archivetune.ui.player.blurBackdropFootprint
 import moe.rukamori.archivetune.ui.player.movingBlurWanderMaxDriftDp
@@ -195,6 +196,10 @@ internal fun SpatialFlowLyricsOverlay(
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val currentLyricsEntity by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
+
+    var lyricsSyncOffset by rememberPersistedLyricsSyncOffset(currentSong.id)
+    val offsetPositionProvider: () -> Long = { currentPositionProvider() + lyricsSyncOffset }
+    val offsetSeekTo: (Long) -> Unit = { target -> onSeekTo((target - lyricsSyncOffset).coerceAtLeast(0L)) }
 
     val lyricsMode by rememberEnumPreference(LyricsModeKey, defaultValue = LyricsMode.ENHANCED)
 
@@ -434,7 +439,7 @@ internal fun SpatialFlowLyricsOverlay(
                     lyricsMode == LyricsMode.ENHANCED && !syncedLyrics.isNullOrEmpty() ->
                         LyricsEnhanced(
                             sliderPositionProvider = { null },
-                            lyricsSyncOffset = 0,
+                            lyricsSyncOffset = lyricsSyncOffset,
                             modifier = Modifier.fillMaxSize(),
                             textColorOverride = contentColor,
                         )
@@ -443,9 +448,9 @@ internal fun SpatialFlowLyricsOverlay(
                         SpatialFlowSyncedLyrics(
                             lyrics = syncedLyrics,
                             romanizedLines = romanizedLines,
-                            currentPositionProvider = currentPositionProvider,
+                            currentPositionProvider = offsetPositionProvider,
                             contentColor = contentColor,
-                            onSeekTo = onSeekTo,
+                            onSeekTo = offsetSeekTo,
                             modifier = Modifier.fillMaxSize(),
                         )
 
@@ -507,8 +512,8 @@ internal fun SpatialFlowLyricsOverlay(
                 iconBoundsInRoot = moreIconBounds,
                 lyricsProvider = { currentLyricsEntity },
                 mediaMetadataProvider = { currentSong },
-                lyricsSyncOffset = 0,
-                onLyricsSyncOffsetChange = {},
+                lyricsSyncOffset = lyricsSyncOffset,
+                onLyricsSyncOffsetChange = { lyricsSyncOffset = it },
                 onDismiss = { showLyricsMenu = false },
                 backdrop = popupBackdrop,
             )

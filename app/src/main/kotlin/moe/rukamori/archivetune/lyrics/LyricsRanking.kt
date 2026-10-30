@@ -33,7 +33,11 @@ object LyricsRanking {
         durationSeconds: Int,
     ): Candidate? {
         if (candidates.isEmpty()) return null
-        val complete = candidates.filter { !LyricsUtils.isLikelyTruncated(it.lyrics, durationSeconds) }
+        val complete =
+            candidates.filter {
+                !LyricsUtils.isLikelyTruncated(it.lyrics, durationSeconds) &&
+                    !LyricsUtils.isLikelyTooLong(it.lyrics, durationSeconds)
+            }
         val pool =
             if (complete.isNotEmpty()) {
                 complete

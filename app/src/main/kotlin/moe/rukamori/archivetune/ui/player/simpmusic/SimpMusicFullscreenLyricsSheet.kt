@@ -87,6 +87,7 @@ import moe.rukamori.archivetune.lyrics.LyricsUtils
 import moe.rukamori.archivetune.ui.component.LyricsEnhanced
 import moe.rukamori.archivetune.ui.player.StyledLyricsBackground
 import moe.rukamori.archivetune.utils.rememberEnumPreference
+import moe.rukamori.archivetune.utils.rememberPersistedLyricsSyncOffset
 import moe.rukamori.archivetune.viewmodels.LyricsMenuViewModel
 import moe.rukamori.archivetune.utils.rememberPreference
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -130,6 +131,7 @@ internal fun SimpMusicFullscreenLyricsSheet(
     val menuState = LocalMenuState.current
 
     var showAnchoredLyricsMenu by remember { mutableStateOf(false) }
+    var lyricsSyncOffset by rememberPersistedLyricsSyncOffset(mediaMetadata.id)
     var moreIconBounds by remember {
         mutableStateOf(androidx.compose.ui.geometry.Rect.Zero)
     }
@@ -453,7 +455,7 @@ internal fun SimpMusicFullscreenLyricsSheet(
                     if (hasLyrics) {
                         LyricsEnhanced(
                             sliderPositionProvider = { if (isScrubbing) sliderPosition else null },
-                            lyricsSyncOffset = 0,
+                            lyricsSyncOffset = lyricsSyncOffset,
                             modifier = Modifier.fillMaxSize(),
                             textColorOverride = Color.White,
                         )
@@ -655,8 +657,8 @@ internal fun SimpMusicFullscreenLyricsSheet(
                     iconBoundsInRoot = moreIconBounds,
                     lyricsProvider = { currentLyricsEntity },
                     mediaMetadataProvider = { mediaMetadata },
-                    lyricsSyncOffset = 0,
-                    onLyricsSyncOffsetChange = {},
+                    lyricsSyncOffset = lyricsSyncOffset,
+                    onLyricsSyncOffsetChange = { lyricsSyncOffset = it },
                     onDismiss = { showAnchoredLyricsMenu = false },
                     backdrop = popupBackdrop,
                 )

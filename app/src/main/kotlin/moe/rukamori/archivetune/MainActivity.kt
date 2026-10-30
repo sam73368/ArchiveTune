@@ -447,6 +447,8 @@ class MainActivity : ComponentActivity() {
     private var aodPreferenceReadJob: Job? = null
     private var aodModeLaunchRequestCount by mutableIntStateOf(0)
     private var isAodScreenOffReceiverRegistered = false
+    private var lastStopElapsedRealtime = 0L
+    private var wasPlayingWhenStopped = false
     private var pendingBackupRestoreUri by mutableStateOf<Uri?>(null)
     private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
     private var latestUpdateChannel by mutableStateOf(defaultUpdateChannel)
@@ -507,6 +509,7 @@ class MainActivity : ComponentActivity() {
                     if (!isAodEnabled || (requireAutoStart && !shouldAutoStart)) return@launch
 
                     pendingAodModeRequest = true
+                    if (requireAutoStart) setAodShowWhenLocked(true)
                     startMusicServiceSafely()
                     openPendingAodModeIfReady()
                 } catch (cancellation: kotlinx.coroutines.CancellationException) {
@@ -525,7 +528,14 @@ class MainActivity : ComponentActivity() {
                 intent: Intent?,
             ) {
                 if (intent?.action != Intent.ACTION_SCREEN_OFF) return
-                if (playerConnection?.player?.isPlaying != true) return
+                val connection = playerConnection
+                val recentlyStopped =
+                    SystemClock.elapsedRealtime() - lastStopElapsedRealtime < AOD_SCREEN_OFF_GRACE_MS
+                val isForeground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                if (!isForeground && !recentlyStopped) return
+                val isPlaying =
+                    if (connection != null) connection.player.isPlaying else wasPlayingWhenStopped
+                if (!isPlaying) return
                 requestAodMode(requireAutoStart = true)
             }
         }
@@ -543,8 +553,22 @@ class MainActivity : ComponentActivity() {
 
     private fun unregisterAodScreenOffReceiver() {
         if (!isAodScreenOffReceiverRegistered) return
-        unregisterReceiver(aodScreenOffReceiver)
+        try {
+            unregisterReceiver(aodScreenOffReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
         isAodScreenOffReceiverRegistered = false
+    }
+
+    @Suppress("DEPRECATION")
+    private fun setAodShowWhenLocked(show: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(show)
+        } else if (show) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+        }
     }
 
     private fun openPendingAodModeIfReady() {
@@ -657,7 +681,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         moe.rukamori.archivetune.ui.tv.TvAmbientController.hide()
-        unregisterAodScreenOffReceiver()
+        wasPlayingWhenStopped = playerConnection?.player?.isPlaying == true
+        lastStopElapsedRealtime = SystemClock.elapsedRealtime()
         serviceBindingJob?.cancel()
         serviceBindingJob = null
         safeUnbindMusicService()
@@ -666,6 +691,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        unregisterAodScreenOffReceiver()
         super.onDestroy()
 
         val shouldStopOnTaskClear =
@@ -1958,6 +1984,9 @@ class MainActivity : ComponentActivity() {
                             controller.systemBarsBehavior =
                                 WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
                             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            if (!pendingAodModeRequest && aodModeLaunchRequestCount == 0) {
+                                setAodShowWhenLocked(false)
+                            }
                         }
                     }
 
@@ -4684,6 +4713,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_SEARCH = "moe.rukamori.archivetune.action.SEARCH"
         const val ACTION_LIBRARY = "moe.rukamori.archivetune.action.LIBRARY"
+        private const val AOD_SCREEN_OFF_GRACE_MS = 3_000L
     }
 }
 
