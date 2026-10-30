@@ -170,7 +170,6 @@ fun OnlineSearchResult(
     val searchFilter by viewModel.filter.collectAsStateWithLifecycle()
     val (showVideos, onShowVideosChange) = rememberPreference(ShowVideosInSearchKey, defaultValue = false)
     LaunchedEffect(showVideos) {
-        // The "Videos" tab does not exist while clips are switched off.
         if (!showVideos && viewModel.filter.value == FILTER_VIDEO) viewModel.filter.value = null
     }
     val searchSummary = viewModel.summaryPage
@@ -319,7 +318,6 @@ fun OnlineSearchResult(
                                                     metadata
                                                 }
                                             }
-                                        // A clip picked here is the one place a clip is played as a clip.
                                         if (playAsVideo) UserChosenClips.add(item.id)
                                         playerConnection.playSongKeepingQueue(
                                             seedMetadata,

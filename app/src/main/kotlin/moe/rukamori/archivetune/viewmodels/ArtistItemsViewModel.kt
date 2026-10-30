@@ -91,7 +91,6 @@ class ArtistItemsViewModel
             database
                 .artist(routeArtistId)
                 .stateIn(viewModelScope, SharingStarted.Lazily, null)
-        // While the whole list is being ranked by views, loading "more" would race with it.
         @Volatile
         private var ranking = false
 
@@ -181,9 +180,6 @@ class ArtistItemsViewModel
                                 continuation = artistItemsPage.continuation,
                             )
 
-                        // A list of songs is shown from the most viewed to the least viewed. The
-                        // first page appears at once in YouTube's order; the whole list is then
-                        // loaded, ranked, and swapped in.
                         val onlySongs =
                             artistItemsPage.layout == ArtistItemsPageLayout.LIST &&
                                 artistItemsPage.items.isNotEmpty() &&
@@ -269,7 +265,6 @@ class ArtistItemsViewModel
                         .dropCleanTwins(),
                 )
             if (ranked.isEmpty()) return
-            // Songs beyond the ranked head stay reachable through the remaining continuation.
             itemsPage.value = ItemsPage(items = ranked, continuation = collected.continuation)
         }
 

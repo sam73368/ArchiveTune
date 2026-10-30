@@ -36,7 +36,6 @@ data class LyricsRomanizationPreferences(
 
 @Suppress("RegExpRedundantEscape")
 object LyricsUtils {
-    // The fraction may have 1 to 3 digits ("[00:12.5]" is valid LRC and used to be dropped).
     val LINE_REGEX = Regex("""((\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]\s*)+)(.*)""")
     val TIME_REGEX = Regex("""\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]""")
     private val LRC_OFFSET_TAG_REGEX = Regex("""^\s*\[offset:\s*([+-]?\d{1,7})\s*]\s*$""", RegexOption.IGNORE_CASE)
@@ -605,7 +604,6 @@ object LyricsUtils {
         }
     }
 
-    /** Start time of the last timed line, or null for unsynced / unparsable lyrics. */
     fun lastTimedLineMs(lyrics: String): Long? {
         val normalized = normalizeLyricsText(lyrics)
         val entries =
@@ -617,10 +615,6 @@ object LyricsUtils {
         return entries.filter { it.text.isNotBlank() && it.time >= 0L }.maxOfOrNull { it.time }
     }
 
-    /**
-     * True when timed lyrics stop well before the song does (partial file, shorter edit, wrong
-     * version). Unsynced lyrics carry no timing, so they are never flagged.
-     */
     fun isLikelyTruncated(
         lyrics: String,
         durationSeconds: Int,
@@ -641,7 +635,6 @@ object LyricsUtils {
         return lastMs > durationMs * 115 / 100 && lastMs - durationMs > 20_000L
     }
 
-    /** Never throws: unreadable lyrics give an empty list, which the screens show as "not found". */
     fun parseTtml(
         lyrics: String,
         durationSeconds: Int? = null,
@@ -688,7 +681,6 @@ object LyricsUtils {
             }.sorted()
     }
 
-    /** Never throws: unreadable lyrics give an empty list, which the screens show as "not found". */
     fun parseLyrics(lyrics: String): List<LyricsEntry> =
         try {
             parseLyricsUnsafe(lyrics)
@@ -696,10 +688,6 @@ object LyricsUtils {
             emptyList()
         }
 
-    /**
-     * The standard LRC `[offset:+/-ms]` tag: a positive value shows the lyrics earlier. It was ignored,
-     * so files that rely on it were out of sync by that amount.
-     */
     internal fun lrcOffsetMs(lyrics: String): Long =
         lyrics
             .lineSequence()

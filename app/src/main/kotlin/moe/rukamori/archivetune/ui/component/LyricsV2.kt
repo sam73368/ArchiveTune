@@ -278,7 +278,6 @@ fun LyricsV2(
     var showShareImageDialog by remember { mutableStateOf(false) }
 
     val currentLyrics by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
-    // While the song changes, the lyrics row can still be the previous song's for a moment.
     val lyrics = currentLyrics?.takeIf { it.id == mediaMetadata?.id }?.lyrics
     val showTranslations =
         remember(currentLyrics?.source) {
@@ -405,8 +404,6 @@ fun LyricsV2(
     var playbackPositionMs by remember { mutableLongStateOf(0L) }
     var currentLineIndex by remember { mutableIntStateOf(0) }
 
-    // Lines are timed in "lyrics time" (player position + sync offset + lead): seeking to a line must
-    // take those back off, or a sync offset sends the player up to 3 s away from the tapped line.
     val latestLyricsSyncOffsetV2 = rememberUpdatedState(lyricsSyncOffset)
     val latestLeadMsV2 = rememberUpdatedState(leadMs + visualTuningMs)
     val playerPositionForLyricTime: (Long) -> Long =
@@ -501,8 +498,6 @@ fun LyricsV2(
             }
         }
 
-    // By default the position chosen by hand is kept until "Resync" is pressed; with the setting off the
-    // lyrics come back to the sung line after a few idle seconds.
     LaunchedEffect(isManualScrolling, lastManualScrollTime, holdManualScroll) {
         if (isManualScrolling && !holdManualScroll) {
             delay(MANUAL_SCROLL_TIMEOUT_MS)
@@ -510,12 +505,10 @@ fun LyricsV2(
         }
     }
 
-    // A new song starts in sync.
     LaunchedEffect(mediaMetadata?.id) {
         isManualScrolling = false
     }
 
-    // Dragging the progress bar is asking to go somewhere else in the song: follow it.
     LaunchedEffect(Unit) {
         var wasSliderActive = false
         while (isActive) {

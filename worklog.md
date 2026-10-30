@@ -6347,3 +6347,23 @@ Work Log:
 
 Stage Summary:
 - Pending CI and a drive test (log lines "answered HTTP 403 mid-playback").
+
+---
+Task ID: R-185
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Version 18.5 - fix the bugs recorded by the AOD, lyrics, search, artist page, player and interface audits.
+
+Work Log:
+- AOD/lyrics: full-travel slide-to-unlock, swipe to change track, screen-off grace window, persisted sync offset, progressive lyric candidates with duration-aware cache keys and not-found throttle.
+- Search: unique list keys, shared RetryPlaceholder, retry for failed filters and load-more, history from every entry, ESCAPE-based LIKE with artist/album matching in the local search queries.
+- Artist pages: retry states, unlimited ordered library albums, generation guards against duplicate loads, valid share links.
+- Player: sleep timer AUTO-only, error counter reset job, network-error chain detection without cache purge, queue continuation dropped on clear, paused crossfade loop throttled, AutoMix analysis through a temp file with a deadline, download auto-retry with backoff, IPv4-first handover address comparison.
+- Interface: bounded Home load-more retry, translated labels, isAppInDarkTheme() (background luminance) instead of isSystemInDarkTheme() in 8 screens, mini-player icon contrast, start-up maintenance throttled to 5 minutes.
+- Non-license comments stripped from all touched Kotlin files (diff verified: only comment and blank lines removed).
+- Not compiled locally; nothing tested on a device.
+
+Stage Summary:
+- Version bumped to 18.5 (versionCode base 1750). Pending CI compile and an on-device check.
+- Deferred: queue selection by metadata with duplicate songs, dialog selection lost on activity recreation, shuffle-aware undo, accessibility labels, remaining untranslated settings texts, clear-queue disabling the global infinite queue, RTL layout direction.
+

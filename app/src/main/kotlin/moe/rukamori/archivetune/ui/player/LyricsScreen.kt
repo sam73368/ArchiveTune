@@ -278,9 +278,6 @@ fun LyricsScreen(
     LaunchedEffect(mediaMetadata.id, currentLyrics?.lyrics, currentLyrics?.providerName) {
         if (mediaMetadata.isPodcast) return@LaunchedEffect
         val snapshot = currentLyrics
-        // Only lyrics found online lack a provider name by mistake: edited, embedded, chosen or
-        // translated lyrics have none on purpose, and a search would label them with a provider that
-        // did not write them (and run again every time the song is shown).
         val needsFetch =
             snapshot == null ||
                 snapshot.id != mediaMetadata.id ||

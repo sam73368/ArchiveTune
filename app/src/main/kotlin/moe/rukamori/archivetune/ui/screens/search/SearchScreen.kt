@@ -145,7 +145,6 @@ fun SearchScreen(
     historyViewModel: SearchHistoryViewModel = hiltViewModel(),
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    // Back clears what was typed before leaving the search tab.
     BackHandler(enabled = searchQuery.isNotEmpty()) {
         searchQuery = ""
     }

@@ -1085,8 +1085,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Keep looking for new builds while the app is open (and each time it comes back to the
-            // foreground), so the update popup also shows up mid-session, not only at cold start.
             LaunchedEffect(Unit) {
                 this@MainActivity.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                     delay(5_000)
@@ -2537,9 +2535,6 @@ class MainActivity : ComponentActivity() {
                             handleIntent(pendingIntent, navController)
                             pendingIntent = null
                         } else if (savedInstanceState == null) {
-                            // Not on recreation (theme / language change): the launch intent was
-                            // already handled and would otherwise restart playback, rejoin a
-                            // Listen Together room, relaunch song recognition, etc.
                             handleIntent(intent, navController)
                         }
                     }
@@ -2670,8 +2665,6 @@ class MainActivity : ComponentActivity() {
                         moe.rukamori.archivetune.ui.player.LocalPlayerSheetOverlayActive provides isPlayerSheetOverlayActive,
                         moe.rukamori.archivetune.ui.player.LocalPlayerSheetOverlayFraction provides playerSheetOverlayFractionState,
                         LocalOverscrollFactory provides effectiveOverscrollFactory,
-                        // Remote control: a clear highlight on the focused item (Material's focus layer is
-                        // almost invisible on a TV).
                         moe.rukamori.archivetune.ui.tv.LocalTvLayout provides isTvDevice,
                         moe.rukamori.archivetune.ui.tv.LocalTvFocusedPreview provides
                             remember(isTvDevice) { if (isTvDevice) moe.rukamori.archivetune.ui.tv.TvFocusedPreview() else null },
@@ -4028,9 +4021,6 @@ class MainActivity : ComponentActivity() {
                                                 },
                                             ).then(
                                                 if (isTvDevice) {
-                                                    // Entering the content from the rail lands on an item
-                                                    // (the last one used, else the first) instead of on the
-                                                    // invisible content container, where the highlight was lost.
                                                     Modifier
                                                         .tvFocusScope()
                                                         .onFocusChanged {
@@ -4275,7 +4265,6 @@ class MainActivity : ComponentActivity() {
             return
         }
         intent.getStringExtra("navigate_to")?.takeIf { it.isNotBlank() }?.let { route ->
-            // The activity is exported, so an unknown route must not crash the app.
             runCatching {
                 navController.navigate(route) {
                     launchSingleTop = true
@@ -4298,8 +4287,6 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (intent.action == "android.media.action.MEDIA_PLAY_FROM_SEARCH") {
-            // Assistants often send an empty "query" together with structured extras (title, artist,
-            // album, playlist), so an empty string must not hide them.
             val structuredQuery =
                 listOf(
                     android.provider.MediaStore.EXTRA_MEDIA_TITLE,
@@ -4435,7 +4422,6 @@ class MainActivity : ComponentActivity() {
                     ?.let { Regex("""https?://\S+""").find(it)?.value }
                     ?.toUri()
                 ?: return
-        // Shared text such as "Title: https://…" can parse to an opaque Uri, which has no query.
         if (uri.isOpaque) return
         val coroutineScope = lifecycleScope
 

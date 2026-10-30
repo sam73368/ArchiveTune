@@ -81,8 +81,6 @@ class LyricsHelper
         private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
         private val singleLyricsCache = LruCache<String, LyricsResult>(MAX_CACHE_SIZE)
 
-        // The player service, the queue pre-loader and the lyrics screen can all ask for the same song at
-        // the same moment: they now share one search instead of hitting every provider two or three times.
         private val inFlightScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private val inFlight = HashMap<String, Deferred<LyricsResult>>()
         private val notFoundAt = HashMap<String, Long>()
@@ -273,7 +271,6 @@ class LyricsHelper
                     PaxSenixAppleMusicLyricsProvider,
                     PaxSenixMusixmatchLyricsProvider,
                     SimpMusicLyricsProvider,
-                    // A provider switched off in the settings must not be asked here either.
                 ).filter { it.isEnabled(context) && supportsMediaId(it, mediaMetadata.id) }
 
             val artist = mediaMetadata.artists.joinToString { it.name }
@@ -308,8 +305,6 @@ class LyricsHelper
 
             if (results.isEmpty()) return null
 
-            // Skip word-synced files that stop long before the song ends: the normal flow below
-            // will then compare every provider and keep the most complete one.
             val first =
                 results
                     .sortedBy { LyricsUncensor.maskedWordCount(it.second) }
@@ -376,8 +371,6 @@ class LyricsHelper
                     }.forEach { it.await() }
                 }
             }
-            // An empty list (offline, every provider timed out) must not be cached: the next search
-            // would show nothing until the cache entry is evicted.
             val found = synchronized(allResult) { allResult.toList() }
             if (found.isNotEmpty()) cache.put(cacheKey, found)
         }

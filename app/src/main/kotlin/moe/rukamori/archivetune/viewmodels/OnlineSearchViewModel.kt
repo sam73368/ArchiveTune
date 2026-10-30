@@ -139,8 +139,6 @@ class OnlineSearchViewModel
                 viewModelScope.launch {
                     filter.collect { selectedFilter -> loadFor(selectedFilter) }
                 }
-                // The "Music videos" switch of the results screen: results are filtered when loaded,
-                // so a change throws the cached pages away and loads them again.
                 viewModelScope.launch {
                     context.dataStore.data
                         .map { it[ShowVideosInSearchKey] ?: false }
@@ -322,7 +320,6 @@ class OnlineSearchViewModel
                     return
                 }
                 if (filter == FILTER_VIDEO && !context.dataStore.get(ShowVideosInSearchKey, false)) {
-                    // Clips are only offered while the search switch is on.
                     viewStateMap[filterKey] = ItemsPage(emptyList(), null)
                     return
                 }

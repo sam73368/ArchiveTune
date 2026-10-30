@@ -267,8 +267,6 @@ class DownloadUtil
                 SongSourceQobuzBackupVideoId.get(prefs[SongSourceQobuzBackupVideoIdKey], mediaId),
         )
 
-        // Called from getDownload(), which UI rows collect on the main thread: read the in-memory
-        // preference snapshot instead of blocking on DataStore for every row and every tick.
         private fun readSongSourcePreferences(mediaId: String): SongSourcePreferences {
             PreferenceStore.snapshot?.let { return songSourcePreferencesFrom(it, mediaId) }
             return runCatching {
@@ -658,7 +656,6 @@ class DownloadUtil
             }
         }
 
-        // Wi-Fi only: downloads wait for an unmetered network, and resume on their own when one is back.
         private val networkRequirementJob =
             downloadScope.launch(Dispatchers.Main) {
                 context.dataStore.data

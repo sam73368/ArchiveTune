@@ -357,8 +357,6 @@ interface DatabaseDao {
         previewSize: Int = 3,
     ): Flow<List<Song>>
 
-    // Filter related_song_map to the seed songs *before* grouping: grouping first keeps one arbitrary
-    // row per relatedSongId, which silently drops relations from other seeds and miscounts referredCount.
     @Transaction
     @Query(
         """
@@ -857,8 +855,6 @@ interface DatabaseDao {
     )
     fun artistsBookmarkedBySongCountAsc(): Flow<List<Artist>>
 
-    // LEFT JOIN so bookmarked artists without any local songs are still listed (as zero play time);
-    // the ORDER BY must be on the outer query, an ordered subquery doesn't order the join result.
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query(
@@ -998,7 +994,6 @@ interface DatabaseDao {
     @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY duration")
     fun albumsLikedByLengthAsc(): Flow<List<Album>>
 
-    // LEFT JOIN so liked albums without any local songs are still listed (as zero play time).
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query(
@@ -1352,8 +1347,6 @@ interface DatabaseDao {
         playlist: Playlist,
         songEntries: List<Pair<String, String?>>,
     ) {
-        // Read the real end of the playlist inside the transaction: `playlist` can be a stale copy
-        // (e.g. parallel imports sharing one), which gave every song the same position.
         var position = maxOf(playlist.songCount, (maxPlaylistSongPosition(playlist.id) ?: -1) + 1)
         songEntries.forEach { (songId, setVideoId) ->
             insert(
@@ -1471,8 +1464,6 @@ interface DatabaseDao {
     )
     fun libraryTopMixSongs(mixId: String): List<Song>
 
-    // Event timestamps are written from LocalDateTime.now() (already local wall-clock time, stored as
-    // if it were UTC), so no 'localtime' conversion here: it would shift every slot by the UTC offset.
     @Query(
         """
         SELECT CAST(strftime('%H', datetime(timestamp / 1000, 'unixepoch')) AS INTEGER) AS slot,
@@ -1582,7 +1573,6 @@ interface DatabaseDao {
     @Query("SELECT COUNT(1) FROM related_song_map WHERE songId = :songId LIMIT 1")
     fun hasRelatedSongs(songId: String): Boolean
 
-    // Filter by songId before anything else; the old GROUP BY relatedSongId ran first and lost rows.
     @Transaction
     @Query(
         "SELECT song.* FROM song WHERE id IN (SELECT relatedSongId FROM related_song_map WHERE songId = :songId)",
@@ -1868,7 +1858,6 @@ interface DatabaseDao {
         update(
             artist.copy(
                 name = artistPage.artist.title,
-                // Keep the existing thumbnail when the page has none instead of wiping it to null.
                 thumbnailUrl =
                     artistPage.artist.thumbnail?.resize(
                         width = 1080,
@@ -1884,9 +1873,6 @@ interface DatabaseDao {
     fun update(
         album: AlbumEntity,
         albumPage: AlbumPage,
-        // Unused, kept for call-site compatibility. Artist rows must never be deleted here: that drops
-        // their subscription/block state and cascades to song_artist_map/album_artist_map. Stale
-        // album->artist links are removed below by clearing this album's album_artist_map rows first.
         artists: List<ArtistEntity>? = emptyList(),
     ) {
         update(

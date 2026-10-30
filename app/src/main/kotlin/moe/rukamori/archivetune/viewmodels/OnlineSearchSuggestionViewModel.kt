@@ -65,8 +65,6 @@ class OnlineSearchSuggestionViewModel
             viewModelScope.launch {
                 query
                     .combine(provider) { query, provider -> query.trim() to provider }
-                    // Live search while typing: wait for a short pause so every keystroke does
-                    // not fire a network request (clearing the field still updates instantly).
                     .debounce { (query, _) -> if (query.isBlank()) 0L else 250L }
                     .distinctUntilChanged()
                     .flatMapLatest { (query, provider) ->
@@ -108,8 +106,6 @@ class OnlineSearchSuggestionViewModel
                                 )
                             }
                         } else {
-                            // Live results: suggestions + top matches first (fast), then a real
-                            // song search for the typed text so results show up without Enter.
                             val liveResults =
                                 flow {
                                     val result = YouTube.searchSuggestions(query).getOrNull()

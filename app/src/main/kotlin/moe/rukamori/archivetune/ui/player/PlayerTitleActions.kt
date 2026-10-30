@@ -105,10 +105,6 @@ fun rememberPlayerTitleActions(
     }
 }
 
-/**
- * Small tappable album line for the player header: shows the current album and opens its page
- * (with every track) on tap. Renders nothing when the item has no known album.
- */
 @Composable
 fun PlayerAlbumLink(
     mediaMetadata: MediaMetadata,

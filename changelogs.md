@@ -1,3 +1,66 @@
+# ArchiveTune 18.5 — Changelog
+
+The reliability update: a full audit of the always-on display, lyrics,
+search, artist pages, the player and the interface turned up 116 bugs;
+this release fixes the ones that could be fixed safely without changing
+the design.
+
+## Always-on display
+
+- The slide-to-lock thumb now travels the full track and unlocks at 85%
+  instead of stopping mid-way
+- Swipe left or right on the display to change track
+- The display no longer closes by itself when the screen turns off, and
+  can be shown over the lock screen
+- The synced-lyrics ticker only runs on time-synced lyrics
+
+## Lyrics
+
+- Per-song sync offset is remembered
+- Lyrics are fetched progressively (first provider that answers wins),
+  with a duration-aware cache and a throttle for songs that have none
+- No more invented "written by" credits
+
+## Search
+
+- Failed searches and failed "load more" show a Retry button
+- Every way of opening a search now records it in the history
+- Local search also matches artists and albums, and treats % and _
+  literally
+- No more crashes or glitches from duplicate result keys
+
+## Artist pages
+
+- Retry on failed loads, full library album list, no duplicate loads
+- Valid share links, Spotify-only albums, explicit filter in menu playback
+
+## Player
+
+- The sleep timer only auto-stops when it should, and stopping clears it
+- Playback errors reset after a calm period; network errors are no
+  longer mistaken for corrupted cache and no longer purge it
+- Clearing the queue also drops the radio continuation
+- Paused crossfade no longer spins the CPU; widget buttons wait for the
+  queue to be restored
+- AutoMix analysis downloads to a temp file with a deadline
+- Downloads retry automatically with backoff and a 60 s read timeout;
+  pre-warming is skipped in low-data mode
+- Network handover detection ignores IPv6 privacy-address rotation
+
+## Interface
+
+- The Home feed retries loading more items instead of freezing at the bottom
+- Hard-coded English labels are translated (quality badge, copied
+  title/artist, queue names) and the "Upgrading quality" badge no longer
+  shows for unknown formats
+- Colors follow the theme chosen in the app, not the system one
+- The mini-player play button is readable on every palette
+- Start-up maintenance (cache clearing, account refresh) runs at most
+  every five minutes instead of on every return to the app
+- The "null" song name in the queue undo message is gone
+
+---
+
 # ArchiveTune 18.0 — Changelog
 
 The everywhere update: three new streaming sources arrive (SoundCloud,

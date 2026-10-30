@@ -778,7 +778,6 @@ fun Queue(
                     .background(backgroundColor),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Observed, so the shuffle button follows changes made elsewhere (notification, Smart Shuffle...).
                 val queueShuffleEnabled by playerConnection.shuffleModeEnabled.collectAsState()
                 CurrentSongHeader(
                     sheetState = state,
@@ -992,7 +991,6 @@ fun Queue(
                                                     )
                                                 }
                                             } else {
-                                                // Visible while locked so reordering is discoverable: a tap unlocks the queue.
                                                 IconButton(onClick = { locked = false }) {
                                                     Icon(
                                                         painter = painterResource(R.drawable.drag_handle),

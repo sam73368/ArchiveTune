@@ -199,7 +199,6 @@ class ArtistViewModel
         fun manualRefresh() {
             if (isManuallyRefreshing) return
             isManuallyRefreshing = true
-            // The flag is cleared when the fetch itself finishes (see fetchArtistsFromYTM).
             fetchArtistsFromYTM(manual = true)
         }
 
@@ -363,12 +362,6 @@ class ArtistViewModel
             artistPage = current.copy(sections = sections)
         }
 
-        /**
-         * "Top songs" must be the artist's most viewed songs, not the five YouTube happens to list.
-         * The full list behind the section's arrow is loaded, ranked by view count, and the
-         * section is replaced by the best of it (as many songs as the page showed). Until then the
-         * page shows YouTube's own order. Skipped in low-data mode.
-         */
         private suspend fun rankTopSongs(
             sections: List<ArtistSection>,
             hideExplicit: Boolean,
@@ -391,7 +384,6 @@ class ArtistViewModel
                     .filterVideo(hideVideo)
                     .filterBlockedArtists(blockedArtistIds)
                     .dropCleanTwins()
-            // Fall back to the songs of the page itself if the full list is unavailable.
             val candidates =
                 if (everySong.size >= previewSize) {
                     everySong
@@ -404,7 +396,6 @@ class ArtistViewModel
 
             withContext(Dispatchers.Main) {
                 val current = artistPage ?: return@withContext
-                // Ignore the result if the page was refreshed in the meantime.
                 if (current.sections.none { it === section }) return@withContext
                 artistPage =
                     current.copy(

@@ -732,7 +732,6 @@ class MusicService :
     private var hideMusicVideos = true
     private var infiniteQueueJob: Job? = null
 
-    // Smart Shuffle: while shuffling, one similar song from the radio is slipped in every few tracks.
     private var smartShuffleTransitions = 0
     private var smartShuffleJob: Job? = null
     private val smartShuffleSuggested: MutableSet<String> = java.util.Collections.synchronizedSet(mutableSetOf())
@@ -1629,16 +1628,10 @@ class MusicService :
             .distinctUntilChanged()
             .collect(scope) { shouldHideMusicVideos ->
                 if (!shouldHideMusicVideos) {
-                    // Songs are always played as their studio version; clips only exist in search results.
-                    // Whatever wrote "false" (old settings, a restored backup) is overridden.
                     scope.launch(SilentHandler) { dataStore.edit { it[HideVideoKey] = true } }
                 }
                 hideMusicVideos = true
-                // Re-evaluate the studio/clip choice for everything except the file playing right now.
                 releaseStudioPins(player.currentMediaItem?.mediaId)
-                // Only prune when the user actually turns the setting on (not on startup, which
-                // would strip music-video tracks from a restored album queue), and never inside
-                // an album queue, whose tracks are all part of the release.
                 val toggledOn = shouldHideMusicVideos && !isInitialHideVideoValue
                 isInitialHideVideoValue = false
                 refreshClipArtwork()
@@ -1801,15 +1794,12 @@ class MusicService :
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
             dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
-            // Coming back online retries a song whose lyrics could not be fetched while offline.
             isNetworkConnected,
         ) { mediaMetadata, _, _ ->
             mediaMetadata
         }.collectLatest(ioScope) { mediaMetadata ->
             if (mediaMetadata == null || mediaMetadata.isPodcast) return@collectLatest
 
-            // One failure (database, provider, parser) used to end this collector for the rest of the
-            // session: lyrics then stayed on the loading placeholder for every following song.
             try {
                 val stored = database.lyrics(mediaMetadata.id).first()
                 val shouldFetch =
@@ -1847,7 +1837,6 @@ class MusicService :
                 throw e
             } catch (e: Exception) {
                 reportException(e)
-                // Leave "not found" rather than an endless loading placeholder; it is retried later.
                 runCatching {
                     if (database.getLyricsById(mediaMetadata.id) == null) {
                         database.query {
@@ -2925,8 +2914,6 @@ class MusicService :
             database.getBlockedArtistIds().toSet()
         }
 
-    // "Allow age-restricted content" only controls YouTube age-gate playback fallbacks
-    // (see YTPlayerUtils); it must not strip explicit-tagged songs from the queue.
     private suspend fun shouldHideExplicitTracks(): Boolean = dataStore.get(HideExplicitKey, false)
 
     private fun removeExplicitItems() {
@@ -2978,9 +2965,6 @@ class MusicService :
         val itemQueue = persistedQueue.toQueue()
         val continuationQueue = persistedQueue.toContinuationQueue()
         val hideExplicit = shouldHideExplicitTracks()
-        // Music videos were already vetted when the queue was built (album queues keep them on
-        // purpose, and toggling "Hide music videos" prunes the live queue), so re-filtering here
-        // would strip album tracks after every app restart.
         val initialStatus =
             itemQueue
                 .getInitialStatus()
@@ -3442,7 +3426,6 @@ class MusicService :
         localPlayer.playWhenReady = false
     }
 
-    /** Counts a failed crossfade attempt for the song that is currently playing. */
     private fun noteCrossfadeFailure(outgoingMediaId: String?) {
         if (outgoingMediaId != null && outgoingMediaId == crossfadeFailureMediaId) {
             crossfadeConsecutiveFailures++
@@ -3452,10 +3435,6 @@ class MusicService :
         }
     }
 
-    /**
-     * After [MAX_CONSECUTIVE_CROSSFADE_FAILURES] failed attempts on the same song the crossfade is
-     * given up for that song (the normal transition happens at its end). Reset on the next transition.
-     */
     private fun isCrossfadeSuspended(): Boolean =
         crossfadeConsecutiveFailures >= MAX_CONSECUTIVE_CROSSFADE_FAILURES &&
             crossfadeFailureMediaId != null &&
@@ -4108,8 +4087,6 @@ class MusicService :
                         return@launch
                     }
 
-                    // The outgoing song kept playing while the incoming one was buffering (and will keep
-                    // playing while it starts), so the fade must never be longer than what is left of it.
                     fun clampFadeToOutgoing() {
                         player.duration
                             .takeIf { it != C.TIME_UNSET && it > 0L }
@@ -4153,7 +4130,6 @@ class MusicService :
                         }
                     }
 
-                    // Starting the incoming player took time (up to CROSSFADE_AUDIO_ADVANCE_TIMEOUT_MS).
                     clampFadeToOutgoing()
 
                     var elapsedMs = 0L
@@ -4228,8 +4204,6 @@ class MusicService :
                                     (player.currentPosition - blendStartOutgoingPositionMs)
                                         .coerceIn(0L, fadeMs)
                             } else {
-                                // The fade is measured in song time: at 2x speed the outgoing song ends in half
-                                // the wall-clock time, so the fade has to run twice as fast to end with it.
                                 val speed = player.playbackParameters.speed.coerceIn(0.25f, 4f)
                                 elapsedMs = (elapsedMs + ((nowMs - lastTickMs) * speed).toLong()).coerceAtMost(fadeMs)
                             }
@@ -4457,9 +4431,6 @@ class MusicService :
 
             promotedTailDspProcessor = secondaryFloatDspProcessor
 
-            // The incoming player was built from a snapshot of the queue (up to 30 s earlier) with its
-            // own random shuffle order. Make it identical to what the session is playing: same songs in
-            // the same order, same repeat/shuffle mode, same shuffle order.
             var activeIndex = targetIndex
             val mirroredIndex = mirrorQueueOnto(incomingPlayer, oldSessionPlayer, target)
             if (mirroredIndex != C.INDEX_UNSET) {
@@ -4528,14 +4499,6 @@ class MusicService :
         }
     }
 
-    /**
-     * Rebuilds the queue of [incomingPlayer] (which is playing [target]) so that it equals the queue
-     * of [source]: the incoming player is created before the fade from a snapshot, so songs added,
-     * removed or moved in the meantime, and the shuffle order, would otherwise be lost at promotion.
-     *
-     * @return the index of the playing song in [incomingPlayer], or [C.INDEX_UNSET] if it could not
-     * be mirrored (the caller then falls back to appending the missing songs).
-     */
     private fun mirrorQueueOnto(
         incomingPlayer: ExoPlayer,
         source: Player,
@@ -5685,8 +5648,6 @@ class MusicService :
                     var pagesLoaded = 0
                     while (queue.hasNextPage() && pagesLoaded < 200) {
                         pagesLoaded++
-                        // A failing continuation page must not cancel the whole play request:
-                        // start with what was already loaded.
                         val nextItems =
                             try {
                                 withContext(Dispatchers.IO) {
@@ -5779,7 +5740,6 @@ class MusicService :
         shuffledIndices[0] = currentIndex
         localPlayer.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
     }
-
 
     private fun applyPlayedPrefixPreservingShuffleOrder() {
         val count = player.mediaItemCount
@@ -6290,9 +6250,6 @@ class MusicService :
         if (allowedItems.isEmpty()) return
         suppressAutoPlayback = false
 
-        // "Add to queue" appends at the END of the queue (unlike "play next", which inserts right after
-        // the current song). With shuffle on, ExoPlayer would scatter new items at random positions of
-        // the shuffled order, so the order is rebuilt explicitly with the new songs last.
         val existingCount = player.mediaItemCount
         val insertionIndex = existingCount
         val addQueueShuffleOrder =
@@ -7323,11 +7280,6 @@ class MusicService :
             }
     }
 
-    /**
-     * Keeps the platform artwork (notification, lock screen, Android Auto, widget, Cast) of the
-     * playing music-video in line with the "Hide music videos" setting: the album cover while it is
-     * on, the video frame while it is off.
-     */
     private fun refreshClipArtwork() {
         val mediaItem = player.currentMediaItem ?: return
         val metadata = mediaItem.metadata ?: return
@@ -7448,7 +7400,6 @@ class MusicService :
 
         beginHistorySession(mediaItem?.mediaId, forceNew = true)
 
-        // The songs about to play, in play order (shuffle included), not the next ones in the list.
         val upcomingMetadata = upcomingMediaItems(MAX_LYRICS_PRELOAD_LOOKAHEAD).map { it.metadata }
         if (upcomingMetadata.any { it != null }) {
             lyricsPreloadManager?.onSongChanged(0, listOf<MediaMetadata?>(null) + upcomingMetadata)
@@ -7491,9 +7442,6 @@ class MusicService :
                             hideVideo = dataStore.get(HideVideoKey, true),
                         )
                 if (player.playbackState != STATE_IDLE) {
-                    // Skip only items already queued instead of blindly dropping the first one:
-                    // drop(1) lost a song at every page boundary when the page did not repeat
-                    // the previous item, and this also absorbs overlapping page loads.
                     val queuedIds =
                         (0 until player.mediaItemCount)
                             .mapTo(HashSet()) { player.getMediaItemAt(it).mediaId }
@@ -7561,7 +7509,6 @@ class MusicService :
                             .getInitialStatus()
                             .filterPlaybackContent(hideExplicit, hideVideo)
                     }
-                // The user may have skipped on, or turned shuffle off, while the radio loaded.
                 if (!player.shuffleModeEnabled || player.currentMediaItem?.mediaId != seed) return@launch
                 val knownIds =
                     (0 until player.mediaItemCount).mapTo(HashSet()) { player.getMediaItemAt(it).mediaId }
@@ -7611,7 +7558,6 @@ class MusicService :
 
         if (mediaId.isLocalMediaId() || mediaId.isTelegramMediaId()) return
 
-        // An expired URL (long pause, repeat) is not worth keeping: refresh it ahead of time.
         val prefetchAuthFingerprint = YouTube.currentPlaybackAuthState().fingerprint
         if (playbackUrlCache[mediaId]?.isValidFor(
                 authFingerprint = prefetchAuthFingerprint,
@@ -7632,8 +7578,6 @@ class MusicService :
 
                     val lowData = isLowDataModeActive()
                     if (!lowData && !UserChosenClips.contains(mediaId) && studioVariantPins.getOrPut(mediaId) { prefersStudioAudio(mediaId) }) {
-                        // The clip's own stream will not be played ("Hide music videos"): warm up the
-                        // studio version instead of resolving the clip through up to 7 YouTube clients.
                         val studioWarm =
                             runCatching {
                                 resolvePlaybackDataSpec(
@@ -8756,7 +8700,6 @@ class MusicService :
 
     private val preloadSongsFragmentBytes = 5L * 1024 * 1024
 
-    /** The next [count] items in the order they will really play (follows the shuffle order). */
     private fun upcomingMediaItems(count: Int): List<MediaItem> {
         val timeline = player.currentTimeline
         if (timeline.isEmpty || count <= 0) return emptyList()
@@ -8824,7 +8767,6 @@ class MusicService :
             val resolvedScheme = resolvedUri.scheme?.lowercase(Locale.US)
             if (resolvedScheme != "http" && resolvedScheme != "https") return@withContext false
 
-            // Cache under the key playback will actually read (a studio upload has its own key).
             val resolvedKey = resolved.key?.takeIf { it.isNotBlank() } ?: mediaId
             if (resolvedKey != mediaId && !runCatching { playerCache.getCachedSpans(resolvedKey) }.getOrNull().isNullOrEmpty()) {
                 return@withContext true
@@ -8844,7 +8786,6 @@ class MusicService :
                     .header("Accept-Encoding", "identity")
                     .header("Connection", "keep-alive")
                     .build()
-            // A skipped track's preload must stop pulling bytes: they compete with the new current track.
             val call = mediaOkHttpClient.newCall(request)
             val cancelOnCompletion =
                 currentCoroutineContext().job.invokeOnCompletion { cause -> if (cause != null) call.cancel() }
@@ -8973,7 +8914,6 @@ class MusicService :
         val preferredSource: String? = null,
 
         val soundCloudUrl: String? = null,
-        /** Flagged explicit by the catalogue: lossless sources must not substitute the clean edit. */
         val explicit: Boolean = false,
     )
 
@@ -9348,13 +9288,6 @@ class MusicService :
         }
     }
 
-    /**
-     * NORMAL: the regular lossless/alternate-source chain tried before YouTube.
-     * STUDIO: a music video (clip) whose studio audio is wanted ("Hide music videos" on): the clip
-     *   length is not trusted for matching, only used as a plausibility bound.
-     * RESCUE: YouTube refused the track (e.g. "Music Premium members only"); last chance through
-     *   the no-account JioSaavn catalogue when it is not already part of the user's chain.
-     */
     private enum class SourceResolveMode { NORMAL, STUDIO, RESCUE }
 
     private fun sourceChainFor(mode: SourceResolveMode): List<AudioSourceType> {
@@ -9378,7 +9311,6 @@ class MusicService :
             return null
         }
 
-        // A rescue runs because the stream just failed: it must not be answered from the memo.
         if (!isPrefetch && mode != SourceResolveMode.RESCUE) {
             val memo = multiSourceMemoByMediaId[mediaId]
             if (memo != null && memo.lowDataMode == lowDataModeActive && memo.expiresAtMs > System.currentTimeMillis()) {
@@ -9534,8 +9466,6 @@ class MusicService :
         val query =
             buildSourceQuery(mediaId)?.let { built ->
                 if (mode == SourceResolveMode.STUDIO) {
-                    // A clip's length (intro, skits, outro) says nothing about the studio track's exact
-                    // length, so it is not part of the match score; it only bounds what is plausible.
                     clipDurationMs = built.durationMs
                     built.copy(title = StudioAudioResolver.cleanTitle(built.title), durationMs = null)
                 } else {
@@ -9837,7 +9767,6 @@ class MusicService :
                     )
                 }
             val explicitAdjustment = TrackMatching.explicitAdjustment(query.explicit, candidate.explicit)
-            // A clean edition of an explicit song is never used; an explicit edition wins ties.
             if (explicitAdjustment <= -TrackMatching.CLEAN_EDITION_REJECTION) continue
             val adjustedScore = match.score + explicitAdjustment / 1000.0
             if (match.accepted && adjustedScore > bestScore) {
@@ -10560,11 +10489,6 @@ class MusicService :
         return runCatching { DeezerAudioQuality.valueOf(stored) }.getOrDefault(DeezerAudioQuality.FLAC)
     }
 
-    /**
-     * JioSaavn mostly serves the clean (censored) edit. For a song flagged explicit it is only used when
-     * the matched JioSaavn track is itself flagged explicit, unless [allowCleanEdit] (last-resort rescue,
-     * or the user pinned this source): otherwise YouTube's own explicit upload is the better stream.
-     */
     private fun resolveJioSaavnStream(
         query: SourceQuery,
         allowCleanEdit: Boolean = false,
@@ -10618,10 +10542,6 @@ class MusicService :
                             penalty
                         } ?: return@runBlocking null
 
-                // JioSaavn serves the censored audio even for tracks it flags explicit (its catalogue is
-                // region-sanitised), so its flag cannot be trusted. Whenever the song, the matched
-                // JioSaavn track or any same-titled JioSaavn edition is explicit, JioSaavn is skipped and
-                // the next source (ultimately YouTube's explicit upload) plays.
                 if (TrackMatching.preferExplicitEditions && !allowCleanEdit) {
                     val wantedKey = query.title.lowercase().replace(JIO_SAAVN_NORMALIZE_REGEX, "")
                     val explicitEditionExists =
@@ -10931,7 +10851,6 @@ class MusicService :
 
     private val alternateUrlCache = ConcurrentHashMap<String, AuthScopedCacheValue>()
 
-    /** Which upload an [alternateUrlCache] entry belongs to, plus what chunking needs to know. */
     private data class AlternateStreamMeta(
         val candidateId: String,
         val contentLength: Long?,
@@ -10940,13 +10859,8 @@ class MusicService :
 
     private val alternateStreamMeta = ConcurrentHashMap<String, AlternateStreamMeta>()
 
-    /**
-     * Media ids whose studio/clip choice is pinned while they play: a seek re-opens the stream, and
-     * switching to the other file mid-song would feed the extractor a different file's seek map.
-     */
     private val studioVariantPins = ConcurrentHashMap<String, Boolean>()
 
-    /** Media ids that already streamed a studio version in this pin (see [studioVariantPins]). */
     private val studioServedIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     private fun releaseStudioPins(keepMediaId: String?) {
@@ -10954,7 +10868,6 @@ class MusicService :
         studioServedIds.removeIf { it != keepMediaId }
     }
 
-    /** Drops the studio/alternate stream URL of [mediaId] (it failed, expired or was purged). */
     private fun invalidateAlternateStream(
         mediaId: String,
         purgeCachedBytes: Boolean = false,
@@ -10972,10 +10885,6 @@ class MusicService :
         }
     }
 
-    /**
-     * "Hide music videos" means the user wants songs, not clips: when YouTube Music hands us the
-     * official clip (common in albums), play the studio recording instead when one can be found.
-     */
     private fun prefersStudioAudio(mediaId: String): Boolean =
         !mediaId.isLocalMediaId() &&
             !mediaId.isTelegramMediaId() &&
@@ -10983,7 +10892,6 @@ class MusicService :
             !UserChosenClips.contains(mediaId) &&
             isMusicVideoPlayback(mediaId)
 
-    /** True when every byte of [mediaId] is in the download cache (the offline copy is complete). */
     private fun isFullyDownloaded(mediaId: String): Boolean =
         runCatching {
             DownloadSourceConfig.songIdToDownloadIds(mediaId).any { key ->
@@ -10994,12 +10902,6 @@ class MusicService :
 
     private fun hasActiveNetwork(): Boolean = runCatching { connectivityManager.activeNetwork != null }.getOrDefault(true)
 
-    /**
-     * Plays another YouTube upload of the same song under [mediaId]: the studio track for a clip
-     * ([studioOnly]) or, when YouTube refuses the track itself (Music Premium only), another release
-     * or a same-length upload. Streams go through the normal [YTPlayerUtils] client chain and are
-     * cached under their own key so they never mix with the original upload's cached bytes.
-     */
     private fun resolveYouTubeAlternateDataSpec(
         dataSpec: DataSpec,
         mediaId: String,
@@ -11040,7 +10942,6 @@ class MusicService :
                 durationMs = query.durationMs,
                 studioOnly = studioOnly,
                 hideExplicit = dataStore.get(HideExplicitKey, false),
-                // The explicit upload always beats the clean edit (unless "Hide explicit" is on).
                 preferExplicit = TrackMatching.preferExplicitEditions || query.explicit,
             )
         val found =
@@ -11144,7 +11045,6 @@ class MusicService :
         return null
     }
 
-    /** YouTube refused the track itself (not a network/login problem): worth trying elsewhere. */
     private fun Throwable.isRescuableYouTubeRefusal(): Boolean =
         when (this) {
             is YTPlayerUtils.InvalidPlaybackLoginContextException -> false
@@ -11157,7 +11057,6 @@ class MusicService :
             else -> message?.startsWith("Could not find format") == true
         }
 
-    /** Only an explicit refusal of this video (e.g. Premium-only) makes another upload worth it. */
     private fun Throwable.isUnplayableVideoRefusal(): Boolean =
         this is YTPlayerUtils.PremiumOnlyPlaybackException ||
             this is YTPlayerUtils.LoginRequiredForPlaybackException ||
@@ -11173,15 +11072,11 @@ class MusicService :
         val mediaId = dataSpec.key ?: return dataSpec
         val lowDataModeActive = isLowDataModeActive()
 
-        // Studio version instead of a clip ("Hide music videos"): lossless/JioSaavn sources first,
-        // then the studio upload on YouTube; the clip itself stays the fallback.
         val wantStudio =
             !lowDataModeActive && !UserChosenClips.contains(mediaId) &&
                 studioVariantPins.getOrPut(mediaId) { prefersStudioAudio(mediaId) }
         val fullyDownloaded = wantStudio && isFullyDownloaded(mediaId)
         if (wantStudio && !fullyDownloaded) {
-            // The YouTube lookup keeps its own negative cache; a miss there must not disable the
-            // lossless sources.
             val studioSpec =
                 resolveMultiSourceDataSpec(dataSpec, mediaId, lowDataModeActive, mode = SourceResolveMode.STUDIO)
                     ?: resolveYouTubeAlternateDataSpec(dataSpec, mediaId, studioOnly = true, lowDataModeActive = lowDataModeActive)
@@ -11191,8 +11086,6 @@ class MusicService :
                 return studioSpec
             }
             if (dataSpec.position > 0L && mediaId in studioServedIds) {
-                // A seek re-opens the stream: switching to the clip file now would feed the player a
-                // different file with the studio file's seek map. Let ExoPlayer retry instead.
                 throw IOException("Studio stream temporarily unavailable for $mediaId")
             }
             Timber.tag("MusicService").i("No studio version found for clip %s; playing the clip audio", mediaId)
@@ -11358,8 +11251,6 @@ class MusicService :
                 }
             }
 
-        // YouTube refused this track (typically "Music Premium members only" for free accounts):
-        // try the same song elsewhere before surfacing an error.
         playbackResult.exceptionOrNull()?.let { youtubeFailure ->
             if (youtubeFailure is CancellationException) throw youtubeFailure
             if (lowDataModeActive || !youtubeFailure.isRescuableYouTubeRefusal()) return@let
@@ -13299,11 +13190,6 @@ class MusicService :
 
     private var queueSaveJob: Job? = null
 
-    /**
-     * Saving serialises the whole queue, and these listeners fire several times per track change
-     * (transition, buffering flips, play/pause, shuffle, repeat): coalesce them. onDestroy and
-     * onTaskRemoved still save immediately.
-     */
     private fun requestQueueSave() {
         queueSaveJob?.cancel()
         queueSaveJob =
