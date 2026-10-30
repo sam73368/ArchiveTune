@@ -6379,7 +6379,7 @@ Work Log:
 - `cancelCrossfade` resumes the session player when the outgoing song was paused at its end by `pauseAtEndOfMediaItems` (tracked by `outgoingPausedAtItemEnd`); before, a failed promotion left playback paused.
 - Abort paths use `abortCrossfadeKeepingOutgoing()` (ramped volume restore instead of a jump). Promotion applies the incoming song's own effective volume (`currentEffectivePlayerVolumeForMediaId`) instead of the outgoing song's normalization factor, then reconciles after 1.5 s.
 - Pausing no longer releases a prepared crossfade player immediately (released after 2 min of pause).
-- Audio route signature ignores non-media sinks (SCO, earpiece, telephony, remote submix, FM, bus, IP, speaker-safe, echo reference), so the car hands-free profile no longer triggers a route rebuild.
+- Audio route signature ignores non-media sinks (SCO, earpiece, telephony, remote submix, FM, bus, IP, speaker-safe), so the car hands-free profile no longer triggers a route rebuild.
 - Not compiled locally; nothing tested on a device.
 
 Stage Summary:

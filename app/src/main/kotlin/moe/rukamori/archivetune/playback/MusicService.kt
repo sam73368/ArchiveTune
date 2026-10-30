@@ -13716,7 +13716,6 @@ class MusicService :
                 AudioDeviceInfo.TYPE_BUS,
                 AudioDeviceInfo.TYPE_IP,
                 AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE,
-                AudioDeviceInfo.TYPE_ECHO_REFERENCE,
             )
         const val CROSSFADE_PAUSED_SECONDARY_RELEASE_MS = 120_000L
         const val NETWORK_ERROR_MAX_RETRIES = 24
