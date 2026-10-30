@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.player.bitchord
 
+import moe.rukamori.archivetune.ui.theme.isAppInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -77,7 +78,7 @@ internal data class BitChordQueueSong(
 private fun Modifier.thumbnailBorder(shape: Shape): Modifier = composed {
     this.border(
         width = 1.dp,
-        color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.15f),
+        color = if (isAppInDarkTheme()) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.15f),
         shape = shape,
     )
 }

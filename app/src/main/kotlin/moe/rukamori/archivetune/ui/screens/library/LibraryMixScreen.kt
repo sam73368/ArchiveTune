@@ -814,6 +814,7 @@ private fun RecentlyLikedItem(
     playerConnection: PlayerConnection,
     modifier: Modifier = Modifier,
 ) {
+    val likedQueueTitle = androidx.compose.ui.res.stringResource(R.string.liked_songs)
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -835,7 +836,7 @@ private fun RecentlyLikedItem(
                         val startIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
                         playerConnection.playQueue(
                             ListQueue(
-                                title = "Liked Songs",
+                                title = likedQueueTitle,
                                 items = songs.map { it.toMediaItem() },
                                 startIndex = startIndex,
                             ),
@@ -890,7 +891,7 @@ private fun RecentlyLikedItem(
                             val startIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
                             playerConnection.playQueue(
                                 ListQueue(
-                                    title = "Liked Songs",
+                                    title = likedQueueTitle,
                                     items = songs.map { it.toMediaItem() },
                                     startIndex = startIndex,
                                 ),

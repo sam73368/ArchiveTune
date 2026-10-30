@@ -919,4 +919,11 @@
     <string name="onboarding_permission_device_audio_capture_title">Reconnaissance audio intégrée à l\'appareil</string>
     <string name="onboarding_permission_device_audio_capture_desc">Identifiez la musique diffusée dans d\'autres applications sans utiliser le microphone. Android vous demande à chaque fois l\'autorisation de capturer l\'écran et le son, tandis qu\'ArchiveTune traite uniquement le son.</string>
     <string name="app_functions_display_description">Lire de la musique, mettre en pause, changer de piste et voir ce qui joue</string>
+    <string name="copied_title">Titre copié</string>
+    <string name="copied_artist">Artiste copié</string>
+    <string name="selection">Sélection</string>
+    <string name="quality_upgrading">Amélioration de la qualité</string>
+    <string name="quality_hires_lossless">Sans perte haute résolution</string>
+    <string name="quality_lossless">Sans perte</string>
+    <string name="quality_hi_quality">Haute qualité</string>
 </resources>

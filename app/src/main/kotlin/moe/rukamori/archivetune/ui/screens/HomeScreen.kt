@@ -47,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import moe.rukamori.archivetune.playback.queues.Queue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +68,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
@@ -106,6 +108,9 @@ import moe.rukamori.archivetune.ui.menu.YouTubeSongMenu
 import dev.chrisbanes.haze.hazeSource
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+
+private const val HOME_LOAD_MORE_MAX_ATTEMPTS = 3
+private const val HOME_LOAD_MORE_RETRY_DELAY_MS = 2_000L
 
 private val HomeFeedMaxWidth = 1_200.dp
 
@@ -182,16 +187,24 @@ fun HomeScreen(
     val uiState = successState?.uiState
     val selectedChip = uiState?.selectedChip
 
+    val currentIsLoadingMore by rememberUpdatedState(uiState?.isLoadingMore == true)
     LaunchedEffect(uiState?.homePage?.continuation) {
         val continuation = uiState?.homePage?.continuation ?: return@LaunchedEffect
+        var attempts = 0
         snapshotFlow {
             val layoutInfo = lazyListState.layoutInfo
             val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
-            lastVisibleIndex != null && lastVisibleIndex >= layoutInfo.totalItemsCount - 3
-        }.collect { shouldLoadMore ->
-            if (shouldLoadMore) {
-                viewModel.onAction(HomeAction.LoadMore(continuation))
+            val nearBottom = lastVisibleIndex != null && lastVisibleIndex >= layoutInfo.totalItemsCount - 3
+            nearBottom to currentIsLoadingMore
+        }.collect { (nearBottom, loading) ->
+            if (!nearBottom) {
+                attempts = 0
+                return@collect
             }
+            if (loading || attempts >= HOME_LOAD_MORE_MAX_ATTEMPTS) return@collect
+            if (attempts > 0) delay(HOME_LOAD_MORE_RETRY_DELAY_MS * attempts)
+            attempts++
+            viewModel.onAction(HomeAction.LoadMore(continuation))
         }
     }
 

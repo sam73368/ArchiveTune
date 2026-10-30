@@ -317,7 +317,7 @@ fun Queue(
                         message =
                             context.getString(
                                 R.string.removed_song_from_queue,
-                                window.mediaItem.metadata?.title,
+                                window.mediaItem.metadata?.title ?: context.getString(R.string.unknown),
                             ),
                         actionLabel = context.getString(R.string.undo),
                         duration = SnackbarDuration.Short,
@@ -351,7 +351,7 @@ fun Queue(
                                         windows
                                             .first()
                                             .mediaItem.metadata
-                                            ?.title,
+                                            ?.title ?: context.getString(R.string.unknown),
                                     )
                                 } else {
                                     context.getString(R.string.removed_n_songs_from_queue, windows.size)

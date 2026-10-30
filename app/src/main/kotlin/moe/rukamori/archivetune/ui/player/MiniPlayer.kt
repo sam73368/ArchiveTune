@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.player
 
+import moe.rukamori.archivetune.ui.theme.isAppInDarkTheme
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -153,7 +154,7 @@ private fun NewMiniPlayer(
     val shouldUseArtworkBackground =
         miniPlayerBackgroundStyle == MiniPlayerBackgroundStyle.GRADIENT ||
             miniPlayerBackgroundStyle == MiniPlayerBackgroundStyle.GLOW
-    val darkTheme = isSystemInDarkTheme()
+    val darkTheme = isAppInDarkTheme()
 
     LaunchedEffect(
         mediaMetadata?.id,
@@ -392,7 +393,7 @@ private fun rememberMiniPlayerContentColors(
                 artworkContainer = colorScheme.surfaceVariant,
                 artworkBorder = colorScheme.outline.copy(alpha = 0.2f),
                 primaryButtonContainer = colorScheme.primary,
-                primaryButtonIcon = colorScheme.onPrimary,
+                primaryButtonIcon = colorScheme.onSurface,
                 secondaryButtonContainer = colorScheme.surfaceContainerHighest,
                 buttonIcon = colorScheme.onSurface,
                 disabledButtonIcon = colorScheme.onSurface.copy(alpha = 0.38f),

@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.screens.library
 
+import moe.rukamori.archivetune.ui.theme.isAppInDarkTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -105,7 +106,7 @@ fun LibrarySongsScreen(
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppInDarkTheme()
 
     val pureBlack = MaterialTheme.colorScheme.surface.luminance() < 0.05f
 

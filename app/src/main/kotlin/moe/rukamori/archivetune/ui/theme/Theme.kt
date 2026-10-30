@@ -621,3 +621,7 @@ object ThemeSeedPaletteCodec {
         }.getOrNull()
     }
 }
+
+@androidx.compose.runtime.Composable
+fun isAppInDarkTheme(): Boolean =
+    androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() < 0.5f

@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.player.spatialflow
 
+import moe.rukamori.archivetune.ui.theme.isAppInDarkTheme
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -169,7 +170,7 @@ fun SpatialFlowPlayerContent(
     positionProvider: () -> Long,
     canvasPrimaryUrl: String? = null,
     canvasFallbackUrl: String? = null,
-    appIsDark: Boolean = isSystemInDarkTheme(),
+    appIsDark: Boolean = isAppInDarkTheme(),
     onSeek: (Long) -> Unit,
     onSeekFinished: () -> Unit,
     floatingArtwork: Boolean = false,

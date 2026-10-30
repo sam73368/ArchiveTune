@@ -609,6 +609,8 @@ class MainActivity : ComponentActivity() {
         appLock.install()
     }
 
+    private var lastStartMaintenanceAt = 0L
+
     override fun onStart() {
         super.onStart()
         appLock.onStart()
@@ -631,14 +633,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        QobuzAudioProvider.clearTransientCaches()
-        playerConnection?.service?.let { service ->
-            val currentMediaId = playerConnection?.mediaMetadata?.value?.id
-            service.clearResolvedSources(currentMediaId)
-        }
+        val now = SystemClock.elapsedRealtime()
+        if (lastStartMaintenanceAt == 0L || now - lastStartMaintenanceAt >= START_MAINTENANCE_INTERVAL_MS) {
+            lastStartMaintenanceAt = now
+            QobuzAudioProvider.clearTransientCaches()
+            playerConnection?.service?.let { service ->
+                val currentMediaId = playerConnection?.mediaMetadata?.value?.id
+                service.clearResolvedSources(currentMediaId)
+            }
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            runCatching { PoolAccountManager.refreshForLaunch(this@MainActivity) }
+            lifecycleScope.launch(Dispatchers.IO) {
+                runCatching { PoolAccountManager.refreshForLaunch(this@MainActivity) }
+            }
         }
     }
 
@@ -4721,6 +4727,7 @@ class MainActivity : ComponentActivity() {
         const val ACTION_SEARCH = "moe.rukamori.archivetune.action.SEARCH"
         const val ACTION_LIBRARY = "moe.rukamori.archivetune.action.LIBRARY"
         private const val AOD_SCREEN_OFF_GRACE_MS = 3_000L
+        private const val START_MAINTENANCE_INTERVAL_MS = 300_000L
     }
 }
 

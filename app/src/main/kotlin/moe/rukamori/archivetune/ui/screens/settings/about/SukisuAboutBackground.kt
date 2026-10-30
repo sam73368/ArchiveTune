@@ -13,6 +13,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings.about
 
+import moe.rukamori.archivetune.ui.theme.isAppInDarkTheme
 import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -505,7 +506,7 @@ fun SukisuAboutBackground(
         return
     }
 
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppInDarkTheme()
     val preset = remember(isDarkTheme) { sukisuBgPreset(isDarkTheme) }
     val colorStage = remember { Animatable(0f) }
 

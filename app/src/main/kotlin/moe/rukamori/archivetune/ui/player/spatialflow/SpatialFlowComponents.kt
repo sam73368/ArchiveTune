@@ -7,6 +7,7 @@
 
 package moe.rukamori.archivetune.ui.player.spatialflow
 
+import moe.rukamori.archivetune.ui.theme.isAppInDarkTheme
 import android.graphics.Bitmap
 import android.os.Build
 import androidx.compose.animation.core.animateFloatAsState
@@ -144,7 +145,7 @@ internal fun deriveArtworkSurfaceColor(
 internal fun SpatialFlowBlurredBackdrop(
     artUrl: String?,
     withScrim: Boolean = true,
-    isDark: Boolean = isSystemInDarkTheme(),
+    isDark: Boolean = isAppInDarkTheme(),
     modifier: Modifier = Modifier,
 ) {
     val isPreS = Build.VERSION.SDK_INT < Build.VERSION_CODES.S

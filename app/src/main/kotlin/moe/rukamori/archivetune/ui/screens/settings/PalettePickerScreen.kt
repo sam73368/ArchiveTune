@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.screens.settings
 
+import moe.rukamori.archivetune.ui.theme.isAppInDarkTheme
 import moe.rukamori.archivetune.utils.openDownloadsOutput
 import moe.rukamori.archivetune.utils.isTelevision
 import moe.rukamori.archivetune.utils.launchSafely
@@ -1361,7 +1362,7 @@ private fun SimpleThemePreview(
     palette: ThemeSeedPalette,
     modifier: Modifier = Modifier,
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppInDarkTheme()
     val tonalPalettes =
         remember(palette) {
             TonalPalettes.fromSeedColors(

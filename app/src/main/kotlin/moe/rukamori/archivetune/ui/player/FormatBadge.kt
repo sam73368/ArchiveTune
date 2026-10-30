@@ -30,6 +30,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,15 +50,15 @@ fun LosslessOrStats(
     val hiRes = lossless && (format?.sampleRate ?: 0) >= 88_200
     val hiQuality = !lossless && (format?.bitrate ?: 0) >= 250_000
     when {
-        format == null || (isLoading && !lossless) -> LosslessLabel(
-            text = "Upgrading Quality",
+        isLoading && !lossless -> LosslessLabel(
+            text = stringResource(R.string.quality_upgrading),
             animated = false,
             iconRes = R.drawable.ic_lossless_wave,
             modifier = modifier,
         )
         lossless -> LosslessLabel(
 
-            text = if (hiRes) "Hi-Res Lossless" else "Lossless",
+            text = stringResource(if (hiRes) R.string.quality_hires_lossless else R.string.quality_lossless),
 
             animated = true,
 
@@ -66,7 +67,7 @@ fun LosslessOrStats(
         )
 
         hiQuality -> LosslessLabel(
-            text = "Hi-Quality",
+            text = stringResource(R.string.quality_hi_quality),
             animated = false,
             iconRes = R.drawable.ic_lossless_wave,
             modifier = modifier,

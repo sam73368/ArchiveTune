@@ -91,15 +91,15 @@ fun rememberPlayerTitleActions(
             },
             onCopyTitle = {
                 clipboardManager.setPrimaryClip(
-                    ClipData.newPlainText("Copied Title", mediaMetadata.title),
+                    ClipData.newPlainText(context.getString(R.string.copied_title), mediaMetadata.title),
                 )
-                Toast.makeText(context, "Copied Title", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, R.string.copied_title, Toast.LENGTH_SHORT).show()
             },
             onCopyArtists = {
                 clipboardManager.setPrimaryClip(
-                    ClipData.newPlainText("Copied Artist", artistLine),
+                    ClipData.newPlainText(context.getString(R.string.copied_artist), artistLine),
                 )
-                Toast.makeText(context, "Copied Artist", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, R.string.copied_artist, Toast.LENGTH_SHORT).show()
             },
         )
     }

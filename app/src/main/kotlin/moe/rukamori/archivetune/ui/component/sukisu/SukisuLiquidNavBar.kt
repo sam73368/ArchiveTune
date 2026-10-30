@@ -12,6 +12,7 @@
 
 package moe.rukamori.archivetune.ui.component.sukisu
 
+import moe.rukamori.archivetune.ui.theme.isAppInDarkTheme
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
@@ -280,7 +281,7 @@ fun SukisuLiquidNavBar(
             { lerp(1f, 1.2f, dampedDragAnimation.pressProgress) }
         }
 
-    val glassIsNight = isSystemInDarkTheme()
+    val glassIsNight = isAppInDarkTheme()
     val glassSelectedColor =
         if (glassIsNight) Color.White else MaterialTheme.colorScheme.onSurface
     val glassUnselectedColor =

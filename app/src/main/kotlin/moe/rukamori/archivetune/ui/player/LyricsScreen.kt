@@ -9,6 +9,7 @@
 
 package moe.rukamori.archivetune.ui.player
 
+import moe.rukamori.archivetune.ui.theme.isAppInDarkTheme
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Build
@@ -386,7 +387,7 @@ fun LyricsScreen(
     var hasValidPalette by remember { mutableStateOf(false) }
 
     val fallbackColor = remember { Color.Black.toArgb() }
-    val darkTheme = isSystemInDarkTheme()
+    val darkTheme = isAppInDarkTheme()
 
     LaunchedEffect(mediaMetadata.id, mediaMetadata.thumbnailUrl, lyricsBackground, darkTheme) {
         kotlinx.coroutines.delay(120)
