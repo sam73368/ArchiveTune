@@ -1,3 +1,26 @@
+# ArchiveTune 18.5.1 — Changelog
+
+Crossfade and network fixes.
+
+- Playback no longer stays silent after a network error while the phone
+  still reports a connection (Wi-Fi to cellular, cell tower changes):
+  it retries on its own with a growing delay, and immediately when the
+  network changes
+- With crossfade on, every song keeps the full playback buffer (it used
+  to drop to a third after the first crossfade), so short network drops
+  no longer cut the music
+- A crossfade that fails near the end of a song no longer stops the
+  music; the next song simply starts
+- No more volume jump at the end of each crossfade with volume
+  normalization on, and an aborted crossfade brings the volume back
+  smoothly instead of all at once
+- Pausing shortly before a crossfade keeps the next song ready instead
+  of reloading it
+- Connecting or disconnecting a device that does not play music (car
+  hands-free call profile, earpiece, etc.) no longer interrupts playback
+
+---
+
 # ArchiveTune 18.5 — Changelog
 
 The reliability update: a full audit of the always-on display, lyrics,

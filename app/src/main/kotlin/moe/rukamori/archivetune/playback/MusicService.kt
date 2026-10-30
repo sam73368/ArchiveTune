@@ -900,6 +900,12 @@ class MusicService :
     private var crossfadeProgress = 0f
     private var crossfadeHandoffProgress = 0f
     private var crossfadePlaybackRequested = false
+    private var outgoingPausedAtItemEnd = false
+    private var crossfadeVolumeReconcileJob: Job? = null
+    private var secondaryReleaseOnPauseJob: Job? = null
+    private var networkRetryJob: Job? = null
+    private var networkRetryAttempt = 0
+    private var networkRetryMediaId: String? = null
 
     private var autoMixEnabled = false
     private var autoMixAnalyzer: AutoMixAnalyzer? = null
@@ -1109,7 +1115,7 @@ class MusicService :
                 scope.launch {
                     val failingMediaId = player.currentMediaItem?.mediaId
                     noteCrossfadeFailure(failingMediaId)
-                    cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
+                    abortCrossfadeKeepingOutgoing()
                     if (crossfadeConsecutiveFailures >= MAX_CONSECUTIVE_CROSSFADE_FAILURES) {
                         Timber.tag(TAG).w(
                             "Secondary crossfade player failed %d times in a row; suspending crossfade for %s",
@@ -1747,19 +1753,14 @@ class MusicService :
             NetworkHandoverWatcher(this) {
                 runCatching { mediaOkHttpClient.connectionPool.evictAll() }
                 runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
+                retryPlaybackAfterNetworkWait("handover")
             }.also { it.register() }
 
         scope.launch {
             connectivityObserver.networkStatus.collect { isConnected ->
                 isNetworkConnected.value = isConnected
                 if (isConnected && waitingForNetworkConnection.value) {
-                    waitingForNetworkConnection.value = false
-                    if (player.currentMediaItem != null && player.playWhenReady &&
-                        player.playbackState == Player.STATE_IDLE
-                    ) {
-                        player.prepare()
-                        player.play()
-                    }
+                    retryPlaybackAfterNetworkWait("network_available")
                 }
             }
         }
@@ -3148,10 +3149,10 @@ class MusicService :
 
     private fun onAudioOutputDeviceChanged() {
         if (!::player.isInitialized) return
+        audioOutputResolver.refresh()
         val outputSignature = currentAudioOutputDeviceSignature()
         if (outputSignature == lastAudioOutputDeviceSignature) return
         lastAudioOutputDeviceSignature = outputSignature
-        audioOutputResolver.refresh()
         cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
         player.setAudioAttributes(playbackAudioAttributes(), false)
         audioRouteRecoveryJob?.cancel()
@@ -3221,7 +3222,7 @@ class MusicService :
             audioManager
                 .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
                 .asSequence()
-                .filter { it.isSink }
+                .filter { it.isSink && it.type !in NON_MEDIA_OUTPUT_DEVICE_TYPES }
                 .sortedWith(
                     compareBy<AudioDeviceInfo>(
                         { it.type },
@@ -3457,9 +3458,13 @@ class MusicService :
             releaseSecondaryCrossfadePlayer()
             return
         }
-        if (!player.playWhenReady || sleepTimer.pauseWhenSongEnd) {
+        if (sleepTimer.pauseWhenSongEnd) {
             localPlayer.pauseAtEndOfMediaItems = false
             releaseSecondaryCrossfadePlayer()
+            return
+        }
+        if (!player.playWhenReady) {
+            localPlayer.pauseAtEndOfMediaItems = false
             return
         }
         if (player.currentMetadata?.isPodcast == true) {
@@ -4013,7 +4018,7 @@ class MusicService :
                     primary = false,
                 ),
             )
-            .setLoadControl(createCrossfadeLoadControl())
+            .setLoadControl(createPrimaryLoadControl())
             .setTrackSelector(DefaultTrackSelector(this, SafeTrackSelectionFactory()))
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
@@ -4082,7 +4087,7 @@ class MusicService :
                     if (!awaitCrossfadePlayerReady(incomingPlayer, CROSSFADE_READY_TIMEOUT_MS, requiredBufferedMs)) {
                         Timber.tag(TAG).d("crossfade[%d] incoming player not ready in time; aborting", generation)
                         noteCrossfadeFailure(outgoingMediaId)
-                        cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
+                        abortCrossfadeKeepingOutgoing()
                         scheduleCrossfade()
                         return@launch
                     }
@@ -4124,7 +4129,7 @@ class MusicService :
                         if (!awaitAudioPositionAdvancement(incomingPlayer, CROSSFADE_AUDIO_ADVANCE_TIMEOUT_MS)) {
                             Timber.tag(TAG).w("crossfade[%d] no audio advancement on incoming player; aborting", generation)
                             noteCrossfadeFailure(outgoingMediaId)
-                            cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
+                            abortCrossfadeKeepingOutgoing()
                             scheduleCrossfade()
                             return@launch
                         }
@@ -4180,7 +4185,7 @@ class MusicService :
                         if (crossfadePlaybackRequested) {
                             if (incomingPlayer.playerError != null) {
                                 Timber.tag(TAG).w("crossfade[%d] incoming player errored mid-blend; aborting", generation)
-                                cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
+                                abortCrossfadeKeepingOutgoing()
                                 scheduleCrossfade()
                                 return@launch
                             }
@@ -4194,7 +4199,7 @@ class MusicService :
                                     generation,
                                     nowMs - lastIncomingAdvanceMs,
                                 )
-                                cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
+                                abortCrossfadeKeepingOutgoing()
                                 scheduleCrossfade()
                                 return@launch
                             }
@@ -4359,7 +4364,7 @@ class MusicService :
             )
         if (!incomingUsable) {
             Timber.tag(TAG).w("crossfade[%d] incoming player unusable at promotion; keeping outgoing", generation)
-            cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
+            abortCrossfadeKeepingOutgoing()
             return
         }
         val incomingAdvancing =
@@ -4367,7 +4372,7 @@ class MusicService :
                 (!crossfadePlaybackRequested && incomingPlayer.playbackState == Player.STATE_READY)
         if (!incomingAdvancing) {
             Timber.tag(TAG).w("crossfade[%d] incoming player is not advancing audio at promotion; keeping outgoing", generation)
-            cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
+            abortCrossfadeKeepingOutgoing()
             scheduleCrossfade()
             return
         }
@@ -4378,9 +4383,10 @@ class MusicService :
             player.currentMediaItem?.mediaId,
             target.mediaId,
         )
+        val promotedVolume = currentEffectivePlayerVolumeForMediaId(target.mediaId)
         val promoted = promoteIncomingCrossfadePlayer(target, incomingPlayer, targetIndex)
         if (!promoted) {
-            cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
+            abortCrossfadeKeepingOutgoing()
             return
         }
 
@@ -4404,8 +4410,10 @@ class MusicService :
         crossfadeProgress = 0f
         crossfadeIncomingBaseVolume = 1f
         crossfadePlaybackRequested = false
+        outgoingPausedAtItemEnd = false
 
-        applyEffectiveVolumeImmediately()
+        applyEffectiveVolumeImmediately(promotedVolume)
+        scheduleCrossfadeVolumeReconcile()
         updateAudiblePlaybackRecovery()
         scheduleCrossfade()
         Timber.tag(TAG).d("crossfade[%d] promotion success; active mediaId=%s", generation, player.currentMediaItem?.mediaId)
@@ -4613,10 +4621,44 @@ class MusicService :
         cancelCrossfade(resetVolume = true, resetPauseAtEnd = true)
     }
 
+    private fun scheduleSecondaryReleaseWhilePaused() {
+        if (secondaryCrossfadePlayer == null) return
+        secondaryReleaseOnPauseJob?.cancel()
+        secondaryReleaseOnPauseJob =
+            scope.launch {
+                delay(CROSSFADE_PAUSED_SECONDARY_RELEASE_MS)
+                if (!player.playWhenReady && !isCrossfading && !crossfadeHandoffInProgress) {
+                    releaseSecondaryCrossfadePlayer()
+                }
+                secondaryReleaseOnPauseJob = null
+            }
+    }
+
+    private fun abortCrossfadeKeepingOutgoing() {
+        cancelCrossfade(resetVolume = false, resetPauseAtEnd = true)
+        if (::player.isInitialized) {
+            updateEffectiveVolume(currentEffectivePlayerVolume())
+        }
+    }
+
+    private fun scheduleCrossfadeVolumeReconcile() {
+        crossfadeVolumeReconcileJob?.cancel()
+        crossfadeVolumeReconcileJob =
+            scope.launch {
+                delay(CROSSFADE_PROMOTION_VOLUME_RECONCILE_MS)
+                if (!isCrossfading && !crossfadeHandoffInProgress && effectiveVolumeRampJob == null) {
+                    updateEffectiveVolume(currentEffectivePlayerVolume())
+                }
+                crossfadeVolumeReconcileJob = null
+            }
+    }
+
     private fun cancelCrossfade(
         resetVolume: Boolean,
         resetPauseAtEnd: Boolean,
     ) {
+        val resumeOutgoingAtItemEnd = resetPauseAtEnd && crossfadePlaybackRequested && outgoingPausedAtItemEnd
+        outgoingPausedAtItemEnd = false
         crossfadeGeneration.incrementAndGet()
         crossfadeTriggerJob?.cancel()
         crossfadeTriggerJob = null
@@ -4639,6 +4681,15 @@ class MusicService :
         AutoMixUiState.transitionWindow.value = null
         if (resetVolume && ::player.isInitialized) {
             applyEffectiveVolumeImmediately()
+        }
+        if (resumeOutgoingAtItemEnd &&
+            ::player.isInitialized &&
+            !player.playWhenReady &&
+            player.playbackState != Player.STATE_IDLE &&
+            player.currentMediaItem != null
+        ) {
+            Timber.tag(TAG).i("crossfade cancelled while the outgoing song was paused at its end; resuming playback")
+            player.play()
         }
     }
 
@@ -5053,8 +5104,56 @@ class MusicService :
         bluetoothReceiverRegistered = false
     }
 
-    private fun waitOnNetworkError() {
+    private fun waitOnNetworkError(mediaId: String) {
         waitingForNetworkConnection.value = true
+        if (networkRetryMediaId != mediaId) {
+            networkRetryMediaId = mediaId
+            networkRetryAttempt = 0
+        }
+        networkRetryJob?.cancel()
+        networkRetryJob = null
+        val attempt = networkRetryAttempt
+        if (attempt >= NETWORK_ERROR_MAX_RETRIES) {
+            Timber.tag(TAG).w("Network retries exhausted for %s; waiting for a connectivity change", mediaId)
+            return
+        }
+        networkRetryAttempt = attempt + 1
+        val delayMs = NETWORK_ERROR_RETRY_DELAYS_MS[attempt.coerceAtMost(NETWORK_ERROR_RETRY_DELAYS_MS.lastIndex)]
+        networkRetryJob =
+            scope.launch {
+                delay(delayMs)
+                networkRetryJob = null
+                retryPlaybackAfterNetworkWait("backoff#${attempt + 1}")
+            }
+    }
+
+    private fun retryPlaybackAfterNetworkWait(reason: String) {
+        if (!::player.isInitialized || !waitingForNetworkConnection.value) return
+        if (player.currentMediaItem == null ||
+            !player.playWhenReady ||
+            player.playbackState != Player.STATE_IDLE
+        ) {
+            waitingForNetworkConnection.value = false
+            networkRetryJob?.cancel()
+            networkRetryJob = null
+            return
+        }
+        if (!isNetworkConnected.value) return
+        waitingForNetworkConnection.value = false
+        Timber.tag(TAG).i(
+            "Retrying playback of %s after a network error (%s)",
+            player.currentMediaItem?.mediaId,
+            reason,
+        )
+        player.prepare()
+        player.play()
+    }
+
+    private fun resetNetworkRetryState() {
+        networkRetryJob?.cancel()
+        networkRetryJob = null
+        networkRetryAttempt = 0
+        networkRetryMediaId = null
     }
 
     private fun skipOnError() {
@@ -6154,6 +6253,7 @@ class MusicService :
         currentQueue = EmptyQueue
         queueTitle = null
         waitingForNetworkConnection.value = false
+        resetNetworkRetryState()
         currentMediaMetadata.value = null
         if (::sleepTimer.isInitialized) sleepTimer.clear()
         player.playWhenReady = false
@@ -7667,6 +7767,10 @@ class MusicService :
                 onInfiniteQueueEnabled(currentQueue.infiniteQueueSeedMediaId())
             }
         } else if (playbackState == Player.STATE_READY) {
+            if (waitingForNetworkConnection.value) {
+                waitingForNetworkConnection.value = false
+            }
+            resetNetworkRetryState()
             if (sourceSwitchPending) {
                 sourceSwitchPending = false
                 sourceSwitchReassertJob?.cancel()
@@ -7710,7 +7814,14 @@ class MusicService :
         if (isCrossfading || crossfadeHandoffInProgress) {
             if (!isEndOfOutgoingItemPause) {
                 crossfadePlaybackRequested = playWhenReady
+            } else {
+                outgoingPausedAtItemEnd = true
             }
+        }
+        if (playWhenReady) {
+            outgoingPausedAtItemEnd = false
+            secondaryReleaseOnPauseJob?.cancel()
+            secondaryReleaseOnPauseJob = null
         }
         secondaryCrossfadePlayer?.let { secondaryPlayer ->
             if (isCrossfading) {
@@ -7735,7 +7846,7 @@ class MusicService :
             crossfadeTriggerJob?.cancel()
             crossfadeTriggerJob = null
             localPlayer.pauseAtEndOfMediaItems = false
-            releaseSecondaryCrossfadePlayer()
+            scheduleSecondaryReleaseWhilePaused()
         }
     }
 
@@ -8094,7 +8205,9 @@ class MusicService :
         if (!isLocalMedia && !isFullyDownloadedMedia && !hasAnyCachedData &&
             (!isNetworkConnected.value || isConnectionError)
         ) {
-            waitOnNetworkError()
+            playbackUrlCache.remove(currentMediaId)
+            invalidateAlternateStream(currentMediaId)
+            waitOnNetworkError(currentMediaId)
             return
         }
 
@@ -8110,6 +8223,10 @@ class MusicService :
             invalidateAlternateStream(currentMediaId)
             if (playbackStreamRecoveryTracker.registerRetryAttempt(currentMediaId)) {
                 player.prepare()
+                return
+            }
+            if (!isFullyDownloadedMedia) {
+                waitOnNetworkError(currentMediaId)
                 return
             }
         }
@@ -12625,17 +12742,6 @@ class MusicService :
             ).setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
-    private fun createCrossfadeLoadControl(): DefaultLoadControl =
-        DefaultLoadControl
-            .Builder()
-            .setBufferDurationsMs(
-                CROSSFADE_MIN_BUFFER_MS,
-                CROSSFADE_MAX_BUFFER_MS,
-                CROSSFADE_MIN_BUFFER_BEFORE_START_MS.toInt(),
-                CROSSFADE_MIN_BUFFER_BEFORE_START_MS.toInt(),
-            ).setPrioritizeTimeOverSizeThresholds(true)
-            .build()
-
     private fun createRenderersFactory(
         stereoPanProcessor: StereoPanAudioProcessor,
         transitionFilter: AutoMixFilterProcessor,
@@ -13599,8 +13705,22 @@ class MusicService :
 
         const val PRIMARY_BUFFER_FOR_PLAYBACK_MS = 150
         const val PRIMARY_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2_500
-        const val CROSSFADE_MIN_BUFFER_MS = 15_000
-        const val CROSSFADE_MAX_BUFFER_MS = 45_000
+        const val CROSSFADE_PROMOTION_VOLUME_RECONCILE_MS = 1_500L
+        val NON_MEDIA_OUTPUT_DEVICE_TYPES =
+            setOf(
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                AudioDeviceInfo.TYPE_BUILTIN_EARPIECE,
+                AudioDeviceInfo.TYPE_TELEPHONY,
+                AudioDeviceInfo.TYPE_REMOTE_SUBMIX,
+                AudioDeviceInfo.TYPE_FM,
+                AudioDeviceInfo.TYPE_BUS,
+                AudioDeviceInfo.TYPE_IP,
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE,
+                AudioDeviceInfo.TYPE_ECHO_REFERENCE,
+            )
+        const val CROSSFADE_PAUSED_SECONDARY_RELEASE_MS = 120_000L
+        const val NETWORK_ERROR_MAX_RETRIES = 24
+        val NETWORK_ERROR_RETRY_DELAYS_MS = longArrayOf(1_000L, 2_000L, 4_000L, 8_000L, 15_000L, 30_000L)
         const val CROSSFADE_FRAME_MS = 32L
         const val CROSSFADE_PAUSED_FRAME_MS = 250L
         const val QUEUE_RESTORE_WAIT_MS = 4_000L

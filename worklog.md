@@ -6367,3 +6367,21 @@ Stage Summary:
 - Version bumped to 18.5 (versionCode base 1750). Pending CI compile and an on-device check.
 - Deferred: queue selection by metadata with duplicate songs, dialog selection lost on activity recreation, shuffle-aware undo, accessibility labels, remaining untranslated settings texts, clear-queue disabling the global infinite queue, RTL layout direction.
 
+---
+Task ID: PB-5
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Crossfade bugs and audio cuts on network changes (user report after 18.5).
+
+Work Log:
+- Regression from 18.5: the widened connection-error detection sent "connection failed while the device reports connected" into `waitOnNetworkError`, which only resumed on a connectivity CHANGE, so playback stayed silent. `waitOnNetworkError(mediaId)` now schedules bounded backoff retries (1 s to 30 s, 24 attempts), `retryPlaybackAfterNetworkWait` re-prepares when the player is still IDLE and wants to play, and the handover watcher and the connectivity collector both call it. The cached-data recovery path falls back to the same wait once its immediate retries are used. URL caches are dropped on every connection error (IP-bound URLs).
+- The crossfade player used a 15-45 s load control and became the primary player at promotion, so every song after the first crossfade had a third of the normal buffer. It now uses `createPrimaryLoadControl()`.
+- `cancelCrossfade` resumes the session player when the outgoing song was paused at its end by `pauseAtEndOfMediaItems` (tracked by `outgoingPausedAtItemEnd`); before, a failed promotion left playback paused.
+- Abort paths use `abortCrossfadeKeepingOutgoing()` (ramped volume restore instead of a jump). Promotion applies the incoming song's own effective volume (`currentEffectivePlayerVolumeForMediaId`) instead of the outgoing song's normalization factor, then reconciles after 1.5 s.
+- Pausing no longer releases a prepared crossfade player immediately (released after 2 min of pause).
+- Audio route signature ignores non-media sinks (SCO, earpiece, telephony, remote submix, FM, bus, IP, speaker-safe, echo reference), so the car hands-free profile no longer triggers a route rebuild.
+- Not compiled locally; nothing tested on a device.
+
+Stage Summary:
+- Version 18.5.1. Pending CI and a drive test (log tags: "Retrying playback of", "crossfade cancelled while the outgoing song was paused").
+
