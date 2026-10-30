@@ -426,7 +426,7 @@ fun ArtistItemsScreen(
                                         }
                                     },
                                     onLongClick = {
-                                        if (item is AlbumItem && item.id.isSpotifyOnlyId()) return@YouTubeGridItem
+                                        if (item is AlbumItem && item.id.isSpotifyOnlyId()) return@combinedClickable
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         menuState.show {
                                             when (item) {
