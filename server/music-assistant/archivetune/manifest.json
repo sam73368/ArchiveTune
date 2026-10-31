@@ -1,0 +1,11 @@
+{
+  "type": "music",
+  "domain": "archivetune",
+  "stage": "beta",
+  "name": "ArchiveTune",
+  "description": "Search and stream music through your own ArchiveTune Server. No yt-dlp or ytmusicapi inside Music Assistant: every request goes to the server you host.",
+  "codeowners": ["sam73368"],
+  "documentation": "https://github.com/sam73368/ArchiveTune/blob/main/server/music-assistant/README.md",
+  "requirements": [],
+  "multi_instance": true
+}

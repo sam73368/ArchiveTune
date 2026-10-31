@@ -1,0 +1,15 @@
+{
+  "config_entries": {
+    "server_url": {
+      "label": "ArchiveTune Server URL",
+      "description": "Address of your ArchiveTune Server, reachable from Music Assistant, for example http://192.168.1.50:8780."
+    },
+    "token": {
+      "label": "Token",
+      "description": "Value of ARCHIVETUNE_TOKEN on the server. Leave empty if the server runs without a token."
+    }
+  },
+  "manifest": {
+    "description": "Search and stream music through your own ArchiveTune Server."
+  }
+}

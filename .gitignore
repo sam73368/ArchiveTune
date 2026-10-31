@@ -137,3 +137,6 @@ core.*
 
 # tdlight local native-build workspace (scripts/tdlight)
 tdlight-work/
+
+__pycache__/
+.pytest_cache/

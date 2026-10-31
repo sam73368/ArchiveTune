@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "server/**"
+      - "!server/music-assistant/**"
       - "core/**"
       - "gradle/libs.versions.toml"
       - ".github/workflows/server-image.yml"

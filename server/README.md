@@ -40,6 +40,10 @@ docker compose up -d
 
 Open `http://<server>:8780/?token=<token>`.
 
+## Music Assistant
+
+`music-assistant/` contains an ArchiveTune provider for Music Assistant 2.10 that uses this server as its only source. See `music-assistant/README.md`.
+
 ## Build locally
 
 ```

@@ -6385,3 +6385,20 @@ Work Log:
 Stage Summary:
 - Version 18.5.1. Pending CI and a drive test (log tags: "Retrying playback of", "crossfade cancelled while the outgoing song was paused").
 
+
+---
+Task ID: MA-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Music Assistant provider that uses ArchiveTune Server as its source (replaces the yt-dlp / ytmusicapi approach of ytmusic-free-provider).
+
+Work Log:
+- New `server/music-assistant/archivetune/` package for Music Assistant 2.10.x (domain `archivetune`, no requirements): config (server URL, optional token), health + token check at start, search through `/api/search`, album, artist, top tracks and similar tracks through `/api/album`, `/api/artist`, `/api/radio`, HTTP stream details through `/api/resolve` and `/stream/{id}?token=` (seekable). Artist ids missing from track payloads use `name:<Name>` and are resolved by an artist search.
+- `setup_flow.py` and `strings.json` for the 2.10 add-provider wizard; module-level and instance `get_config_entries` for 2.9 and 2.10.
+- `scripts/install_provider.sh` (docker cp into the MA container, restart) and `tests/test_install_script.sh` (docker stub).
+- 31 pytest tests against a fake aiohttp server and the real `music_assistant_models`; `music_assistant` itself is stubbed because it needs Python 3.14.
+- `server-image.yml` ignores `server/music-assistant/**`.
+- Not run against a real Music Assistant 2.10.9 or the NAS.
+
+Stage Summary:
+- Pending a real install test on Home Assistant. Known gaps: no automatic reinstall after the container is recreated, no library, playlists or recommendations.
