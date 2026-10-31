@@ -1,0 +1,21 @@
+name: "ArchiveTune Provider Watcher"
+description: "Keeps the ArchiveTune provider installed in Music Assistant after every restart or update, and updates the provider from GitHub on its own."
+version: "__ADDON_VERSION__"
+slug: archivetune_ma_watcher
+init: false
+boot: auto
+docker_api: true
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+options:
+  auto_update: true
+  update_interval_hours: 6
+  ref: main
+schema:
+  auto_update: bool
+  update_interval_hours: int(1,)
+  ref: str

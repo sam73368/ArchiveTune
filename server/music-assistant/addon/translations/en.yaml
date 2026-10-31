@@ -1,0 +1,13 @@
+configuration:
+  auto_update:
+    name: Update the provider from GitHub
+    description: >-
+      On by default. Checks GitHub for a newer ArchiveTune provider and installs it
+      (Music Assistant restarts for a few seconds) only when the code changed. If
+      GitHub cannot be reached, the copy bundled with this add-on is used.
+  update_interval_hours:
+    name: Check for a new provider every (hours)
+    description: How often to check GitHub. Minimum 1 hour.
+  ref:
+    name: Branch or tag to follow
+    description: Git branch, tag or commit of the ArchiveTune repository (default main).

@@ -6402,3 +6402,19 @@ Work Log:
 
 Stage Summary:
 - Pending a real install test on Home Assistant. Known gaps: no automatic reinstall after the container is recreated, no library, playlists or recommendations.
+
+---
+Task ID: MA-2
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Automatic reinstall of the Music Assistant provider (no manual script re-run after Home Assistant restarts or updates).
+
+Work Log:
+- New local Home Assistant add-on "ArchiveTune Provider Watcher" in `server/music-assistant/addon/` (config.yaml, build.yaml, Dockerfile, run.sh, watcher_lib.sh, translations), modelled on sproft's watcher but with the logic in one sourceable library: the Music Assistant container and its Python version are re-detected at every install (container renames and Python upgrades are survived), the container id is polled every 10 s, a content hash marker inside the container skips needless restarts, failed installs retry with backoff.
+- Updates are on by default: every 6 h the add-on fetches the six provider files from GitHub, validates them (class present, manifest domain, jq), compares hashes, and reinstalls only when the code changed. A failed or invalid download keeps the current copy; a bundled copy is the offline fallback. Options: auto_update, update_interval_hours, ref.
+- `scripts/install_watcher_addon.sh` writes the add-on into the local add-ons folder and tries `ha addons install/update`, `security --protected=false`, `start`; it prints the manual steps if the `ha` command fails.
+- Tests: `tests/test_watcher.sh` (docker stub + local HTTP server: first install, no restart when identical, container recreation, update, invalid download, offline, auto-update off, MA stopped) and `tests/test_install_watcher.sh` (ha stub).
+- Not run on a real Home Assistant; the `ha addons security/options` flags and the build base images are unverified.
+
+Stage Summary:
+- Pending a real install test. An update of the provider restarts Music Assistant for a few seconds.

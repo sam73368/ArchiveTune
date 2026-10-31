@@ -94,4 +94,4 @@ else
     docker restart "$MA_ID" >/dev/null || die "docker restart failed"
     log "Done. In Music Assistant: Settings > Providers > Add provider > ArchiveTune."
 fi
-log "Home Assistant recreates the container on restart or update: run this script again afterwards."
+log "Home Assistant can recreate the container: the ArchiveTune Provider Watcher add-on (scripts/install_watcher_addon.sh) reinstalls automatically."

@@ -27,23 +27,31 @@ Il ne gère pas : bibliothèque personnelle, playlists, podcasts, recommandation
 - Home Assistant OS avec l'add-on **Music Assistant** 2.10.x.
 - L'add-on **Advanced SSH & Web Terminal** avec le **mode protégé désactivé** (nécessaire pour la commande `docker`).
 
-## Installation (Home Assistant OS)
+## Installation (Home Assistant OS) : une seule fois
 
-1. Ouvre le terminal de l'add-on Advanced SSH & Web Terminal.
+1. Ouvre le terminal de l'add-on **Advanced SSH & Web Terminal** (mode protégé désactivé).
 2. Lance :
 
    ```
-   curl -fsSL https://raw.githubusercontent.com/sam73368/ArchiveTune/main/server/music-assistant/scripts/install_provider.sh | sh
+   curl -fsSL https://raw.githubusercontent.com/sam73368/ArchiveTune/main/server/music-assistant/scripts/install_watcher_addon.sh | sh
    ```
 
-   Le script télécharge les 6 fichiers du fournisseur, détecte le conteneur Music Assistant et la version de Python, copie le dossier `archivetune` dans `music_assistant/providers/` et redémarre le conteneur.
-3. Dans Music Assistant : **Paramètres → Fournisseurs → Ajouter un fournisseur → ArchiveTune**.
-4. Renseigne l'adresse du serveur (par exemple `http://192.168.1.50:8780`) et le token si tu en utilises un.
-5. Si le script ne trouve pas le conteneur : `docker ps -a | grep -i music`, puis relance avec `--ma-id NOM_DU_CONTENEUR`. Les autres options : `--ref BRANCHE_OU_TAG`, `--python-version python3.13`, `--no-restart`, `--local DOSSIER`.
+   Le script crée l'add-on local **ArchiveTune Provider Watcher**, puis essaie de l'installer, de désactiver son mode protégé et de le démarrer avec la commande `ha`. S'il n'y arrive pas, il affiche les 4 gestes à faire à la main (Boutique d'add-ons → Rechercher les mises à jour → Installer → Mode protégé désactivé → Démarrer).
+3. Dans le journal de l'add-on, tu dois voir `Music Assistant restarted`.
+4. Dans Music Assistant : **Paramètres → Fournisseurs → Ajouter un fournisseur → ArchiveTune**, puis l'adresse du serveur (par exemple `http://192.168.1.50:8780`) et le token.
 
-### Après un redémarrage ou une mise à jour de Home Assistant
+Ensuite, plus rien à faire. L'add-on démarre avec Home Assistant et surveille Music Assistant toutes les 10 secondes :
 
-Le Supervisor recrée le conteneur Music Assistant et efface les fichiers copiés. Il suffit de relancer la même commande ; la configuration du fournisseur (URL, token) est conservée dans Music Assistant. Un add-on « watcher » qui réinstalle automatiquement n'est pas encore fourni.
+- si le conteneur Music Assistant est recréé (redémarrage ou mise à jour de Home Assistant, mise à jour de Music Assistant, changement de version de Python), il recopie le fournisseur et redémarre Music Assistant (quelques secondes) ;
+- si les fichiers sont déjà en place et identiques, il ne touche à rien ;
+- toutes les 6 heures, il vérifie GitHub et installe automatiquement une nouvelle version du fournisseur, seulement si le code a changé. Si GitHub est injoignable ou si les fichiers téléchargés sont invalides, il garde la version en place (une copie est aussi embarquée dans l'add-on) ;
+- une mise à jour du fournisseur redémarre Music Assistant : la lecture en cours s'arrête quelques secondes.
+
+Options de l'add-on (onglet Configuration) : `auto_update` (activé par défaut), `update_interval_hours` (6) et `ref` (branche ou tag à suivre, `main`).
+
+### Alternative manuelle
+
+`scripts/install_provider.sh` copie le fournisseur une fois dans le conteneur, sans add-on. Il faut le relancer après chaque recréation du conteneur. Options : `--ref`, `--ma-id`, `--python-version`, `--no-restart`, `--local DOSSIER`.
 
 ## Utilisation
 
@@ -63,7 +71,7 @@ Le Supervisor recrée le conteneur Music Assistant et efface les fichiers copié
 | --- | --- |
 | « Cannot reach ArchiveTune Server » | URL fausse, pare-feu, serveur arrêté ; tester `/api/health` depuis le conteneur Music Assistant |
 | « ArchiveTune Server refused the token » | `ARCHIVETUNE_TOKEN` différent de celui saisi |
-| Le fournisseur n'apparaît pas | fichiers effacés après un redémarrage de Home Assistant : relancer le script |
+| Le fournisseur n'apparaît pas | ouvrir le journal de l'add-on Watcher : « no Docker access » = mode protégé encore activé ; « no Python found » ou « missing inside » = conteneur Music Assistant introuvable ou pas prêt (il réessaie seul) |
 | Silence au lancement d'un titre | tester `http://IP:8780/stream/ID` dans un navigateur ; regarder les journaux du serveur (« stream … upstream answered ») |
 
 ## Tests
@@ -75,6 +83,8 @@ pip install music-assistant-models aiohttp pytest pytest-asyncio
 cd server/music-assistant
 python -m pytest
 sh tests/test_install_script.sh
+sh tests/test_install_watcher.sh
+bash tests/test_watcher.sh
 ```
 
 Les tests ne remplacent pas un essai sur le vrai Music Assistant 2.10.9.
