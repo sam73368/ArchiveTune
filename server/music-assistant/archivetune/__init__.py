@@ -161,16 +161,25 @@ class ArchiveTuneProvider(MusicProvider):
     async def handle_async_init(self) -> None:
         """Validate the configuration and reach the server."""
         self.logger.info("ArchiveTune provider version %s", __version__)
-        self._base_url = normalize_server_url(str(self.config.get_value(CONF_URL) or ""))
-        self._token = str(self.config.get_value(CONF_TOKEN) or "").strip()
+        self._base_url = normalize_server_url(str(self._setting(CONF_URL) or ""))
+        self._token = str(self._setting(CONF_TOKEN) or "").strip()
         self._tracks: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._artist_ids: OrderedDict[str, str] = OrderedDict()
         health = await self._request_json("/api/health", authorized=False, timeout=HEALTH_TIMEOUT)
         if not isinstance(health, dict) or health.get("status") != "ok":
             raise SetupFailedError(f"{self._base_url} is not an ArchiveTune Server")
         self.logger.info("Connected to ArchiveTune Server %s", health.get("version", "unknown"))
-        await self._request_json("/api/devices", timeout=HEALTH_TIMEOUT)
+        try:
+            await self._request_json("/api/devices", timeout=HEALTH_TIMEOUT)
+        except InvalidDataError:
+            self.logger.debug("Server has no /api/devices, token not verified at start")
         self._ready = True
+
+    def _setting(self, key: str) -> Any:
+        getter = getattr(self, "get_setup_value", None)
+        if callable(getter):
+            return getter(key)
+        return self.config.get_value(key)
 
     @property
     def is_streaming_provider(self) -> bool:

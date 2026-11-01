@@ -56,6 +56,13 @@ def _install_music_assistant_stub() -> None:
             self.supported_features = supported_features
             self.logger = logging.getLogger("archivetune_test")
 
+        setup_data: dict = {}
+
+        def get_setup_value(self, key, default=None):
+            if key in self.setup_data:
+                return self.setup_data[key]
+            return self.config.get_value(key) or default
+
         @property
         def is_streaming_provider(self) -> bool:
             return True
@@ -119,7 +126,7 @@ async def server_factory():
 async def make_provider():
     sessions = []
 
-    async def factory(server, token="", url=None, init=True):
+    async def factory(server, token="", url=None, init=True, via="setup_data"):
         import aiohttp
 
         session = aiohttp.ClientSession()
@@ -128,9 +135,19 @@ async def make_provider():
             provider_module.CONF_URL: url or server.url,
             provider_module.CONF_TOKEN: token,
         }
-        provider = provider_module.ArchiveTuneProvider(
-            FakeMass(session), None, FakeConfig(values), provider_module.SUPPORTED_FEATURES
-        )
+        if via == "setup_data":
+            provider_class = provider_module.ArchiveTuneProvider
+            config = FakeConfig({})
+        elif via == "config":
+            provider_class = type(
+                "LegacyProvider", (provider_module.ArchiveTuneProvider,), {"get_setup_value": None}
+            )
+            config = FakeConfig(values)
+        else:
+            raise ValueError(via)
+        provider = provider_class(FakeMass(session), None, config, provider_module.SUPPORTED_FEATURES)
+        if via == "setup_data":
+            provider.setup_data = values
         if init:
             await provider.handle_async_init()
         return provider

@@ -255,3 +255,30 @@ async def test_token_header_sent_on_api_calls(server_factory, make_provider):
     provider = await make_provider(server, token="secret")
     results = await provider.search("daft", [MediaType.TRACK])
     assert len(results.tracks) == 2
+
+
+async def test_values_from_setup_flow_are_used(server_factory, make_provider):
+    server = await server_factory(token="secret")
+    provider = await make_provider(server, token="secret", via="setup_data")
+    assert provider._base_url == server.url
+    assert provider._token == "secret"
+
+
+async def test_values_from_plain_config_are_used(server_factory, make_provider):
+    server = await server_factory(token="secret")
+    provider = await make_provider(server, token="secret", via="config")
+    assert provider._base_url == server.url
+    assert provider._token == "secret"
+
+
+async def test_empty_setup_data_fails_with_clear_message(server_factory, make_provider):
+    server = await server_factory()
+    with pytest.raises(SetupFailedError, match="URL is empty"):
+        await make_provider(server, url=" ", via="setup_data")
+
+
+async def test_old_server_without_devices_endpoint_still_starts(server_factory, make_provider):
+    server = await server_factory()
+    server.no_devices = True
+    provider = await make_provider(server)
+    assert provider._ready is True

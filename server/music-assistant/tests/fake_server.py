@@ -38,6 +38,7 @@ class FakeServer:
         self.calls = []
         self.stream_codec = 'audio/webm; codecs="opus"'
         self.fail_resolve = False
+        self.no_devices = False
         self.runner = None
         self.url = ""
 
@@ -58,6 +59,8 @@ class FakeServer:
         return web.json_response({"status": "ok", "version": "0.4.0", "uptimeSeconds": 5})
 
     async def devices(self, request):
+        if self.no_devices:
+            return web.json_response({"error": "not found"}, status=404)
         return self._guard(request) or web.json_response([])
 
     async def search(self, request):

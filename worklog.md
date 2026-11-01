@@ -6433,3 +6433,19 @@ Work Log:
 
 Stage Summary:
 - Pending a real run. Open question: letting the add-on also self-update `watcher_lib.sh` from GitHub.
+
+---
+Task ID: MA-4
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Adding the ArchiveTune provider in Music Assistant 2.10.9 always ended with "Setup failed. Please check the configuration and try again."
+
+Work Log:
+- Root cause: with a setup flow, Music Assistant 2.10 stores the entered values in the instance `setup_data` and exposes them through `get_setup_value()`; `config.get_value()` returned nothing, so the provider saw an empty server URL and raised SetupFailedError ("URL is empty"). Verified in the 2.10.9 sources (`models/provider.py`, `controllers/config/flows.py`).
+- The provider now reads URL and token through `get_setup_value` when it exists (2.10) and falls back to `config.get_value` (2.9).
+- The token check at start (`/api/devices`) no longer fails on servers that do not have that endpoint; only a 401 stops the start.
+- Tests: the stub provider now mirrors `get_setup_value`, with tests for both storage paths, an empty URL and a server without `/api/devices` (35 tests). The earlier 31 tests only used `config.get_value`, which is why this was not caught.
+- Not rerun on the real Music Assistant.
+
+Stage Summary:
+- Pending a real run. The watcher add-on fetches provider updates at start and every 6 h.
