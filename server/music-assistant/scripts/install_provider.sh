@@ -81,10 +81,10 @@ if [ -z "$PYTHON_VERSION" ]; then
 fi
 
 DEST="/app/venv/lib/$PYTHON_VERSION/site-packages/music_assistant/providers"
-docker exec "$MA_ID" test -d "$DEST" || die "$DEST does not exist inside $MA_ID"
+docker exec "$MA_ID" sh -c '[ -d "$1" ]' _ "$DEST" || die "$DEST does not exist inside $MA_ID"
 
 log "Copying provider into $MA_ID:$DEST/$PROVIDER_DIR"
-docker exec "$MA_ID" rm -rf "$DEST/$PROVIDER_DIR" 2>/dev/null || true
+docker exec "$MA_ID" sh -c 'rm -rf "$1"' _ "$DEST/$PROVIDER_DIR" 2>/dev/null || true
 docker cp "$STAGE" "$MA_ID:$DEST/" || die "docker cp failed"
 
 if [ "$NO_RESTART" -eq 1 ]; then

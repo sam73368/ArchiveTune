@@ -24,11 +24,12 @@ case "\$1" in
   inspect) cat "$T/id" ;;
   exec)
     shift; shift
-    case "\$1" in
-      sh) echo python3.12; echo python3.14 ;;
-      test) shift; p="\${2//\/app\/venv\/lib\/python3.14\/site-packages\/music_assistant\/providers/\$DST}"; if [ "\$1" = "-d" ]; then [ -d "\$p" ]; else [ -f "\$p" ]; fi ;;
-      cat) p="\${2//\/app\/venv\/lib\/python3.14\/site-packages\/music_assistant\/providers/\$DST}"; cat "\$p" ;;
-      rm) p="\${3//\/app\/venv\/lib\/python3.14\/site-packages\/music_assistant\/providers/\$DST}"; rm -rf "\$p" ;;
+    if [ "\$1" != "sh" ]; then echo "usage: \$1 [-h] [-v]" >&2; echo "\$1: error: unrecognized arguments: -d" >&2; exit 2; fi
+    shift
+    script="\$2"; shift 2
+    case "\$script" in
+      "ls /app/venv/lib/"*) echo python3.12; echo python3.14 ;;
+      *) args=(); for a in "\$@"; do args+=("\${a//\/app\/venv\/lib\/python3.14\/site-packages\/music_assistant\/providers/\$DST}"); done; sh -c "\$script" "\${args[@]}" ;;
     esac ;;
   cp) cp -r "\$2" "\$DST/" ;;
   restart) echo restarted >> "$T/restarts" ;;

@@ -111,9 +111,9 @@ install_provider() {
     py="$(detect_python "$ma" || true)"
     [ -n "$py" ] || { log "ERROR: no Python found inside $ma"; return 1; }
     dst="/app/venv/lib/$py/site-packages/music_assistant/providers"
-    docker exec "$ma" test -d "$dst" || { log "ERROR: $dst is missing inside $ma"; return 1; }
+    docker exec "$ma" sh -c '[ -d "$1" ]' _ "$dst" || { log "ERROR: $dst is missing inside $ma"; return 1; }
     hash="$(content_hash "$src")"
-    installed="$(docker exec "$ma" cat "$dst/$PROVIDER_DIR/.content_hash" 2>/dev/null || true)"
+    installed="$(docker exec "$ma" sh -c 'cat "$1"' _ "$dst/$PROVIDER_DIR/.content_hash" 2>/dev/null || true)"
     if [ "$installed" = "$hash" ]; then
         log "Provider already installed in $ma ($py), nothing to do"
         return 0
@@ -121,14 +121,14 @@ install_provider() {
     stage="$(mktemp -d)"
     cp -a "$src" "$stage/$PROVIDER_DIR"
     printf '%s\n' "$hash" > "$stage/$PROVIDER_DIR/.content_hash"
-    docker exec "$ma" rm -rf "$dst/$PROVIDER_DIR" 2>/dev/null || true
+    docker exec "$ma" sh -c 'rm -rf "$1"' _ "$dst/$PROVIDER_DIR" 2>/dev/null || true
     if ! docker cp "$stage/$PROVIDER_DIR" "$ma:$dst/"; then
         log "ERROR: docker cp failed"
         rm -rf "$stage"
         return 1
     fi
     rm -rf "$stage"
-    docker exec "$ma" test -f "$dst/$PROVIDER_DIR/__init__.py" || { log "ERROR: copy not found inside $ma"; return 1; }
+    docker exec "$ma" sh -c '[ -f "$1" ]' _ "$dst/$PROVIDER_DIR/__init__.py" || { log "ERROR: copy not found inside $ma"; return 1; }
     log "Provider copied into $ma ($py), restarting Music Assistant"
     docker restart "$ma" >/dev/null || { log "ERROR: restart failed"; return 1; }
     log "Music Assistant restarted"

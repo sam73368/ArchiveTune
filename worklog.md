@@ -6418,3 +6418,18 @@ Work Log:
 
 Stage Summary:
 - Pending a real install test. An update of the provider restarts Music Assistant for a few seconds.
+
+---
+Task ID: MA-3
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Watcher add-on failed on the real Music Assistant container ("providers is missing", Will retry in 20s/40s/80s).
+
+Work Log:
+- Root cause: `docker exec <ma> test -d <dir>` runs `/app/venv/bin/test` (a Python script that prints a unittest-style usage and rejects `-d`) instead of the shell builtin, so the directory check always failed. Reported from Samy's add-on log.
+- All checks inside the container now go through `sh -c` (`[ -d ]`, `[ -f ]`, `cat`, `rm -rf`) in `addon/watcher_lib.sh` and `scripts/install_provider.sh`.
+- The docker stubs in `tests/test_watcher.sh` and `tests/test_install_script.sh` now reject any `exec` that is not `sh -c` with the same usage error, so this class of bug fails the tests.
+- Not rerun on the real Home Assistant yet. The add-on image bakes `watcher_lib.sh`, so an installed watcher needs the installer rerun (version bump) to pick this up; only the provider files self-update.
+
+Stage Summary:
+- Pending a real run. Open question: letting the add-on also self-update `watcher_lib.sh` from GitHub.

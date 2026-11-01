@@ -15,10 +15,13 @@ case "\$1" in
   inspect) exit 0 ;;
   exec)
     shift; shift
-    case "\$1" in
-      sh) echo python3.12; echo python3.13 ;;
-      test) exit 0 ;;
-      rm) rm -rf "$T/container\$3" ;;
+    if [ "\$1" != "sh" ]; then echo "usage: \$1 [-h]" >&2; exit 2; fi
+    shift
+    script="\$2"; shift 2
+    case "\$script" in
+      "ls /app/venv/lib/"*) echo python3.12; echo python3.13 ;;
+      *) DST="$T/container/app/venv/lib/python3.13/site-packages/music_assistant/providers"
+         sh -c "\$script" _ "\$(printf '%s' "\$2" | sed "s#/app/venv/lib/python3.13/site-packages/music_assistant/providers#\$DST#")" ;;
     esac ;;
   cp) cp -r "\$2" "$T/container/app/venv/lib/python3.13/site-packages/music_assistant/providers/" ;;
   restart) exit 0 ;;
