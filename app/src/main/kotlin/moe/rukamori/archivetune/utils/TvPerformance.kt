@@ -36,7 +36,7 @@ object TvPerformance {
             Pair(LyricsLineBlurKey, false),
         )
 
-    fun isForcedKey(key: Preferences.Key<*>): Boolean = key in forcedValues
+    fun isForcedKey(key: Preferences.Key<*>): Boolean = key in forcedValues || LiteMode.isForcedKey(key)
 
     fun isActive(preferences: Preferences?): Boolean {
         if (!isTelevision) return false
@@ -48,6 +48,7 @@ object TvPerformance {
         key: Preferences.Key<T>,
         preferences: Preferences?,
     ): T? {
+        LiteMode.forced(key)?.let { return it }
         if (key !in forcedValues || !isActive(preferences)) return null
         return forcedValues[key] as T?
     }

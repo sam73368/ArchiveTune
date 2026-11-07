@@ -142,6 +142,9 @@ class App :
 
         moe.rukamori.archivetune.echo.utils.cipher.CipherDeobfuscator.initialize(this)
         PreferenceStore.start(this)
+        applicationScope.launch(Dispatchers.IO) {
+            moe.rukamori.archivetune.utils.LiteMode.applyFirstRunDefaults(dataStore)
+        }
         if (BuildConfig.DEV_DIAGNOSTICS) Timber.plant(Timber.DebugTree())
         try {
             Timber.plant(
@@ -509,7 +512,7 @@ class App :
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         val imageCacheConfig = resolveImageDiskCacheConfig(dataStore[MaxImageCacheSizeKey])
-        val lowRam = isLowRamDevice()
+        val lowRam = isLowRamDevice() || moe.rukamori.archivetune.utils.LiteMode.isLite
 
         val diskCache =
             DiskCache
@@ -543,7 +546,7 @@ class App :
                 }
             }
             .crossfade(!lowRam)
-            .allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+            .allowHardware(moe.rukamori.archivetune.utils.LiteMode.hardwareBitmapsAllowed)
             .memoryCache {
                 MemoryCache
                     .Builder()

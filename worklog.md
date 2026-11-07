@@ -6449,3 +6449,18 @@ Work Log:
 
 Stage Summary:
 - Pending a real run. The watcher add-on fetches provider updates at start and every 6 h.
+
+---
+Task ID: LITE-1
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Lite version for an old Android 9 low-RAM tablet (RCA RCT6613W23PG), fix the hardware-bitmap crash, and fix Android Auto playing songs instead of the requested album.
+
+Work Log:
+- Crash "Software rendering doesn't support hardware bitmaps" (API 28): the global Coil loader in `App.kt` allowed hardware bitmaps from API 28 and six per-request overrides forced `allowHardware(true)`. All now use `LiteMode.hardwareBitmapsAllowed` (API 29+ and not lite).
+- New `lite` product flavor (appId suffix `.lite`, `DEVICE=lite`) plus `utils/LiteMode.kt`: forced-off heavy settings, one-shot light defaults, 15 s/40 s primary buffers, low-RAM image loader. `fork-update.yml` now builds and publishes `app-gms-lite-armeabi-nightly.apk` in the same pre-release as the phone and TV APKs.
+- Android Auto album request ("les autres c'est nous", Bigflo & Oli): the attached log had no `VoiceSearch` lines, so the cause is a hypothesis: the exact normalised title match fails on speech-to-text slips ("ces nous"), the album lookup returns nothing and the song search plays the artist's songs. Added `VoiceRequest.similarTitles` (edit distance on the space-stripped title, 0.82 threshold, length guard) used by the online, library and via-songs album lookups, plus `VoiceSearch` log lines listing the candidate albums and the chosen one. Unit tests added in `VoiceRequestTest`.
+- Nothing compiled locally; not tested on the tablet or in Android Auto.
+
+Stage Summary:
+- Pending CI and a real run on the tablet and in Android Auto. If the album is still missed, the new `album search` log line shows what YouTube returned.

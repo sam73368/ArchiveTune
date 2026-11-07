@@ -79,6 +79,41 @@ internal object VoiceRequest {
             }.take(QUEUE_LIMIT)
     }
 
+    private const val SIMILAR_TITLE_THRESHOLD = 0.82
+
+    fun similarTitles(
+        candidate: String,
+        wanted: String,
+    ): Boolean {
+        val a = TrackMatching.normalizeTitle(candidate).replace(" ", "")
+        val b = TrackMatching.normalizeTitle(wanted).replace(" ", "")
+        if (a.isEmpty() || b.isEmpty()) return false
+        if (a == b) return true
+        val longest = maxOf(a.length, b.length)
+        if (longest < 6) return false
+        if (kotlin.math.abs(a.length - b.length) * 5 > longest) return false
+        return 1.0 - editDistance(a, b).toDouble() / longest >= SIMILAR_TITLE_THRESHOLD
+    }
+
+    private fun editDistance(
+        a: String,
+        b: String,
+    ): Int {
+        var previous = IntArray(b.length + 1) { it }
+        var current = IntArray(b.length + 1)
+        for (i in 1..a.length) {
+            current[0] = i
+            for (j in 1..b.length) {
+                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+                current[j] = minOf(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost)
+            }
+            val swap = previous
+            previous = current
+            current = swap
+        }
+        return previous[b.length]
+    }
+
     private fun stripAlbumWord(text: String): String =
         albumWord
             .replace(text, " ")

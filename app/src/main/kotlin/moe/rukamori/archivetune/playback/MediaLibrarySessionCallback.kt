@@ -2704,7 +2704,13 @@ class MediaLibrarySessionCallback
             val wantedTitle = TrackMatching.normalizeTitle(albumName)
             val album =
                 candidates.maxByOrNull { candidate ->
-                    val titleScore = if (TrackMatching.normalizeTitle(candidate.album.title) == wantedTitle) 2 else 0
+                    val candidateTitle = TrackMatching.normalizeTitle(candidate.album.title)
+                    val titleScore =
+                        when {
+                            candidateTitle == wantedTitle -> 2
+                            VoiceRequest.similarTitles(candidateTitle, wantedTitle) -> 1
+                            else -> 0
+                        }
                     val artistScore =
                         if (wantedArtist.isNotBlank() &&
                             candidate.artists.any { TrackMatching.normalize(it.name).contains(wantedArtist) }
@@ -2744,6 +2750,7 @@ class MediaLibrarySessionCallback
                 return when {
                     title == wantedTitle -> 4
                     AlbumEditions.sameFamilyTitles(album.title, albumName) -> 3
+                    VoiceRequest.similarTitles(title, wantedTitle) -> 3
                     title.contains(wantedTitle) || wantedTitle.contains(title) -> 2
                     else -> 0
                 }
@@ -2766,11 +2773,16 @@ class MediaLibrarySessionCallback
             if (albums.none { titleScore(it) > 0 } && artistName.isNotBlank()) {
                 albums = albums + albumsFor(albumName)
             }
+            logVoice(
+                "album search \"$albumName\" / \"$artistName\": " +
+                    albums.take(8).joinToString { "${it.title}[${titleScore(it)}]" },
+            )
             val best =
                 albums
                     .filter { titleScore(it) > 0 }
                     .maxByOrNull(::matchScore)
                     ?: return searchOnlineAlbumItemsViaSongs(albumName, artistName, hideExplicit)
+            logVoice("album best=${best.title} id=${best.browseId}")
 
             val family = AlbumEditions.families(albums).firstOrNull { group -> group.any { it.id == best.id } } ?: listOf(best)
             if (!hideExplicit) {
@@ -2852,7 +2864,7 @@ class MediaLibrarySessionCallback
                     .filter { song ->
                         wantedArtist.isBlank() || song.artists.any { TrackMatching.normalize(it.name).contains(wantedArtist) }
                     }.mapNotNull { it.album }
-                    .firstOrNull { TrackMatching.normalizeTitle(it.name) == wantedTitle }
+                    .firstOrNull { VoiceRequest.similarTitles(it.name, wantedTitle) }
                     ?: return emptyList()
             return YouTube
                 .album(albumRef.id)

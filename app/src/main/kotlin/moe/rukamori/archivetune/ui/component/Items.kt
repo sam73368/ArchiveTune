@@ -1156,7 +1156,7 @@ fun ItemThumbnail(
                         ImageRequest
                             .Builder(context)
                             .data(currentUrl)
-                            .allowHardware(true)
+                            .allowHardware(moe.rukamori.archivetune.utils.LiteMode.hardwareBitmapsAllowed)
                             .apply {
                                 if (guardedWidthPx != null && guardedHeightPx != null) {
                                     size(guardedWidthPx, guardedHeightPx)
@@ -1277,7 +1277,7 @@ fun LocalThumbnail(
                 ImageRequest
                     .Builder(context)
                     .data(thumbnailUrl)
-                    .allowHardware(true)
+                    .allowHardware(moe.rukamori.archivetune.utils.LiteMode.hardwareBitmapsAllowed)
                     .apply {
                         if (widthPx != null && heightPx != null) {
                             size(widthPx, heightPx)
@@ -1411,7 +1411,7 @@ fun PlaylistThumbnail(
                                 ytimgResizePolicy = YtimgResizePolicy.PreserveOriginal,
                             ),
                         ).size(sizePx, sizePx)
-                        .allowHardware(true)
+                        .allowHardware(moe.rukamori.archivetune.utils.LiteMode.hardwareBitmapsAllowed)
                         .build()
                 }
             AsyncImage(
@@ -1451,7 +1451,7 @@ fun PlaylistThumbnail(
                                         ytimgResizePolicy = YtimgResizePolicy.PreserveOriginal,
                                     ),
                                 ).size(halfPx, halfPx)
-                                .allowHardware(true)
+                                .allowHardware(moe.rukamori.archivetune.utils.LiteMode.hardwareBitmapsAllowed)
                                 .build()
                         }
                     AsyncImage(

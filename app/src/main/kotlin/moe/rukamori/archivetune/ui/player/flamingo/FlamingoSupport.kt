@@ -302,7 +302,7 @@ private fun flamingoImageRequest(
             .Builder(context)
             .data(url)
             .crossfade(true)
-            .allowHardware(true)
+            .allowHardware(moe.rukamori.archivetune.utils.LiteMode.hardwareBitmapsAllowed)
             .apply {
                 if (imageQuality != ImageQuality.RAW) {
                     val px = getSizeFromQuality(imageQuality)

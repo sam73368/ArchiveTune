@@ -1364,7 +1364,7 @@ fun CoverArt(
                     .Builder(context)
                     .data(it)
                     .size(sizePx, sizePx)
-                    .allowHardware(true)
+                    .allowHardware(moe.rukamori.archivetune.utils.LiteMode.hardwareBitmapsAllowed)
                     .build()
             }
         }

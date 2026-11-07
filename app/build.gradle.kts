@@ -255,6 +255,11 @@ android {
             dimension = "device"
             buildConfigField("String", "DEVICE", "\"mobile\"")
         }
+        create("lite") {
+            dimension = "device"
+            applicationIdSuffix = ".lite"
+            buildConfigField("String", "DEVICE", "\"lite\"")
+        }
         create("tv") {
             dimension = "device"
             buildConfigField("String", "DEVICE", "\"tv\"")

@@ -311,6 +311,7 @@ import moe.rukamori.archivetune.constants.TidalArtworkFallbackEnabledKey
 import moe.rukamori.archivetune.constants.ArtworkProviderOrderKey
 import moe.rukamori.archivetune.constants.DefaultArtworkProviderOrder
 import moe.rukamori.archivetune.constants.deserializeArtworkProviderOrder
+import moe.rukamori.archivetune.utils.LiteMode
 import moe.rukamori.archivetune.utils.PoolAccountManager
 import moe.rukamori.archivetune.utils.isLocalMediaId
 import moe.rukamori.archivetune.localmedia.LocalMediaUriHeals
@@ -12735,8 +12736,8 @@ class MusicService :
         DefaultLoadControl
             .Builder()
             .setBufferDurationsMs(
-                PRIMARY_MIN_BUFFER_MS,
-                PRIMARY_MAX_BUFFER_MS,
+                if (LiteMode.isLite) LiteMode.PRIMARY_MIN_BUFFER_MS else PRIMARY_MIN_BUFFER_MS,
+                if (LiteMode.isLite) LiteMode.PRIMARY_MAX_BUFFER_MS else PRIMARY_MAX_BUFFER_MS,
                 PRIMARY_BUFFER_FOR_PLAYBACK_MS,
                 PRIMARY_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
             ).setPrioritizeTimeOverSizeThresholds(true)

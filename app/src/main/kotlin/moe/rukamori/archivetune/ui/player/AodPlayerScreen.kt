@@ -471,7 +471,7 @@ fun AodPlayerScreen(
                 .Builder(context)
                 .data(mediaMetadata.thumbnailUrl)
                 .size(artworkSizePx, artworkSizePx)
-                .allowHardware(true)
+                .allowHardware(moe.rukamori.archivetune.utils.LiteMode.hardwareBitmapsAllowed)
                 .build()
         }
     val artistText =

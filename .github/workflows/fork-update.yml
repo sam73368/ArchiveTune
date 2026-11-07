@@ -4,6 +4,8 @@ name: Fork update build
 # publishes it as a GitHub pre-release the in-app updater understands:
 #   * tag    N<yyyyMMddHHmm>                        (matches the updater's canary tag regex)
 #   * assets app-gms-mobile-universal-nightly.apk   (phones; the name Updater.canaryReleaseArtifactName() asks for)
+#            app-gms-lite-armeabi-nightly.apk       (low-RAM Android 9+ tablets/phones: lightweight settings,
+#                                                     installs next to the regular app as ...archivetune.lite)
 #            app-gms-tv-armeabi-nightly.apk         (Android TV / Fire TV / Mi Box: 32-bit ARM, which every TV
 #                                                     box runs, so the TV app's updater finds its own APK too)
 #   * body   <!-- at-build:<versionCode> -->        (build number compared with BuildConfig.VERSION_CODE)
@@ -40,6 +42,10 @@ jobs:
             task: assembleGmsTvArmeabiDebug
             variant: gms-tv-armeabi-debug
             artifact: app-gms-tv-armeabi-nightly.apk
+          - label: Lite Armeabi
+            task: assembleGmsLiteArmeabiDebug
+            variant: gms-lite-armeabi-debug
+            artifact: app-gms-lite-armeabi-nightly.apk
     env:
       IS_NIGHTLY_BUILD: "true"
       NIGHTLY_BUILD_HASH: ${{ github.sha }}
@@ -138,7 +144,7 @@ jobs:
         run: |
           set -euo pipefail
           ls -la dist
-          for f in app-gms-mobile-universal-nightly.apk app-gms-tv-armeabi-nightly.apk; do
+          for f in app-gms-mobile-universal-nightly.apk app-gms-tv-armeabi-nightly.apk app-gms-lite-armeabi-nightly.apk; do
             if [ ! -f "dist/$f" ]; then
               echo "::error::Missing $f"
               exit 1
@@ -169,6 +175,7 @@ jobs:
             echo
             echo "- Phone: \`app-gms-mobile-universal-nightly.apk\`"
             echo "- TV (Android TV, Fire TV, Mi Box, Google TV): \`app-gms-tv-armeabi-nightly.apk\`"
+            echo "- Lite (old / low-RAM devices, Android 9+): \`app-gms-lite-armeabi-nightly.apk\`"
             echo
             echo "$CHANGES"
             echo
@@ -176,7 +183,7 @@ jobs:
             echo "<!-- at-build:${VERSION_CODE_OVERRIDE} -->"
           } > release-notes.md
 
-          gh release create "$TAG" dist/app-gms-mobile-universal-nightly.apk dist/app-gms-tv-armeabi-nightly.apk \
+          gh release create "$TAG" dist/app-gms-mobile-universal-nightly.apk dist/app-gms-tv-armeabi-nightly.apk dist/app-gms-lite-armeabi-nightly.apk \
             --target "$GITHUB_SHA" \
             --prerelease \
             --title "Build ${VERSION_CODE_OVERRIDE} (${SHORT_SHA})" \

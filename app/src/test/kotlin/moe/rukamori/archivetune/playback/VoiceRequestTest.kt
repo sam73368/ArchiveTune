@@ -8,7 +8,9 @@
 package moe.rukamori.archivetune.playback
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VoiceRequestTest {
@@ -139,5 +141,16 @@ class VoiceRequestTest {
                 Song("Master of Puppets", "Metallica"),
             )
         assertEquals(items, shape(items, "metal"))
+    }
+
+    @Test
+    fun misheardAlbumTitleStillMatches() {
+        assertTrue(VoiceRequest.similarTitles("Les autres c'est nous", "les autres ces nous"))
+    }
+
+    @Test
+    fun differentAlbumTitlesDoNotMatch() {
+        assertFalse(VoiceRequest.similarTitles("La vie de rêve", "Les autres c'est nous"))
+        assertFalse(VoiceRequest.similarTitles("Nous", "Vous"))
     }
 }
