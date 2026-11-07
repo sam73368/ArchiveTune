@@ -6464,3 +6464,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI and a real run on the tablet and in Android Auto. If the album is still missed, the new `album search` log line shows what YouTube returned.
+
+---
+Task ID: LITE-2
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Android Auto still did not play the album "Les autres c'est nous" (Bigflo & Oli) after the fuzzy title fix.
+
+Work Log:
+- The new log shows the real cause: the request arrived as `focus=vnd.android.cursor.item/* title=null album=null artist=null query=Les autres c'est nous albumRequest=null`. With no album word and no structured album, it was handled as a plain song search ("songs resolved 20 item(s), first=La vie d'après"), so the album lookup never ran (and the earlier fuzzy matching, which lives in the album path, was never reached).
+- New `guessVoiceAlbumItems` (both the `onSetMediaItems` and `onAddMediaItems` voice paths): for a generic focus that is not `/audio`, when the first song does not answer the query (`VoiceRequest.songAnswersQuery`), it runs a strict online album match (`searchOnlineAlbumItems(strict = true)`, title score >= 3, no song/library fallback) and plays that album with shuffle off. A song whose title matches the query keeps priority, so song requests are unchanged.
+- Unit tests added for `songAnswersQuery`. Nothing compiled locally; not tested in Android Auto.
+
+Stage Summary:
+- Pending CI and a real Android Auto run; the `album guess for "<query>"` and `album search` VoiceSearch lines show what was found.

@@ -81,6 +81,17 @@ internal object VoiceRequest {
 
     private const val SIMILAR_TITLE_THRESHOLD = 0.82
 
+    fun songAnswersQuery(
+        title: String?,
+        query: String,
+    ): Boolean {
+        val wanted = TrackMatching.normalize(query)
+        val found = TrackMatching.normalizeTitle(title.orEmpty())
+        if (wanted.isEmpty() || found.isEmpty()) return false
+        if (similarTitles(found, wanted)) return true
+        return wanted.contains(found) && found.length * 2 >= wanted.length
+    }
+
     fun similarTitles(
         candidate: String,
         wanted: String,

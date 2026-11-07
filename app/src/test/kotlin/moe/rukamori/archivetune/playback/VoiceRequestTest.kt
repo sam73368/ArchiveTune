@@ -153,4 +153,16 @@ class VoiceRequestTest {
         assertFalse(VoiceRequest.similarTitles("La vie de rêve", "Les autres c'est nous"))
         assertFalse(VoiceRequest.similarTitles("Nous", "Vous"))
     }
+
+    @Test
+    fun unrelatedFirstSongDoesNotAnswerAnAlbumTitleQuery() {
+        assertFalse(VoiceRequest.songAnswersQuery("La vie d’après", "Les autres c'est nous"))
+        assertFalse(VoiceRequest.songAnswersQuery("Nous", "Les autres c'est nous"))
+    }
+
+    @Test
+    fun songWithTheQueriedTitleAnswersTheQuery() {
+        assertTrue(VoiceRequest.songAnswersQuery("Nightmare", "Nightmare"))
+        assertTrue(VoiceRequest.songAnswersQuery("La vie d’après", "La vie d'après Bigflo"))
+    }
 }

@@ -1320,6 +1320,22 @@ class MediaLibrarySessionCallback
                         shapeVoiceSongs(interleaveMediaItems(offlineSongs.items, onlineSongs), voiceQuery)
                     }
                     logVoice("songs resolved ${searchQueue.size} item(s), first=${searchQueue.firstOrNull()?.mediaMetadata?.title}")
+                    val guessedAlbum =
+                        if (firstItem.isVoiceAlbumRequest()) {
+                            emptyList()
+                        } else {
+                            guessVoiceAlbumItems(firstItem, searchQueue, applyAndroidAutoPolicy = isCarController)
+                        }
+                    if (guessedAlbum.isNotEmpty()) {
+                        withContext(Dispatchers.Main.immediate) {
+                            mediaSession.player.shuffleModeEnabled = false
+                        }
+                        return@future MediaSession.MediaItemsWithStartPosition(
+                            guessedAlbum,
+                            0,
+                            startPositionMs,
+                        )
+                    }
                     if (searchQueue.isNotEmpty()) {
                         return@future MediaSession.MediaItemsWithStartPosition(
                             searchQueue,
@@ -1585,7 +1601,11 @@ class MediaLibrarySessionCallback
                                 query = query,
                                 applyAndroidAutoPolicy = isCarController(mediaSession, controller),
                             )
-                            resolved.ifEmpty { listOf(item) }
+                            guessVoiceAlbumItems(
+                                item,
+                                resolved,
+                                applyAndroidAutoPolicy = isCarController(mediaSession, controller),
+                            ).ifEmpty { resolved }.ifEmpty { listOf(item) }
                         }
                     }.toMutableList()
             }
@@ -2692,6 +2712,29 @@ class MediaLibrarySessionCallback
             return searchLibraryAlbumItems(albumName, artistName, localSongsAllowed, onlineContentAllowed)
         }
 
+        private suspend fun guessVoiceAlbumItems(
+            item: MediaItem,
+            songs: List<MediaItem>,
+            applyAndroidAutoPolicy: Boolean,
+        ): List<MediaItem> {
+            val extras = item.requestMetadata.extras
+            val focus = extras?.getString(MediaStore.EXTRA_MEDIA_FOCUS).orEmpty().lowercase()
+            if (focus.endsWith("/audio")) return emptyList()
+            val query = item.requestMetadata.searchQuery?.trim().orEmpty()
+            if (query.isBlank()) return emptyList()
+            if (VoiceRequest.songAnswersQuery(songs.firstOrNull()?.mediaMetadata?.title?.toString(), query)) return emptyList()
+            val configuration = androidAutoSettings.currentConfiguration().takeIf { applyAndroidAutoPolicy }
+            val onlineSearchAllowed =
+                configuration == null ||
+                    (configuration.onlineVoiceSearch && androidAutoSettings.isOnlinePlaybackAllowed(configuration))
+            if (!onlineSearchAllowed) return emptyList()
+            val artist = extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST).orEmpty()
+            val album = searchOnlineAlbumItems(query, artist, strict = true)
+            logVoice("album guess for \"$query\": ${album.size} track(s)")
+            album.forEach { onlineSearchItemCache[it.mediaId] = it }
+            return album
+        }
+
         private suspend fun searchLibraryAlbumItems(
             albumName: String,
             artistName: String,
@@ -2730,7 +2773,9 @@ class MediaLibrarySessionCallback
         private suspend fun searchOnlineAlbumItems(
             albumName: String,
             artistName: String,
+            strict: Boolean = false,
         ): List<MediaItem> {
+            val minimumTitleScore = if (strict) 3 else 1
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
             val wantedTitle = TrackMatching.normalizeTitle(albumName)
             val wantedArtist = TrackMatching.normalize(artistName)
@@ -2779,9 +2824,13 @@ class MediaLibrarySessionCallback
             )
             val best =
                 albums
-                    .filter { titleScore(it) > 0 }
+                    .filter { titleScore(it) >= minimumTitleScore }
                     .maxByOrNull(::matchScore)
-                    ?: return searchOnlineAlbumItemsViaSongs(albumName, artistName, hideExplicit)
+                    ?: return if (strict) {
+                        emptyList()
+                    } else {
+                        searchOnlineAlbumItemsViaSongs(albumName, artistName, hideExplicit)
+                    }
             logVoice("album best=${best.title} id=${best.browseId}")
 
             val family = AlbumEditions.families(albums).firstOrNull { group -> group.any { it.id == best.id } } ?: listOf(best)
