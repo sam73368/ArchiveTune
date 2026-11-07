@@ -6478,3 +6478,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI and a real Android Auto run; the `album guess for "<query>"` and `album search` VoiceSearch lines show what was found.
+
+---
+Task ID: LITE-3
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Review of Samy's device logs (10:20-10:25 session) and fix of the low-risk findings.
+
+Work Log:
+- Canvas: the same two Apple Music lookups ran about eight times each within 1.5 s at startup (several callers, the miss cache is only written at the end). `fetchCanvasArtworkForPlayback` now joins an in-flight lookup (`CanvasFetchFlights`: own scope, cancelled when the last waiter leaves, `forceRefresh` bypasses it). `AppleMusicProvider.searchAndFetchMotion` no longer refetches an album id it already fetched in the same search (the log showed 1453099417 fetched twice).
+- TIDAL: `resolveTidalStream` returns null right after `setInstances` when the merged instance list is empty, which is exactly when `TidalAudioProvider.resolve` threw "no configured instance" and a full stack trace was logged for every song.
+- Pool accounts: the "JSONArray text must start with '['" error at every launch was the encrypted cache (`enc:1:`) failing to decrypt (Keystore key lost) and the ciphertext being parsed as JSON. `cached()` now returns null in that case.
+- Deliberately not changed (possible downsides): capping the number of Apple Music albums tried per storefront (could miss canvases), closing the Discord gateway while presence is hidden (resume behaviour unclear), deferring queue preparation at startup (may slow resume), the pool server HTTP 402 (server side).
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. Expect fewer duplicate canvas requests at startup, no TIDAL stack traces without instances, and no pool-cache error at launch.

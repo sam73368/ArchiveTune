@@ -459,7 +459,8 @@ object PoolAccountManager {
 
     private suspend fun cached(context: Context, key: androidx.datastore.preferences.core.Preferences.Key<String>): String? {
         val raw = context.dataStore.getAsync(key)?.takeIf { it.isNotBlank() } ?: return null
-        return PoolCacheCrypto.decrypt(raw) ?: raw
+        PoolCacheCrypto.decrypt(raw)?.let { return it }
+        return raw.takeUnless { it.startsWith("enc:1:") }
     }
 
     fun report(

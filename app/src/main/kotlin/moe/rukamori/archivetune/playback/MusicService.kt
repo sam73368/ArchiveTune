@@ -10108,6 +10108,7 @@ class MusicService :
             }
         }
         TidalAudioProvider.setInstances(mergedInstances)
+        if (mergedInstances.isEmpty()) return null
         val resolved =
             runCatching {
                 TidalAudioProvider.resolve(

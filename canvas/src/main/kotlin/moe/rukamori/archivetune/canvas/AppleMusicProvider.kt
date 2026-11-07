@@ -716,6 +716,7 @@ object AppleMusicProvider {
 
             Log.d("Found ${scoredResults.size} scored results for term '$term'")
 
+            val fetchedAlbumIds = HashSet<String>()
             for ((score, obj) in scoredResults) {
                 if (score < 12) {
                     Log.d("skipping result with low score: $score")
@@ -754,6 +755,8 @@ object AppleMusicProvider {
                         )
                     }
                 }
+
+                if (!fetchedAlbumIds.add(targetAlbumId)) continue
 
                 val fetched =
                     fetchMotionArtwork(

@@ -9,7 +9,11 @@ package moe.rukamori.archivetune.ui.player
 
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.canvas.AppleMusicProvider
 import moe.rukamori.archivetune.canvas.SpotifyCanvasProvider
@@ -197,6 +201,51 @@ internal suspend fun resolveCanvasArtworkForPlayback(
     }
 }
 
+private object CanvasFetchFlights {
+    private class Flight(
+        val job: Deferred<CanvasArtwork?>,
+    ) {
+        var waiters = 0
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val lock = Any()
+    private val flights = HashMap<String, Flight>()
+
+    suspend fun join(
+        key: String,
+        block: suspend () -> CanvasArtwork?,
+    ): CanvasArtwork? {
+        val flight =
+            synchronized(lock) {
+                val running = flights[key]?.takeIf { it.job.isActive }
+                if (running != null) {
+                    running.waiters++
+                    running
+                } else {
+                    val created = Flight(scope.async { block() })
+                    created.waiters = 1
+                    flights[key] = created
+                    created.job.invokeOnCompletion {
+                        synchronized(lock) { if (flights[key] === created) flights.remove(key) }
+                    }
+                    created
+                }
+            }
+        try {
+            return flight.job.await()
+        } finally {
+            synchronized(lock) {
+                flight.waiters--
+                if (flight.waiters == 0 && flight.job.isActive) {
+                    flight.job.cancel()
+                    if (flights[key] === flight) flights.remove(key)
+                }
+            }
+        }
+    }
+}
+
 internal suspend fun fetchCanvasArtworkForPlayback(
     songTitleRaw: String,
     artistNameRaw: String,
@@ -205,6 +254,30 @@ internal suspend fun fetchCanvasArtworkForPlayback(
     forceRefresh: Boolean = false,
     strictIdentity: Boolean = true,
     albumTitle: String? = null,
+): CanvasArtwork? {
+    if (forceRefresh) {
+        return fetchCanvasArtworkForPlaybackNow(
+            songTitleRaw, artistNameRaw, storefront, requireVertical, forceRefresh, strictIdentity, albumTitle,
+        )
+    }
+    val key =
+        listOf(songTitleRaw, artistNameRaw, storefront, requireVertical, strictIdentity, albumTitle.orEmpty())
+            .joinToString("\u0000")
+    return CanvasFetchFlights.join(key) {
+        fetchCanvasArtworkForPlaybackNow(
+            songTitleRaw, artistNameRaw, storefront, requireVertical, forceRefresh, strictIdentity, albumTitle,
+        )
+    }
+}
+
+private suspend fun fetchCanvasArtworkForPlaybackNow(
+    songTitleRaw: String,
+    artistNameRaw: String,
+    storefront: String,
+    requireVertical: Boolean,
+    forceRefresh: Boolean,
+    strictIdentity: Boolean,
+    albumTitle: String?,
 ): CanvasArtwork? {
     val songTitle = normalizeCanvasSongTitle(songTitleRaw)
     val artistName = normalizeCanvasArtistName(artistNameRaw)
