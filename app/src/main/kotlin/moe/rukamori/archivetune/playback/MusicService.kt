@@ -1455,6 +1455,7 @@ class MusicService :
 
     override fun onCreate() {
         super.onCreate()
+        moe.rukamori.archivetune.utils.GlobalLog.append(android.util.Log.INFO, "SessionLife", "MusicService onCreate")
         SpotifyWebStreamer.accessTokenProvider = { ensureSpotifyWebToken() }
         equalizerPlaybackController.attach(this)
         ensureScopesActive()
@@ -13360,6 +13361,7 @@ class MusicService :
     }
 
     override fun onDestroy() {
+        moe.rukamori.archivetune.utils.GlobalLog.append(android.util.Log.INFO, "SessionLife", "MusicService onDestroy")
         equalizerPlaybackController.detach(this)
         musicHapticsEngine?.release()
         musicHapticsEngine = null

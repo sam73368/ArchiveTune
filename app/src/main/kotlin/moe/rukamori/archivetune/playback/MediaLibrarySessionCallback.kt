@@ -149,6 +149,11 @@ class MediaLibrarySessionCallback
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
+            moe.rukamori.archivetune.utils.GlobalLog.append(
+                android.util.Log.INFO,
+                "SessionLife",
+                "onConnect from ${controller.packageName} trusted=${controller.isTrusted}",
+            )
             val connectionResult = super.onConnect(session, controller)
             val availableSessionCommands = connectionResult.availableSessionCommands
                 .buildUpon()
@@ -277,8 +282,13 @@ class MediaLibrarySessionCallback
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
             params: MediaLibraryService.LibraryParams?,
-        ): ListenableFuture<LibraryResult<MediaItem>> =
-            Futures.immediateFuture(
+        ): ListenableFuture<LibraryResult<MediaItem>> {
+            moe.rukamori.archivetune.utils.GlobalLog.append(
+                android.util.Log.INFO,
+                "SessionLife",
+                "onGetLibraryRoot from ${browser.packageName} recent=${params?.isRecent} offline=${params?.isOffline}",
+            )
+            return Futures.immediateFuture(
                 LibraryResult.ofItem(
                     MediaItem
                         .Builder()
@@ -295,6 +305,7 @@ class MediaLibrarySessionCallback
                     params,
                 ),
             )
+        }
 
         override fun onSubscribe(
             session: MediaLibrarySession,
@@ -2722,13 +2733,17 @@ class MediaLibrarySessionCallback
             if (focus.endsWith("/audio")) return emptyList()
             val query = item.requestMetadata.searchQuery?.trim().orEmpty()
             if (query.isBlank()) return emptyList()
-            if (VoiceRequest.songAnswersQuery(songs.firstOrNull()?.mediaMetadata?.title?.toString(), query)) return emptyList()
+            val firstSong = songs.firstOrNull()
+            val songAnswers = VoiceRequest.songAnswersQuery(firstSong?.mediaMetadata?.title?.toString(), query)
             val configuration = androidAutoSettings.currentConfiguration().takeIf { applyAndroidAutoPolicy }
             val onlineSearchAllowed =
                 configuration == null ||
                     (configuration.onlineVoiceSearch && androidAutoSettings.isOnlinePlaybackAllowed(configuration))
             if (!onlineSearchAllowed) return emptyList()
-            val artist = extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST).orEmpty()
+            val artist =
+                extras?.getString(MediaStore.EXTRA_MEDIA_ARTIST).orEmpty().ifBlank {
+                    if (songAnswers) firstSong?.mediaMetadata?.artist?.toString().orEmpty() else ""
+                }
             val album = searchOnlineAlbumItems(query, artist, strict = true)
             logVoice("album guess for \"$query\": ${album.size} track(s)")
             album.forEach { onlineSearchItemCache[it.mediaId] = it }

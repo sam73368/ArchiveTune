@@ -6494,3 +6494,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI. Expect fewer duplicate canvas requests at startup, no TIDAL stack traces without instances, and no pool-cache error at launch.
+
+---
+Task ID: LITE-4
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Orelsan "La fête est finie" voice request played songs; Android Auto voice requests seem to add one media card per request in the notification shade.
+
+Work Log:
+- Album vs same-titled song: `guessVoiceAlbumItems` no longer gives up when the first song answers the query. A generic request (focus `*`, only a query) now prefers an exactly-titled album (strict match), using the first song's artist to choose the right album. Trade-off: a generic request for a song whose title equals an album title now plays the album; structured song requests (title/artist extras, `/audio` focus) are unchanged.
+- Extra media cards: could not be explained from the code. There is a single `MediaLibrarySession` (Media3 would throw on a second one with the same id), a constant notification id (888) and no Cast SDK. Suspect SystemUI keeping one card per service instance/session (possibly via the resumption browser, `onGetLibraryRoot` never inspects `params.isRecent`). Added `SessionLife` log lines (`MusicService onCreate/onDestroy`, `onConnect` and `onGetLibraryRoot` with caller package and `recent` flag) to see what creates the sessions. No behavioural change for this part.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI; send a log after an Android Auto request that adds a card (look for `SessionLife` lines).
