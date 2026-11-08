@@ -42,6 +42,7 @@ import moe.rukamori.archivetune.playback.EqReverbPreset
 import moe.rukamori.archivetune.playback.EqSettings
 import moe.rukamori.archivetune.playback.EqualizerJson
 import moe.rukamori.archivetune.playback.EqualizerPlaybackController
+import moe.rukamori.archivetune.playback.normalizeStoredBandFreqsHz
 import moe.rukamori.archivetune.utils.dataStore
 import java.util.UUID
 import javax.inject.Inject
