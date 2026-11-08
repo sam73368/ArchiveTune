@@ -88,6 +88,11 @@ internal object EqualizerJson {
         }
 }
 
+private const val MAX_PLAUSIBLE_BAND_FREQ_HZ = 100_000
+
+fun normalizeStoredBandFreqsHz(freqs: List<Int>): List<Int> =
+    if (freqs.any { it > MAX_PLAUSIBLE_BAND_FREQ_HZ }) freqs.map { it / 1000 } else freqs
+
 fun mapBandLevelsByFrequency(
     levelsMb: List<Int>,
     sourceFreqHz: List<Int>,

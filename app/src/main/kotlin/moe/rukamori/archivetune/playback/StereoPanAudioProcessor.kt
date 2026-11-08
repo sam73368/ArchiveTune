@@ -11,6 +11,7 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.sin
+import kotlin.math.tanh
 
 /**
  * Karaoke mode: attenuates what sits dead centre in the stereo image (usually the lead vocal)
@@ -52,6 +53,51 @@ internal class KaraokeFilter {
     }
 }
 
+internal class BassEnhancerFilter {
+    private var low = 0f
+    private var harmonics = 0f
+
+    fun reset() {
+        low = 0f
+        harmonics = 0f
+    }
+
+    fun contribution(
+        mid: Float,
+        lowAlpha: Float,
+        harmonicsAlpha: Float,
+        amount: Float,
+    ): Float {
+        low += lowAlpha * (mid - low)
+        val shaped = tanh(DRIVE * low / FULL_SCALE) * FULL_SCALE / DRIVE
+        harmonics += harmonicsAlpha * ((shaped - low) - harmonics)
+        return amount * (LOW_GAIN * low + HARMONICS_GAIN * harmonics)
+    }
+
+    companion object {
+        const val MIN_FREQUENCY_HZ = 40
+        const val MAX_FREQUENCY_HZ = 120
+        const val DEFAULT_FREQUENCY_HZ = 80
+        const val DEFAULT_AMOUNT_PERCENT = 50
+
+        private const val FULL_SCALE = 32767f
+        private const val DRIVE = 4f
+        private const val LOW_GAIN = 1.2f
+        private const val HARMONICS_GAIN = 1.5f
+        private const val HARMONICS_CUTOFF_RATIO = 4.0
+
+        fun lowAlphaFor(
+            sampleRate: Int,
+            frequencyHz: Float,
+        ): Float = 1f - exp(-2.0 * PI * frequencyHz / sampleRate).toFloat()
+
+        fun harmonicsAlphaFor(
+            sampleRate: Int,
+            frequencyHz: Float,
+        ): Float = 1f - exp(-2.0 * PI * frequencyHz * HARMONICS_CUTOFF_RATIO / sampleRate).toFloat()
+    }
+}
+
 class StereoPanAudioProcessor : BaseAudioProcessor() {
     @Volatile
     private var balance: Float = 0f
@@ -62,9 +108,16 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
     @Volatile
     private var rotationSpeedHz: Float = DEFAULT_SPEED_HZ
 
+    @Volatile
+    private var bassAmount: Float = 0f
+
+    @Volatile
+    private var bassFrequencyHz: Float = BassEnhancerFilter.DEFAULT_FREQUENCY_HZ.toFloat()
+
     private var phase: Double = 0.0
 
     private val karaokeFilter = KaraokeFilter()
+    private val bassFilter = BassEnhancerFilter()
 
     private var echoHistory: ShortArray? = null
     private var echoWriteIndex: Int = 0
@@ -78,6 +131,18 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
     fun setRotation(enabled: Boolean, speedHz: Float) {
         rotationEnabled = enabled
         rotationSpeedHz = speedHz.coerceIn(MIN_SPEED_HZ, MAX_SPEED_HZ)
+    }
+
+    fun setBassEnhancer(
+        amount: Float,
+        frequencyHz: Float,
+    ) {
+        bassAmount = amount.coerceIn(0f, 1f)
+        bassFrequencyHz =
+            frequencyHz.coerceIn(
+                BassEnhancerFilter.MIN_FREQUENCY_HZ.toFloat(),
+                BassEnhancerFilter.MAX_FREQUENCY_HZ.toFloat(),
+            )
     }
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat =
@@ -101,11 +166,13 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
         val rotationOn = rotationEnabled
         val balanceOn = abs(balanceNow) > BALANCE_EPSILON
         val karaokeOn = KaraokeMode.enabled
+        val bassNow = bassAmount
+        val bassOn = bassNow > BASS_EPSILON
         if (
             (!floatIn && format.encoding != C.ENCODING_PCM_16BIT) ||
             format.channelCount != STEREO_CHANNEL_COUNT ||
             format.sampleRate <= 0 ||
-            (!rotationOn && !balanceOn && !karaokeOn)
+            (!rotationOn && !balanceOn && !karaokeOn && !bassOn)
         ) {
             replaceOutputBuffer(inputBuffer.remaining()).put(inputBuffer).flip()
             return
@@ -113,6 +180,8 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
 
         val sampleRate = format.sampleRate
         val karaokeAlpha = KaraokeFilter.alphaFor(sampleRate)
+        val bassLowAlpha = BassEnhancerFilter.lowAlphaFor(sampleRate, bassFrequencyHz)
+        val bassHarmonicsAlpha = BassEnhancerFilter.harmonicsAlphaFor(sampleRate, bassFrequencyHz)
 
         val history = ensureEchoHistory(sampleRate)
         val bytesPerSample = if (floatIn) 4 else 2
@@ -156,6 +225,12 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
                 inRight = rawRight - KaraokeFilter.STRENGTH * vocalBand
             }
 
+            if (bassOn) {
+                val boost = bassFilter.contribution((rawLeft + rawRight) * 0.5f, bassLowAlpha, bassHarmonicsAlpha, bassNow)
+                inLeft += boost
+                inRight += boost
+            }
+
             val left: Float
             val right: Float
             if (rotationOn) {
@@ -181,7 +256,7 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
                     tap2Gain * history[frame2 * STEREO_CHANNEL_COUNT + 1]
             }
 
-            if (rotationOn) {
+            if (rotationOn || bassOn) {
                 outLeft = softLimit(outLeft)
                 outRight = softLimit(outRight)
             }
@@ -212,6 +287,7 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
         echoHistory?.fill(0)
         echoWriteIndex = 0
         karaokeFilter.reset()
+        bassFilter.reset()
     }
 
     override fun onReset() {
@@ -219,6 +295,7 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
         echoHistory = null
         echoWriteIndex = 0
         karaokeFilter.reset()
+        bassFilter.reset()
     }
 
     private fun ensureEchoHistory(sampleRate: Int): ShortArray {
@@ -264,6 +341,7 @@ class StereoPanAudioProcessor : BaseAudioProcessor() {
         const val KNEE_SHARPNESS = 0.02f
 
         const val BALANCE_EPSILON = 0.005f
+        const val BASS_EPSILON = 0.005f
 
         const val MIN_SPEED_HZ = 0.03f
         const val MAX_SPEED_HZ = 0.25f

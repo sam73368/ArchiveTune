@@ -85,7 +85,7 @@ class EqualizerRepository
                                 balance = (preferences[EqualizerBalanceKey] ?: 0f).coerceIn(-1f, 1f),
                                 eightDEnabled = preferences[Equalizer8DEnabledKey] ?: false,
                                 eightDSpeedHz = (preferences[Equalizer8DSpeedKey] ?: DEFAULT_8D_SPEED_HZ).coerceIn(0.03f, 0.25f),
-                                bandFreqsHz = decodeLevels(preferences[EqualizerBandFreqsKey]),
+                                bandFreqsHz = normalizeStoredBandFreqsHz(decodeLevels(preferences[EqualizerBandFreqsKey])),
                             ),
                         capabilities = null,
                         profiles = profiles,

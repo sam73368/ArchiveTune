@@ -6508,3 +6508,21 @@ Work Log:
 
 Stage Summary:
 - Pending CI; send a log after an Android Auto request that adds a card (look for `SessionLife` lines).
+
+---
+Task ID: LITE-5
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Audit of every Equalizer-section setting for bugs, and a way to improve bass/immersion.
+
+Work Log:
+- Bug: `applySystemEqPreset` stored `Equalizer.getCenterFreq()` (milliHertz) as Hz, so after choosing a system preset the band frequencies were 1000x too large and `mapBandLevelsByFrequency` clamped every device band to the first level. Fixed at the source and healed on read (`normalizeStoredBandFreqsHz`, applied in the service and the repository).
+- Bug: in Advanced mode the output gain and auto headroom did nothing unless the audio-effects master switch was also on. They now work when the master switch or the equalizer is on.
+- Bug: balance and 8D were applied after `equalizer ?: return`, so they were ignored on devices where the platform Equalizer failed to initialise. They are applied first now.
+- Bug: the fixed 5-band draft survived its commit and silently overrode later tone/band slider changes; the three drafts are now mutually exclusive.
+- New: "Punch des basses" (Bass punch) in Audio effects: software bass enhancer (intensity 0-100 %, bass range 40-120 Hz) in `StereoPanAudioProcessor`, constants chosen by simulation (about +4 dB around 60 Hz at 100 %, third harmonic generated, < 0.2 dB change at 1 kHz). Unit test `BassEnhancerFilterTest`.
+- Not changed: 8D is roughly 14 dB quieter than the dry signal (by design of the echo gains), the 5-band labels are hard-coded, loudness shares the output gain keys, Tryptify/Lastwave tabs were not audited. Music haptics (Privacy settings) and the platform BassBoost/Virtualizer already existed.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI and a listening test of the bass punch; amplitude is conservative and soft-limited.

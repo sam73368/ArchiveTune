@@ -464,6 +464,11 @@
     <string name="eq_output_gain">Gain de sortie</string>
     <string name="eq_bass_boost">Amplification des basses</string>
     <string name="eq_virtualizer">Virtualiseur</string>
+    <string name="eq_unit_hz"> Hz</string>
+    <string name="eq_bass_enhancer">Punch des basses</string>
+    <string name="eq_bass_enhancer_description">Ajoute du poids et du punch dans les graves, même sur de petits haut-parleurs ou des écouteurs, en renforçant les basses et en générant leurs harmoniques</string>
+    <string name="eq_bass_enhancer_amount">Intensité</string>
+    <string name="eq_bass_enhancer_frequency">Plage des basses</string>
     <string name="permanent_shuffle">Mode de lecture aléatoire permanent</string>
     <string name="permanent_shuffle_desc">Gardez la lecture aléatoire activée lorsque vous démarrez un nouveau titre</string>
     <string name="status_active">ACTIF</string>

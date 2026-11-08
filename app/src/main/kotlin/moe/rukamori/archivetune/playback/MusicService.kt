@@ -197,6 +197,9 @@ import moe.rukamori.archivetune.constants.EqualizerBalanceKey
 import moe.rukamori.archivetune.constants.EqualizerBandFreqsKey
 import moe.rukamori.archivetune.constants.EqualizerBandLevelsMbKey
 import moe.rukamori.archivetune.constants.EqualizerBassBoostEnabledKey
+import moe.rukamori.archivetune.constants.EqualizerBassEnhancerAmountKey
+import moe.rukamori.archivetune.constants.EqualizerBassEnhancerEnabledKey
+import moe.rukamori.archivetune.constants.EqualizerBassEnhancerFrequencyKey
 import moe.rukamori.archivetune.constants.EqualizerBassBoostStrengthKey
 import moe.rukamori.archivetune.constants.EqualizerEnabledKey
 import moe.rukamori.archivetune.constants.EqualizerOutputGainEnabledKey
@@ -1283,6 +1286,12 @@ class MusicService :
 
     @Volatile
     private var secondaryStereoPanProcessor: StereoPanAudioProcessor? = null
+
+    @Volatile
+    private var bassEnhancerAmount: Float = 0f
+
+    @Volatile
+    private var bassEnhancerFrequencyHz: Float = BassEnhancerFilter.DEFAULT_FREQUENCY_HZ.toFloat()
     private val audioEffectPlayerListener =
         object : Player.Listener {
             override fun onEvents(
@@ -1890,6 +1899,23 @@ class MusicService :
                 }
                 if (secondaryCrossfadePlayer?.playbackParameters != parameters) {
                     secondaryCrossfadePlayer?.playbackParameters = parameters
+                }
+            }
+
+        combine(
+            dataStore.data.map { it[EqualizerBassEnhancerEnabledKey] ?: false },
+            dataStore.data.map { it[EqualizerBassEnhancerAmountKey] ?: BassEnhancerFilter.DEFAULT_AMOUNT_PERCENT },
+            dataStore.data.map { it[EqualizerBassEnhancerFrequencyKey] ?: BassEnhancerFilter.DEFAULT_FREQUENCY_HZ },
+            dataStore.data.map { it[EqualizerAudioEffectsEnabledKey] ?: false },
+        ) { enabled, amountPercent, frequencyHz, audioEffectsEnabled ->
+            val amount = if (enabled && audioEffectsEnabled) amountPercent.coerceIn(0, 100) / 100f else 0f
+            amount to frequencyHz.toFloat()
+        }.distinctUntilChanged()
+            .collectLatest(scope) { (amount, frequencyHz) ->
+                bassEnhancerAmount = amount
+                bassEnhancerFrequencyHz = frequencyHz
+                listOfNotNull(primaryStereoPanProcessor, secondaryStereoPanProcessor).forEach {
+                    it.setBassEnhancer(amount, frequencyHz)
                 }
             }
 
@@ -4003,6 +4029,7 @@ class MusicService :
     private fun createSecondaryCrossfadePlayer(): ExoPlayer {
         val secondaryStereoPan = StereoPanAudioProcessor()
         applyStereoPanSettingsTo(secondaryStereoPan, desiredEqSettings.value)
+        secondaryStereoPan.setBassEnhancer(bassEnhancerAmount, bassEnhancerFrequencyHz)
         secondaryStereoPanProcessor = secondaryStereoPan
         val secondaryTransition = AutoMixFilterProcessor()
         secondaryTransitionFilter = secondaryTransition
@@ -6486,7 +6513,8 @@ class MusicService :
 
     private fun decodeBandFreqsHz(raw: String?): List<Int> {
         if (raw.isNullOrBlank()) return emptyList()
-        return runCatching { EqualizerJson.json.decodeFromString<List<Int>>(raw) }.getOrNull() ?: emptyList()
+        val decoded = runCatching { EqualizerJson.json.decodeFromString<List<Int>>(raw) }.getOrNull() ?: emptyList()
+        return normalizeStoredBandFreqsHz(decoded)
     }
 
     private fun encodeBandLevelsMb(levelsMb: List<Int>): String =
@@ -6503,16 +6531,18 @@ class MusicService :
         val levels = decodeBandLevelsMb(prefs[EqualizerBandLevelsMbKey])
 
         val audioEffectsEnabled = prefs[EqualizerAudioEffectsEnabledKey] ?: false
+        val equalizerEnabled = prefs[EqualizerEnabledKey] ?: false
+        val gainStageAllowed = audioEffectsEnabled || equalizerEnabled
         return EqSettings(
-            enabled = prefs[EqualizerEnabledKey] ?: false,
+            enabled = equalizerEnabled,
             bandLevelsMb = levels,
-            outputGainEnabled = (prefs[EqualizerOutputGainEnabledKey] ?: false) && audioEffectsEnabled,
+            outputGainEnabled = (prefs[EqualizerOutputGainEnabledKey] ?: false) && gainStageAllowed,
             outputGainMb = prefs[EqualizerOutputGainMbKey] ?: 0,
             bassBoostEnabled = (prefs[EqualizerBassBoostEnabledKey] ?: false) && audioEffectsEnabled,
             bassBoostStrength = (prefs[EqualizerBassBoostStrengthKey] ?: 0).coerceIn(0, 1000),
             virtualizerEnabled = (prefs[EqualizerVirtualizerEnabledKey] ?: false) && audioEffectsEnabled,
             virtualizerStrength = (prefs[EqualizerVirtualizerStrengthKey] ?: 0).coerceIn(0, 1000),
-            autoHeadroomEnabled = (prefs[EqualizerAutoHeadroomEnabledKey] ?: false) && audioEffectsEnabled,
+            autoHeadroomEnabled = (prefs[EqualizerAutoHeadroomEnabledKey] ?: false) && gainStageAllowed,
             reverbEnabled = (prefs[EqualizerReverbEnabledKey] ?: false) && audioEffectsEnabled,
             reverbPreset = EqReverbPreset.fromStorage(prefs[EqualizerReverbPresetKey] ?: 0).storageValue,
             balance = if (audioEffectsEnabled) (prefs[EqualizerBalanceKey] ?: 0f).coerceIn(-1f, 1f) else 0f,
@@ -6555,9 +6585,11 @@ class MusicService :
                 }
             val centerFreqs =
                 (0 until bandCount).map { band ->
-                    readAudioEffectValue("equalizer center frequency for band $band") {
-                        eq.getCenterFreq(band.toShort())
-                    } ?: 0
+                    (
+                        readAudioEffectValue("equalizer center frequency for band $band") {
+                            eq.getCenterFreq(band.toShort())
+                        } ?: 0
+                    ) / 1000
                 }
 
             val encoded = encodeBandLevelsMb(levels)
@@ -6738,6 +6770,10 @@ class MusicService :
     }
 
     private fun applyEqSettingsToEffects(settings: EqSettings) {
+        listOfNotNull(primaryStereoPanProcessor, secondaryStereoPanProcessor).forEach { stereoPan ->
+            applyStereoPanSettingsTo(stereoPan, settings)
+        }
+
         val eq = equalizer ?: return
         val caps = eqCapabilities.value
         val bandCount = caps?.bandCount ?: readAudioEffectValue("equalizer band count") { eq.numberOfBands.toInt() } ?: 0
@@ -6794,10 +6830,6 @@ class MusicService :
         environmentalReverb?.let { reverb ->
             applyReverbPreset(reverb, EqReverbPreset.fromStorage(settings.reverbPreset))
             runCatching { reverb.enabled = settings.reverbEnabled }
-        }
-
-        listOfNotNull(primaryStereoPanProcessor, secondaryStereoPanProcessor).forEach { stereoPan ->
-            applyStereoPanSettingsTo(stereoPan, settings)
         }
     }
 

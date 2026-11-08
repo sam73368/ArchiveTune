@@ -133,8 +133,12 @@ import moe.rukamori.archivetune.constants.AudioPlaybackPitchKey
 import moe.rukamori.archivetune.constants.AudioPlaybackSpeedKey
 import moe.rukamori.archivetune.constants.AudioPlaybackSpeedPitchMatchKey
 import moe.rukamori.archivetune.constants.EqualizerAudioEffectsEnabledKey
+import moe.rukamori.archivetune.constants.EqualizerBassEnhancerAmountKey
+import moe.rukamori.archivetune.constants.EqualizerBassEnhancerEnabledKey
+import moe.rukamori.archivetune.constants.EqualizerBassEnhancerFrequencyKey
 import moe.rukamori.archivetune.constants.LastwaveAudioProcessingKey
 import moe.rukamori.archivetune.constants.TryptifyAudioProcessingKey
+import moe.rukamori.archivetune.playback.BassEnhancerFilter
 import moe.rukamori.archivetune.playback.EqReverbPreset
 import moe.rukamori.archivetune.ui.component.KeepStatusBarHiddenInDialog
 import moe.rukamori.archivetune.ui.component.LocalUnglassColorScheme
@@ -283,6 +287,13 @@ private fun AudioEffectsContent(
     var isSpeedSwitchOn by remember { mutableStateOf(playbackSpeed != 1.0f) }
 
     var isBalanceSwitchOn by remember { mutableStateOf(model.balance != 0f) }
+
+    val (bassEnhancerEnabled, onBassEnhancerEnabledChange) =
+        rememberPreference(EqualizerBassEnhancerEnabledKey, defaultValue = false)
+    val (bassEnhancerAmount, onBassEnhancerAmountChange) =
+        rememberPreference(EqualizerBassEnhancerAmountKey, defaultValue = BassEnhancerFilter.DEFAULT_AMOUNT_PERCENT)
+    val (bassEnhancerFrequency, onBassEnhancerFrequencyChange) =
+        rememberPreference(EqualizerBassEnhancerFrequencyKey, defaultValue = BassEnhancerFilter.DEFAULT_FREQUENCY_HZ)
 
     val (audioEffectsEnabled, onAudioEffectsEnabledChange) =
         rememberPreference(EqualizerAudioEffectsEnabledKey, defaultValue = false)
@@ -676,6 +687,17 @@ private fun AudioEffectsContent(
                                             viewModel.commitBassBoost()
                                         },
                                         suffix = stringResource(R.string.eq_unit_db),
+                                        interactionEnabled = audioEffectsEnabled,
+                                    )
+                                },
+                                {
+                                    BassEnhancerSection(
+                                        enabled = bassEnhancerEnabled,
+                                        onToggle = onBassEnhancerEnabledChange,
+                                        amountPercent = bassEnhancerAmount,
+                                        onAmountChange = { onBassEnhancerAmountChange(it.toInt()) },
+                                        frequencyHz = bassEnhancerFrequency,
+                                        onFrequencyChange = { onBassEnhancerFrequencyChange(it.toInt()) },
                                         interactionEnabled = audioEffectsEnabled,
                                     )
                                 },
@@ -1128,6 +1150,75 @@ private fun LabelSliderSection(
             onValueChange = onValueChange,
             valueRange = range,
             enabled = checked && interactionEnabled,
+        )
+    }
+}
+
+@Composable
+private fun BassEnhancerSection(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    amountPercent: Int,
+    onAmountChange: (Float) -> Unit,
+    frequencyHz: Int,
+    onFrequencyChange: (Float) -> Unit,
+    interactionEnabled: Boolean = true,
+) {
+    SectionContainer {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.eq_bass_enhancer),
+                style = MaterialTheme.typography.titleLarge,
+                color = if (interactionEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            ExpressiveSwitch(checked = enabled, onCheckedChange = onToggle, enabled = interactionEnabled)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.eq_bass_enhancer_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.eq_bass_enhancer_amount),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = amountPercent.toString() + stringResource(R.string.eq_unit_percent),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        ResponsiveSlider(
+            value = amountPercent.toFloat(),
+            onValueChange = onAmountChange,
+            valueRange = 0f..100f,
+            enabled = enabled && interactionEnabled,
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.eq_bass_enhancer_frequency),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = frequencyHz.toString() + stringResource(R.string.eq_unit_hz),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        ResponsiveSlider(
+            value = frequencyHz.toFloat(),
+            onValueChange = onFrequencyChange,
+            valueRange = BassEnhancerFilter.MIN_FREQUENCY_HZ.toFloat()..BassEnhancerFilter.MAX_FREQUENCY_HZ.toFloat(),
+            enabled = enabled && interactionEnabled,
         )
     }
 }

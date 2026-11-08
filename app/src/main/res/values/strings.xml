@@ -807,6 +807,11 @@
     <string name="eq_strength">Strength</string>
     <string name="eq_unit_db"> dB</string>
     <string name="eq_unit_percent"> %</string>
+    <string name="eq_unit_hz"> Hz</string>
+    <string name="eq_bass_enhancer">Bass punch</string>
+    <string name="eq_bass_enhancer_description">Adds low-end weight and punch you can feel, even on small speakers and headphones, by reinforcing the bass and generating its harmonics</string>
+    <string name="eq_bass_enhancer_amount">Intensity</string>
+    <string name="eq_bass_enhancer_frequency">Bass range</string>
     <string name="eq_position">Position</string>
     <string name="eq_left">Left</string>
     <string name="eq_right">Right</string>

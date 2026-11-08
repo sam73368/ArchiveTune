@@ -273,6 +273,7 @@ class EqualizerViewModel
                 val configWithDraft = config.withDraft(current)
                 current.copy(
                     bandLevelsMb = updateEqualizer.adjustToneBands(tone, valueMb, configWithDraft),
+                    fixedBandLevelsMb = null,
                     toneLevelsMb = current.toneLevelsMb + (tone to valueMb),
                 )
             }
@@ -293,9 +294,9 @@ class EqualizerViewModel
             val capabilities = config.capabilities ?: return
             draft.update { current ->
                 val levels =
-                    normalizedDeviceLevels(config.settings, capabilities).toMutableList()
+                    normalizedDeviceLevels(config.withDraft(current).settings, capabilities).toMutableList()
                 if (index in levels.indices) levels[index] = valueMb
-                current.copy(bandLevelsMb = levels)
+                current.copy(bandLevelsMb = levels, fixedBandLevelsMb = null)
             }
         }
 
@@ -307,11 +308,11 @@ class EqualizerViewModel
             draft.update { current ->
                 val levels =
                     resampleLevels(
-                        levelsMb = current.fixedBandLevelsMb ?: config.settings.bandLevelsMb,
+                        levelsMb = current.fixedBandLevelsMb ?: config.withDraft(current).settings.bandLevelsMb,
                         targetCount = FIXED_UI_BAND_COUNT,
                     ).toMutableList()
                 if (index in levels.indices) levels[index] = valueMb
-                current.copy(fixedBandLevelsMb = levels)
+                current.copy(fixedBandLevelsMb = levels, bandLevelsMb = null)
             }
         }
 
