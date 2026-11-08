@@ -261,6 +261,8 @@ class EqViewModel @Inject constructor(
         viewModelScope.launch {
             val presetId = preferences.eqActivePresetId.first()
 
+            val storedBands = decodeStoredBands(preferences.eqBandsJson.first())
+            _currentBands.value = storedBands
             if (presetId != null) {
                 val preset = eqRepository.getPresetById(presetId)
                     ?: withTimeoutOrNull(PRESET_RESTORE_WAIT_MS) {
@@ -268,22 +270,9 @@ class EqViewModel @Inject constructor(
                     }
                 _activePreset.value = preset
                 if (preset != null) {
-                    _currentBands.value = preset.bands
-                    _currentPreamp.value = preset.preamp
+                    if (storedBands.isEmpty()) _currentBands.value = preset.bands
                     _selectedTarget.value = FrequencyTargets.getTargetById(preset.targetId)
                         ?: FrequencyTargets.getHarmanOverEar2018()
-                }
-            } else {
-                val bandsJson = preferences.eqBandsJson.first()
-                if (!bandsJson.isNullOrBlank()) {
-                    try {
-                        val jsonParser = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                        val bands = jsonParser.decodeFromString(
-                            kotlinx.serialization.builtins.ListSerializer(EqBand.serializer()),
-                            bandsJson
-                        )
-                        _currentBands.value = bands
-                    } catch (_: Exception) { }
                 }
             }
 
@@ -386,6 +375,22 @@ class EqViewModel @Inject constructor(
         }
     }
 
+    private fun decodeStoredBands(bandsJson: String?): List<EqBand> {
+        if (bandsJson.isNullOrBlank()) return emptyList()
+        return try {
+            persistJson.decodeFromString(
+                kotlinx.serialization.builtins.ListSerializer(EqBand.serializer()),
+                bandsJson,
+            )
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun ensureEqEnabled() {
+        if (!_eqEnabled.value) enableEq()
+    }
+
     fun dismissTutorial() {
         _showTutorial.value = false
         viewModelScope.launch {
@@ -455,6 +460,7 @@ class EqViewModel @Inject constructor(
             }
 
             saveBandsToPreferences(preset.bands)
+            ensureEqEnabled()
         }
     }
 
@@ -596,6 +602,7 @@ class EqViewModel @Inject constructor(
                     _currentBands.value = bands
                     saveBandsToPreferences(bands)
                 }
+                ensureEqEnabled()
             } catch (e: Exception) {
                 _error.value = "Failed to switch sample: " + e.message
             } finally {
@@ -779,8 +786,12 @@ class EqViewModel @Inject constructor(
                 if (_activePreset.value?.id == presetId) {
                     _activePreset.value = null
                     _currentBands.value = emptyList()
+                    _currentBandsR.value = emptyList()
                     _currentPreamp.value = 0f
                     preferences.setEqActivePreset(null)
+                    saveBandsToPreferences(emptyList())
+                    saveBandsRToPreferences(emptyList())
+                    persistPreamp(0.0)
                 }
                 _error.value = null
             } catch (e: Exception) {
@@ -824,6 +835,7 @@ class EqViewModel @Inject constructor(
                 _currentBands.value = bands
                 saveBandsToPreferences(bands)
                 _error.value = null
+                ensureEqEnabled()
 
             } catch (e: Exception) {
                 _error.value = "AutoEQ calculation failed: ${e.message}"
@@ -1007,6 +1019,7 @@ class EqViewModel @Inject constructor(
         saveBandsRToPreferences(bandsR)
 
         _error.value = null
+        ensureEqEnabled()
         return true
     }
 
@@ -1102,6 +1115,7 @@ class EqViewModel @Inject constructor(
             }
             _error.value = null
             _isCalculating.value = false
+            ensureEqEnabled()
         } catch (e: Exception) {
             _error.value = "Failed to load measurement: ${e.message}"
             _isCalculating.value = false
@@ -1146,6 +1160,7 @@ class EqViewModel @Inject constructor(
                         saveBandsToPreferences(bands)
                         _error.value = null
                         _isCalculating.value = false
+                        ensureEqEnabled()
 
                     }.onFailure { error ->
                         _error.value = "Failed to load measurement: ${error.message}"
@@ -1235,6 +1250,7 @@ class EqViewModel @Inject constructor(
                     _currentBandsR.value = bands
                     saveBandsRToPreferences(bands)
                 }
+                ensureEqEnabled()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1292,6 +1308,7 @@ class EqViewModel @Inject constructor(
                     _currentBands.value = bands
                     saveBandsToPreferences(bands)
                 }
+                ensureEqEnabled()
             } catch (e: Exception) {
                 _error.value = "Import failed: ${e.message}"
             } finally {

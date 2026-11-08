@@ -5,6 +5,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,7 @@ import tf.monochrome.android.audio.eq.AutoEqEngine
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
@@ -72,6 +75,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import tf.monochrome.android.devedit.DevEditable
 import tf.monochrome.android.domain.model.EqBand
 import tf.monochrome.android.domain.model.FilterType
 import tf.monochrome.android.ui.components.bounceClick
@@ -212,6 +216,11 @@ fun EqualizerScreen(
         AutoEqTutorialDialog(onDismiss = { viewModel.dismissTutorial() })
     }
 
+    val bandsSubtitle = buildString {
+        if (stereoMode) append(if (editRight) "Right ear · " else "Left ear · ")
+        append(activeBands.size).append(" bands")
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -223,7 +232,7 @@ fun EqualizerScreen(
             contentPadding = PaddingValues(bottom = 32.dp + LocalMiniPlayerInset.current)
         ) {
             item {
-              tf.monochrome.android.devedit.DevEditable("eq_title_section", Modifier.fillMaxWidth()) {
+              DevEditable("eq_title_section", Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -274,35 +283,25 @@ fun EqualizerScreen(
             }
 
             item {
-              tf.monochrome.android.devedit.DevEditable("eq_graph", Modifier.fillMaxWidth()) {
-                Column {
-                    var smoothingDrag by remember(smoothing) { mutableFloatStateOf(smoothing) }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            "SMOOTHING",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Slider(
-                            value = smoothingDrag,
+                EqEngineStatusCard(
+                    eqEnabled = eqEnabled,
+                    onEnable = { viewModel.toggleEq() },
+                )
+            }
 
-                            onValueChange = { smoothingDrag = it.roundToInt().toFloat().coerceIn(0f, 100f) },
-                            onValueChangeFinished = { viewModel.setSmoothing(smoothingDrag) },
-                            valueRange = 0f..100f,
-                            modifier = Modifier.weight(1f).height(28.dp)
-                        )
-                        Text(
-                            "${smoothingDrag.roundToInt()}%",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+            if (!error.isNullOrEmpty()) {
+                item {
+                    EqDismissibleError(
+                        message = error ?: "",
+                        onDismiss = { viewModel.clearError() },
+                    )
+                }
+            }
+
+            item {
+              DevEditable("eq_graph", Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    var smoothingDrag by remember(smoothing) { mutableFloatStateOf(smoothing) }
                     if (stereoMode) {
                         Row(
                             modifier = Modifier.padding(horizontal = 16.dp),
@@ -345,127 +344,163 @@ fun EqualizerScreen(
                             } else null,
                         primaryIsRight = editRight,
                     )
-                }
-              }
-            }
-
-            item {
-              tf.monochrome.android.devedit.DevEditable("eq_preamp_slider", Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Preamp",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            if (autoPreamp) "Auto · ${currentPreamp.roundToInt()} dB"
-                            else "${currentPreamp.roundToInt()} dB",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Slider(
-                        value = if (currentPreamp.isNaN()) 0f else currentPreamp.coerceIn(-24f, 24f),
-                        onValueChange = { viewModel.setPreamp(it) },
-                        valueRange = -24f..24f,
-                        steps = 47,
-                        enabled = !autoPreamp,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-              }
-            }
-
-            item {
-              tf.monochrome.android.devedit.DevEditable("eq_algorithm_row", Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        "ALGORITHM",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    tf.monochrome.android.audio.eq.AutoEqAlgorithm.entries.forEach { algo ->
-                        FilterChip(
-                            selected = algorithm == algo,
-                            onClick = { viewModel.setAlgorithm(algo) },
-                            label = { Text(algo.label) },
-                        )
-                    }
-                }
-              }
-            }
-
-            item {
-              tf.monochrome.android.devedit.DevEditable("eq_autoeq_button", Modifier.fillMaxWidth()) {
-                GradientAutoEqButton(
-                    isCalculating = isCalculating,
-
-                    onClick = { if (!isCalculating) viewModel.runAutoEq() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-              }
-            }
-
-            item {
-                tf.monochrome.android.ui.player.ToneControlsPanel(
-                    tone = toneControls,
-                    accent = MaterialTheme.colorScheme.primary,
-                    onChange = viewModel::setToneControls,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-            }
-
-            item {
-              tf.monochrome.android.devedit.DevEditable("eq_auto_preamp_toggle", Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Automatic preamp",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "Compensates the combined EQ + tone boost so the signal can't clip.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = autoPreamp,
-                        onCheckedChange = { viewModel.setAutoPreamp(it) }
-                    )
-                }
-              }
-            }
-
-            item {
-              tf.monochrome.android.devedit.DevEditable("eq_headphone_selector", Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                    SectionLabel("HEADPHONE MODEL")
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            "SMOOTHING",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = smoothingDrag,
+                            onValueChange = { smoothingDrag = it.roundToInt().toFloat().coerceIn(0f, 100f) },
+                            onValueChangeFinished = { viewModel.setSmoothing(smoothingDrag) },
+                            valueRange = 0f..100f,
+                            modifier = Modifier.weight(1f).height(28.dp)
+                        )
+                        Text(
+                            "${smoothingDrag.roundToInt()}%",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+              }
+            }
+
+            item {
+                EqSectionHeader(
+                    step = 1,
+                    title = "Source",
+                    subtitle = "Your headphone and the sound you aim for",
+                )
+            }
+
+            item {
+              EqCard {
+                DevEditable("eq_headphone_selector", Modifier.fillMaxWidth()) {
+                  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("HEADPHONE MODEL")
+
+                    DevEditable("eq_database_section", Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .liquidGlass(shape = RoundedCornerShape(8.dp))
+                                .clickable {
+                                    headphoneSelectForRight = false
+                                    showHeadphoneSelect = true
+                                }
+                                .padding(horizontal = 14.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Search model (e.g. HD 600)...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "AutoEq Repo · ${availableHeadphones.size} models",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+
+                    if (stereoMode) {
+                        Text(
+                            "LEFT EAR",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        SelectorRow(
+                            value = measurementLabelL
+                                ?: selectedHeadphone?.name
+                                ?: "Select left measurement...",
+                            onClick = {
+                                headphoneSelectForRight = false
+                                showHeadphoneSelect = true
+                            },
+                            trailingIcon = {
+                                MeasurementTrailing(
+                                    sample = measurementSampleL,
+                                    onStep = { forward ->
+                                        viewModel.cycleMeasurementSample(EqChannel.LEFT, forward)
+                                    },
+                                    importDescription = "Import left measurement file",
+                                    onImport = {
+                                        importForRight = false
+                                        measurementFilePicker.launch("text/*")
+                                    },
+                                )
+                            }
+                        )
+                        Text(
+                            "RIGHT EAR",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        SelectorRow(
+                            value = measurementLabelR ?: "Select right measurement...",
+                            onClick = {
+                                headphoneSelectForRight = true
+                                showHeadphoneSelect = true
+                            },
+                            trailingIcon = {
+                                MeasurementTrailing(
+                                    sample = measurementSampleR,
+                                    onStep = { forward ->
+                                        viewModel.cycleMeasurementSample(EqChannel.RIGHT, forward)
+                                    },
+                                    importDescription = "Import right measurement file",
+                                    onImport = {
+                                        importForRight = true
+                                        measurementFilePicker.launch("text/*")
+                                    },
+                                )
+                            }
+                        )
+                    } else {
+                        SelectorRow(
+                            value = selectedHeadphone?.name ?: "Select headphone...",
+                            onClick = {
+                                headphoneSelectForRight = false
+                                showHeadphoneSelect = true
+                            },
+                            trailingIcon = {
+                                MeasurementTrailing(
+                                    sample = measurementSampleL,
+                                    onStep = { forward ->
+                                        viewModel.cycleMeasurementSample(EqChannel.LEFT, forward)
+                                    },
+                                    importDescription = "Import measurement file",
+                                    onImport = {
+                                        importForRight = false
+                                        measurementFilePicker.launch("text/*")
+                                    },
+                                )
+                            }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -487,130 +522,6 @@ fun EqualizerScreen(
                         )
                     }
 
-                    if (stereoMode) {
-                        Text(
-                            "LEFT EAR",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        SelectorRow(
-                            value = measurementLabelL
-                                ?: selectedHeadphone?.name
-                                ?: "Select left measurement...",
-                            onClick = {
-                                headphoneSelectForRight = false
-                                showHeadphoneSelect = true
-                            },
-                            trailingIcon = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    measurementSampleL?.let { sample ->
-                                        SampleStepper(
-                                            label = sample,
-                                            onStep = { forward ->
-                                                viewModel.cycleMeasurementSample(EqChannel.LEFT, forward)
-                                            },
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            importForRight = false
-                                            measurementFilePicker.launch("text/*")
-                                        },
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .liquidGlass(shape = RoundedCornerShape(8.dp))
-                                    ) {
-                                        Icon(
-                                            Icons.Default.UploadFile,
-                                            contentDescription = "Import left measurement file",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            "RIGHT EAR",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        SelectorRow(
-                            value = measurementLabelR ?: "Select right measurement...",
-                            onClick = {
-                                headphoneSelectForRight = true
-                                showHeadphoneSelect = true
-                            },
-                            trailingIcon = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    measurementSampleR?.let { sample ->
-                                        SampleStepper(
-                                            label = sample,
-                                            onStep = { forward ->
-                                                viewModel.cycleMeasurementSample(EqChannel.RIGHT, forward)
-                                            },
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            importForRight = true
-                                            measurementFilePicker.launch("text/*")
-                                        },
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .liquidGlass(shape = RoundedCornerShape(8.dp))
-                                    ) {
-                                        Icon(
-                                            Icons.Default.UploadFile,
-                                            contentDescription = "Import right measurement file",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        )
-                    } else {
-                        SelectorRow(
-                            value = selectedHeadphone?.name ?: "Select headphone...",
-                            onClick = {
-                                headphoneSelectForRight = false
-                                showHeadphoneSelect = true
-                            },
-                            trailingIcon = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    measurementSampleL?.let { sample ->
-                                        SampleStepper(
-                                            label = sample,
-                                            onStep = { forward ->
-                                                viewModel.cycleMeasurementSample(EqChannel.LEFT, forward)
-                                            },
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            importForRight = false
-                                            measurementFilePicker.launch("text/*")
-                                        },
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .liquidGlass(
-                                                shape = RoundedCornerShape(8.dp)
-                                            )
-                                    ) {
-                                        Icon(
-                                            Icons.Default.UploadFile,
-                                            contentDescription = "Import measurement file",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        )
-                    }
-
                     TextButton(onClick = { showProfileImport = true }) {
                         Icon(
                             Icons.Default.UploadFile,
@@ -621,13 +532,13 @@ fun EqualizerScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Import EQ profile (APO txt / CSV)")
                     }
+                  }
                 }
-              }
-            }
 
-            item {
-              tf.monochrome.android.devedit.DevEditable("eq_target_selector", Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                DevEditable("eq_target_selector", Modifier.fillMaxWidth()) {
+                  Column {
                     SectionLabel("TARGET")
                     Box {
                         SelectorRow(
@@ -693,51 +604,194 @@ fun EqualizerScreen(
                         }
                         }
                     }
+                  }
                 }
               }
             }
 
             item {
-              tf.monochrome.android.devedit.DevEditable("eq_parameters_row", Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    ParameterDropdown(
-                        label = "FILTER BANDS",
-                        value = bandCount.toString(),
-                        options = listOf("5", "10", "15", "20", "31"),
-                        onValueChanged = { viewModel.setBandCount(it.toInt()) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    ParameterDropdown(
-                        label = "MAX HZ",
-                        value = formatFreqLabel(maxFrequency),
-                        options = listOf("8k", "12k", "16k", "20k"),
-                        onValueChanged = {
-                            viewModel.setMaxFrequency(parseFreqLabel(it))
-                        },
-                        modifier = Modifier.weight(1f)
+                EqSectionHeader(
+                    step = 2,
+                    title = "Generate",
+                    subtitle = "Compute the correction filters",
+                )
+            }
+
+            item {
+              EqCard {
+                DevEditable("eq_algorithm_row", Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "ALGORITHM",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        tf.monochrome.android.audio.eq.AutoEqAlgorithm.entries.forEach { algo ->
+                            FilterChip(
+                                selected = algorithm == algo,
+                                onClick = { viewModel.setAlgorithm(algo) },
+                                label = { Text(algo.label) },
+                            )
+                        }
+                    }
+                }
+
+                DevEditable("eq_parameters_row", Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        ParameterDropdown(
+                            label = "FILTER BANDS",
+                            value = bandCount.toString(),
+                            options = listOf("5", "10", "15", "20", "31"),
+                            onValueChanged = { viewModel.setBandCount(it.toInt()) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ParameterDropdown(
+                            label = "MAX HZ",
+                            value = formatFreqLabel(maxFrequency),
+                            options = listOf("8k", "12k", "16k", "20k"),
+                            onValueChanged = {
+                                viewModel.setMaxFrequency(parseFreqLabel(it))
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                DevEditable("eq_autoeq_button", Modifier.fillMaxWidth()) {
+                    GradientAutoEqButton(
+                        isCalculating = isCalculating,
+                        onClick = { if (!isCalculating) viewModel.runAutoEq() },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
               }
             }
 
             item {
-              tf.monochrome.android.devedit.DevEditable("eq_action_row", Modifier.fillMaxWidth()) {
+                EqSectionHeader(
+                    step = 3,
+                    title = "Adjust",
+                    subtitle = "Overall level and tone",
+                )
+            }
+
+            item {
+              EqCard {
+                DevEditable("eq_preamp_slider", Modifier.fillMaxWidth()) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Preamp",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                if (autoPreamp) "Auto · ${currentPreamp.roundToInt()} dB"
+                                else "${currentPreamp.roundToInt()} dB",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Slider(
+                            value = if (currentPreamp.isNaN()) 0f else currentPreamp.coerceIn(-24f, 24f),
+                            onValueChange = { viewModel.setPreamp(it) },
+                            valueRange = -24f..24f,
+                            steps = 47,
+                            enabled = !autoPreamp,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                DevEditable("eq_auto_preamp_toggle", Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Automatic preamp",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Compensates the combined EQ + tone boost so the signal can't clip.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = autoPreamp,
+                            onCheckedChange = { viewModel.setAutoPreamp(it) }
+                        )
+                    }
+                }
+              }
+            }
+
+            item {
+                tf.monochrome.android.ui.player.ToneControlsPanel(
+                    tone = toneControls,
+                    accent = MaterialTheme.colorScheme.primary,
+                    onChange = viewModel::setToneControls,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+
+            item {
+              DevEditable("eq_bands_header", Modifier.fillMaxWidth()) {
+                EqSectionHeader(
+                    step = 4,
+                    title = "Filters",
+                    subtitle = bandsSubtitle,
+                    onClick = { showBandsExpanded = !showBandsExpanded },
+                    trailing = {
+                        Icon(
+                            imageVector = if (showBandsExpanded) Icons.Default.ExpandLess
+                            else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                )
+              }
+            }
+
+            item {
+              DevEditable("eq_action_row", Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
+                    EqActionButton(
+                        icon = Icons.Default.Refresh,
+                        label = "Reset",
+                        onClick = { viewModel.resetToFlat() },
+                        modifier = Modifier.weight(1f),
+                    )
+                    EqActionButton(
+                        icon = Icons.Default.Download,
+                        label = "Export",
                         onClick = {
                             if (activeBands.isEmpty()) {
-                                android.widget.Toast.makeText(context, "No EQ bands to export", android.widget.Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "No EQ bands to export", Toast.LENGTH_SHORT).show()
                             } else {
                                 pendingEqExport = buildParametricEqText(activeBands, currentPreamp)
                                 eqExportLauncher.launch(
@@ -745,20 +799,11 @@ fun EqualizerScreen(
                                 )
                             }
                         },
-                        modifier = Modifier
-                            .size(52.dp)
-                            .liquidGlass(
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                    ) {
-                        Icon(
-                            Icons.Default.Download,
-                            contentDescription = "Export EQ",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(
+                        modifier = Modifier.weight(1f),
+                    )
+                    EqActionButton(
+                        icon = Icons.Default.Save,
+                        label = "Save",
                         onClick = {
                             val hp = selectedHeadphone?.name
                             saveName = if (hp.isNullOrBlank()) selectedTarget.label
@@ -767,69 +812,39 @@ fun EqualizerScreen(
                             showSaveDialog = true
                         },
                         enabled = currentBands.isNotEmpty(),
-                        modifier = Modifier
-                            .size(52.dp)
-                            .liquidGlass(shape = RoundedCornerShape(12.dp))
-                    ) {
-                        Icon(
-                            Icons.Default.Save,
-                            contentDescription = "Save as preset",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
               }
             }
 
-            item {
-              tf.monochrome.android.devedit.DevEditable("eq_saved_profiles_header", Modifier.fillMaxWidth()) {
-               Column {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showProfilesExpanded = !showProfilesExpanded }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "SAVED PROFILES",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        if (allPresets.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(MaterialTheme.colorScheme.primary)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    allPresets.size.toString(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                    Icon(
-                        imageVector = if (showProfilesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+            if (showBandsExpanded) {
+                items(activeBands) { band ->
+                    EqBandSlider(
+                        band = band,
+                        onBandChanged = { viewModel.updateBand(band.id, it) },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
                 }
-               }
+            }
+
+            item {
+              DevEditable("eq_saved_profiles_header", Modifier.fillMaxWidth()) {
+                EqSectionHeader(
+                    step = 5,
+                    title = "Saved profiles",
+                    subtitle = if (allPresets.isEmpty()) "Nothing saved yet"
+                    else "${allPresets.size} saved",
+                    onClick = { showProfilesExpanded = !showProfilesExpanded },
+                    trailing = {
+                        Icon(
+                            imageVector = if (showProfilesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                )
               }
             }
 
@@ -837,10 +852,10 @@ fun EqualizerScreen(
                 if (allPresets.isEmpty()) {
                     item {
                         Text(
-                            "No saved profiles yet. Run AutoEq, then tap the save icon next to it.",
+                            "No saved profiles yet. Run AutoEq, then tap Save in the Filters section.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                         )
                     }
                 } else {
@@ -918,164 +933,6 @@ fun EqualizerScreen(
                             }
                         }
                     }
-                }
-            }
-
-            item {
-              tf.monochrome.android.devedit.DevEditable("eq_database_section", Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                "Database",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "AutoEq Repo",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Text(
-                            "${availableHeadphones.size} models",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .liquidGlass(shape = RoundedCornerShape(8.dp))
-                            .clickable { showHeadphoneSelect = true }
-                            .padding(horizontal = 14.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            "Search model (e.g. HD 600)...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-              }
-            }
-
-            if (!error.isNullOrEmpty()) {
-                item {
-                    Text(
-                        error ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .background(
-                                MaterialTheme.colorScheme.errorContainer,
-                                RoundedCornerShape(8.dp)
-                            )
-                            .padding(12.dp)
-                    )
-                }
-            }
-
-            item {
-              tf.monochrome.android.devedit.DevEditable("eq_bands_header", Modifier.fillMaxWidth()) {
-               Column {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showBandsExpanded = !showBandsExpanded }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "PARAMETRIC EQ FILTERS",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Icon(
-                        imageVector = if (showBandsExpanded) Icons.Default.ExpandLess
-                        else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-               }
-              }
-            }
-
-            if (showBandsExpanded) {
-                items(activeBands) { band ->
-                    EqBandSlider(
-                        band = band,
-                        onBandChanged = { viewModel.updateBand(band.id, it) },
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                }
-
-                item {
-                  tf.monochrome.android.devedit.DevEditable("eq_bands_action_buttons", Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .liquidGlass(shape = RoundedCornerShape(8.dp))
-                                .bounceClick(onClick = { viewModel.resetToFlat() }),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Reset", style = MaterialTheme.typography.labelLarge)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .liquidGlass(shape = RoundedCornerShape(8.dp))
-                                .bounceClick(onClick = { showSaveDialog = true }),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(Icons.Default.Save, null, Modifier.size(16.dp))
-                                Text("Save", style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-                    }
-                  }
                 }
             }
         }
@@ -1343,6 +1200,33 @@ fun EqBandSlider(
                 onValueChange = { onBandChanged(band.copy(q = it)) },
                 valueRange = 0.1f..10f,
                 modifier = Modifier.fillMaxWidth().height(32.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MeasurementTrailing(
+    sample: String?,
+    onStep: (forward: Boolean) -> Unit,
+    importDescription: String,
+    onImport: () -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (sample != null) {
+            SampleStepper(label = sample, onStep = onStep)
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+        IconButton(
+            onClick = onImport,
+            modifier = Modifier
+                .size(44.dp)
+                .liquidGlass(shape = RoundedCornerShape(8.dp))
+        ) {
+            Icon(
+                Icons.Default.UploadFile,
+                contentDescription = importDescription,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

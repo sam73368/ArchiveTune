@@ -193,6 +193,7 @@ class ParametricEqViewModel @Inject constructor(
             preferences.setParamEqActivePreset(presetId)
             persistPreamp(preset.preamp.toDouble())
             saveBands(preset.bands)
+            if (!_enabled.value) setEnabled(true)
         }
     }
 

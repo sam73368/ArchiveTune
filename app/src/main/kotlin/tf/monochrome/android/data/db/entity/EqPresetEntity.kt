@@ -4,7 +4,9 @@ package tf.monochrome.android.data.db.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
+@Serializable
 @Entity(tableName = "eq_presets")
 data class EqPresetEntity(
     @PrimaryKey val id: String,

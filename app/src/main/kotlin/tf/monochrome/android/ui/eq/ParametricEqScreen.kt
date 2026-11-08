@@ -137,6 +137,13 @@ fun ParametricEqScreen(
             }
 
             item {
+                EqEngineStatusCard(
+                    eqEnabled = enabled,
+                    onEnable = { viewModel.setEnabled(true) },
+                )
+            }
+
+            item {
               tf.monochrome.android.devedit.DevEditable("peq_preview_graph", Modifier.fillMaxWidth()) {
                 Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     FrequencyResponseGraph(

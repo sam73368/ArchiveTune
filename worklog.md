@@ -6526,3 +6526,23 @@ Work Log:
 
 Stage Summary:
 - Pending CI and a listening test of the bass punch; amplitude is conservative and soft-limited.
+
+---
+Task ID: LITE-6
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Audit of the Tryptify tab (AutoEQ / Parametric EQ) for bugs, fix "Failed to save preset: Serializer for class 'nm3' is not found", then reorganize the AutoEQ page UI.
+
+Work Log:
+- Root cause of the save error: `EqPresetEntity` and `MixPresetEntity` were not `@Serializable` while `JsonStore` encodes them with kotlinx.serialization, so every preset save and every preset read failed in release builds (R8 shows the obfuscated class name). Both are annotated now.
+- Bug: the EQ stayed OFF after running AutoEQ, picking a headphone, loading a preset or importing a measurement, so the corrections were computed but never heard. `ensureEqEnabled()` is called after each of those paths; loading a parametric preset also enables the parametric EQ.
+- Bug: after a restart the UI showed the active preset's bands while the engine played the bands stored in preferences. The stored bands are restored first; the preset's bands are only used when none are stored.
+- Bug: deleting the active preset left its bands in the engine; the L/R bands and the preamp are now cleared and persisted.
+- UI: the AutoEQ page is reorganised into numbered sections (1 Source: headphone model, database search, 2-channel calibration, measurement import, EQ profile import, target. 2 Generate: algorithm, filter bands, max Hz, AutoEq button. 3 Adjust: preamp, automatic preamp, tone controls. 4 Filters: Reset / Export / Save, band sliders. 5 Saved profiles). A status card at the top says whether the EQ is on and whether the Tryptify engine is really running (also on the Parametric EQ page). The graph moved up as the first thing under the status card, the smoothing slider sits under it, the two Save buttons became one, and the error banner can be dismissed. All parameters, informations, graphs and `DevEditable` ids are kept.
+- Small fix: the database search row opened the right-ear picker when the right ear was the last one used; it now always targets the left/single selection.
+- Not changed: the Tryptify DSP kernels (biquads, AutoEQ engine) were read and look correct; texts of these screens are still hard-coded English.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. To test: save a preset in the Tryptify tab, run AutoEq and check that the status card turns to "EQ is active"; if it says the engine is not available, the native Tryptify library is not loaded on the device.
+
