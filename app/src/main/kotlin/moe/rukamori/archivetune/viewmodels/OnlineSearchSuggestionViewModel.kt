@@ -35,6 +35,8 @@ import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.YTItem
 import moe.rukamori.archivetune.innertube.models.filterExplicit
 import moe.rukamori.archivetune.innertube.models.filterVideo
+import moe.rukamori.archivetune.utils.SongVersions
+import moe.rukamori.archivetune.utils.SongVersions.dropSingleTwins
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.constants.SearchProvider
@@ -121,7 +123,7 @@ class OnlineSearchSuggestionViewModel
 
                                     val suggestions = result?.queries.orEmpty()
                                     val topItems: List<YTItem> = result?.recommendedItems.orEmpty().cleaned()
-                                    emit(LiveSearchResults(suggestions, topItems))
+                                    emit(LiveSearchResults(suggestions, topItems.popularSongsFirst(query)))
 
                                     val songs =
                                         YouTube
@@ -136,7 +138,7 @@ class OnlineSearchSuggestionViewModel
                                         emit(
                                             LiveSearchResults(
                                                 suggestions,
-                                                (topItems + songs).distinctBy { it.id },
+                                                (topItems + songs).distinctBy { it.id }.popularSongsFirst(query),
                                             ),
                                         )
                                     }
@@ -177,6 +179,13 @@ class OnlineSearchSuggestionViewModel
     }
 
 private const val LIVE_SONG_RESULTS = 12
+
+private fun List<YTItem>.popularSongsFirst(query: String): List<YTItem> {
+    val songs = filterIsInstance<SongItem>()
+    if (songs.size < 2) return this
+    val ranked = SongVersions.sortByPopularity(SongVersions.mergeSameSongs(songs).dropSingleTwins(), query)
+    return filterNot { it is SongItem } + ranked
+}
 
 private data class LiveSearchResults(
     val suggestions: List<String>,

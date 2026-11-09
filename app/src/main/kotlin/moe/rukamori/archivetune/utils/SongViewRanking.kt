@@ -70,9 +70,10 @@ object SongViewRanking {
         context: Context,
         songs: List<SongItem>,
     ): List<SongItem> {
-        val head = songs.take(MAX_RANKED)
-        val tail = songs.drop(MAX_RANKED)
-        if (head.size < 2) return songs
+        val resolvedHead = SongVersions.preferAlbumVersions(songs.take(MAX_RANKED))
+        val head = resolvedHead
+        val tail = songs.drop(MAX_RANKED).filter { tailSong -> resolvedHead.none { it.id == tailSong.id } }
+        if (head.size < 2) return head + tail
 
         withTimeoutOrNull(COUNT_TIMEOUT_MS) {
             coroutineScope {
@@ -94,6 +95,13 @@ object SongViewRanking {
             delay(200)
             waitedMs += 200
         }
-        return head.sortedByDescending { ViewCountCache.counts[it.id] ?: -1 } + tail
+        head.forEach { song ->
+            val count = ViewCountCache.counts[song.id]?.toLong() ?: song.viewCount
+            val key = SongVersions.groupKeyOf(song)
+            if (count != null && key != null) ViewCountCache.raiseGroup(key, count)
+        }
+        return head.sortedByDescending { song ->
+            maxOf(ViewCountCache.counts[song.id]?.toLong() ?: -1L, SongVersions.popularityOf(song))
+        } + tail
     }
 }

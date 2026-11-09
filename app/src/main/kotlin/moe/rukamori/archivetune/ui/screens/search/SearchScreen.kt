@@ -80,6 +80,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -105,6 +106,15 @@ import moe.rukamori.archivetune.viewmodels.SearchHistoryViewModel
 import moe.rukamori.archivetune.utils.rememberEnumPreference
 import moe.rukamori.archivetune.utils.rememberPreference
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import moe.rukamori.archivetune.ui.component.ItemThumbnail
+import moe.rukamori.archivetune.utils.SongVersions
+import moe.rukamori.archivetune.utils.SongVersions.dropSingleTwins
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -134,6 +144,9 @@ import androidx.compose.runtime.setValue
 
 private val SearchHorizontalPadding = 24.dp
 private const val RecentsHeightFraction = 0.55f
+private val LiveChromeReserve = 84.dp
+private const val LiveArtistLimit = 10
+private const val LiveSongRefineCount = 10
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -151,107 +164,100 @@ fun SearchScreen(
     var searchProvider by rememberEnumPreference(DefaultSearchSourceKey, SearchProvider.YOUTUBE)
 
     var liveSuggestions by remember { mutableStateOf<SearchSuggestions?>(null) }
-    var liveSummary by remember { mutableStateOf<SearchSummaryPage?>(null) }
+    var liveArtists by remember { mutableStateOf<List<ArtistItem>>(emptyList()) }
+    var liveSongs by remember { mutableStateOf<List<SongItem>>(emptyList()) }
     val (hideExplicit) = rememberPreference(HideExplicitKey, defaultValue = false)
     val (showVideosInSearch) = rememberPreference(ShowVideosInSearchKey, defaultValue = false)
     val hideVideo = !showVideosInSearch
-    val artistsSectionTitle = stringResource(R.string.artists)
     LaunchedEffect(searchQuery, searchProvider, hideExplicit, hideVideo) {
         val query = searchQuery.trim()
         if (query.isEmpty()) {
             liveSuggestions = null
-            liveSummary = null
+            liveArtists = emptyList()
+            liveSongs = emptyList()
             return@LaunchedEffect
         }
 
         delay(250)
         if (searchQuery.trim() != query) return@LaunchedEffect
-        if (searchProvider != SearchProvider.YOUTUBE) liveSummary = null
 
         val suggestionPage = YouTube.searchSuggestions(query).getOrNull()
+        val recommended =
+            suggestionPage
+                ?.recommendedItems
+                .orEmpty()
+                .filterExplicit(hideExplicit)
+                .filterVideo(hideVideo)
+        if (searchQuery.trim() != query) return@LaunchedEffect
         suggestionPage?.let { page ->
-                if (searchQuery.trim() == query) {
-                    liveSuggestions =
-                        SearchSuggestions(
-                            queries = page.queries,
-                            recommendedItems =
-                                page.recommendedItems
-                                    .filterExplicit(hideExplicit)
-                                    .filterVideo(hideVideo),
-                        )
-                }
-            }
-        if (searchProvider == SearchProvider.YOUTUBE) {
-            val suggestedArtists =
-                suggestionPage
-                    ?.recommendedItems
-                    ?.filterIsInstance<ArtistItem>()
-                    .orEmpty()
+            liveSuggestions = SearchSuggestions(queries = page.queries, recommendedItems = recommended)
+        }
+        val recommendedArtists = recommended.filterIsInstance<ArtistItem>()
+        val recommendedSongs = recommended.filterIsInstance<SongItem>()
+        liveArtists = recommendedArtists
+        liveSongs = SongVersions.sortByPopularity(SongVersions.mergeSameSongs(recommendedSongs), query)
+        if (searchProvider != SearchProvider.YOUTUBE) return@LaunchedEffect
+
+        coroutineScope {
             val completedQuery =
                 suggestionPage
                     ?.queries
                     ?.firstOrNull()
                     ?.trim()
                     ?.takeIf { it.length > query.length && it.startsWith(query, ignoreCase = true) }
-            val completedArtists =
-                completedQuery
-                    ?.let { YouTube.search(it, YouTube.SearchFilter.FILTER_ARTIST).getOrNull() }
-                    ?.items
-                    ?.filterIsInstance<ArtistItem>()
-                    ?.take(2)
-                    .orEmpty()
-            val exactArtists =
-                YouTube
-                    .search(query, YouTube.SearchFilter.FILTER_ARTIST)
-                    .getOrNull()
-                    ?.items
-                    ?.filterIsInstance<ArtistItem>()
-                    ?.take(3)
-                    .orEmpty()
-            val topArtists = (suggestedArtists + completedArtists + exactArtists).distinctBy { it.id }.take(4)
-            YouTube
-                .searchSummary(query)
-                .onSuccess { page ->
-                    if (searchQuery.trim() == query) {
-                        val filtered =
-                            page
-                                .filterExplicit(hideExplicit)
-                                .filterVideo(hideVideo)
-                        val artistIds = topArtists.map { it.id }.toSet()
-                        liveSummary =
-                            if (topArtists.isEmpty()) {
-                                filtered
-                            } else {
-                                SearchSummaryPage(
-                                    listOf(
-                                        moe.rukamori.archivetune.innertube.pages.SearchSummary(
-                                            title = artistsSectionTitle,
-                                            items = topArtists,
-                                        ),
-                                    ) +
-                                        filtered.summaries
-                                            .map { section ->
-                                                moe.rukamori.archivetune.innertube.pages.SearchSummary(
-                                                    title = section.title,
-                                                    items = section.items.filter { it.id !in artistIds },
-                                                )
-                                            }.filter { it.items.isNotEmpty() },
-                                )
-                            }
-                    }
-                }.onFailure {
-                    if (searchQuery.trim() == query && topArtists.isNotEmpty()) {
-                        liveSummary =
-                            SearchSummaryPage(
-                                listOf(
-                                    moe.rukamori.archivetune.innertube.pages.SearchSummary(
-                                        title = artistsSectionTitle,
-                                        items = topArtists,
-                                    ),
-                                ),
-                            )
-                    }
+            val completedArtistsJob =
+                async {
+                    completedQuery
+                        ?.let { YouTube.search(it, YouTube.SearchFilter.FILTER_ARTIST).getOrNull() }
+                        ?.items
+                        ?.filterIsInstance<ArtistItem>()
+                        ?.take(3)
+                        .orEmpty()
                 }
+            val exactArtistsJob =
+                async {
+                    YouTube
+                        .search(query, YouTube.SearchFilter.FILTER_ARTIST)
+                        .getOrNull()
+                        ?.items
+                        ?.filterIsInstance<ArtistItem>()
+                        ?.take(5)
+                        .orEmpty()
+                }
+            val songsJob =
+                async {
+                    YouTube
+                        .search(query, YouTube.SearchFilter.FILTER_SONG)
+                        .getOrNull()
+                        ?.items
+                        ?.filterIsInstance<SongItem>()
+                        ?.filterExplicit(hideExplicit)
+                        ?.filterVideo(hideVideo)
+                        .orEmpty()
+                }
+
+            val artists =
+                (recommendedArtists + completedArtistsJob.await() + exactArtistsJob.await())
+                    .distinctBy { it.id }
+                    .take(LiveArtistLimit)
+            if (searchQuery.trim() != query) return@coroutineScope
+            if (artists.isNotEmpty()) liveArtists = artists
+
+            val songs =
+                (songsJob.await() + recommendedSongs)
+                    .let { SongVersions.mergeSameSongs(it) }
+                    .let { it.dropSingleTwins() }
+            if (searchQuery.trim() != query) return@coroutineScope
+            val ranked = SongVersions.sortByPopularity(songs, query)
+            if (ranked.isNotEmpty()) liveSongs = ranked
+
+            val refined =
+                SongVersions.preferAlbumVersions(ranked.take(LiveSongRefineCount), maxLookups = LiveSongRefineCount) +
+                    ranked.drop(LiveSongRefineCount)
+            if (searchQuery.trim() != query) return@coroutineScope
+            val reranked = SongVersions.sortByPopularity(SongVersions.mergeSameSongs(refined), query)
+            if (reranked.isNotEmpty()) liveSongs = reranked
+            Unit
         }
     }
 
@@ -326,6 +332,13 @@ fun SearchScreen(
                         ),
             ) {
                 val recentsMaxHeight = if (isTvLayout) maxHeight - 40.dp else maxHeight * RecentsHeightFraction
+                val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                val liveMaxHeight =
+                    if (isTvLayout) {
+                        maxHeight - 40.dp
+                    } else {
+                        (maxHeight - LiveChromeReserve - statusBarInset).coerceAtLeast(recentsMaxHeight)
+                    }
 
                 Column(
                     modifier =
@@ -338,9 +351,10 @@ fun SearchScreen(
                     if (searchQuery.isNotBlank()) {
                         LiveSearchSuggestionsPanel(
                             suggestions = liveSuggestions,
-                            summary = liveSummary,
+                            artists = liveArtists,
+                            songs = liveSongs,
                             navController = navController,
-                            maxHeight = recentsMaxHeight,
+                            maxHeight = liveMaxHeight,
                             hazeState = searchHazeState,
                             disableBlur = disableBlur,
                             onQueryPick = { picked ->
@@ -480,7 +494,8 @@ private fun RecentSearchesPanel(
 @Composable
 private fun LiveSearchSuggestionsPanel(
     suggestions: SearchSuggestions?,
-    summary: SearchSummaryPage?,
+    artists: List<ArtistItem>,
+    songs: List<SongItem>,
     navController: NavController,
     maxHeight: Dp,
     hazeState: HazeState?,
@@ -494,12 +509,8 @@ private fun LiveSearchSuggestionsPanel(
     val listState = rememberLazyListState()
 
     val queries = suggestions?.queries.orEmpty()
-    val summarySections =
-        summary?.summaries.orEmpty().filter { it.items.isNotEmpty() }
-    val fallbackItems =
-        if (summarySections.isEmpty()) suggestions?.recommendedItems.orEmpty() else emptyList()
 
-    if (queries.isEmpty() && summarySections.isEmpty() && fallbackItems.isEmpty()) {
+    if (queries.isEmpty() && artists.isEmpty() && songs.isEmpty()) {
         Box(
             modifier =
                 Modifier
@@ -521,57 +532,43 @@ private fun LiveSearchSuggestionsPanel(
                 Modifier
                     .fillMaxWidth(),
         ) {
-            if (summarySections.isNotEmpty()) {
-                summarySections.forEachIndexed { sectionIndex, section ->
-                    item(key = "summary_header_$sectionIndex") {
-                        Text(
-                            text = if (section.title == "Top results") stringResource(R.string.top_results) else section.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        start = SearchHorizontalPadding,
-                                        end = SearchHorizontalPadding,
-                                        top = 14.dp,
-                                        bottom = 4.dp,
-                                    ),
-                        )
-                    }
-                    itemsIndexed(
-                        items = section.items,
-                        key = { index, item -> "summary_${sectionIndex}_${index}_${item.id}" },
-                        contentType = { _, _ -> 2 },
-                    ) { _, item ->
-                        SuggestedResultRow(
-                            item = item,
-                            currentMediaId = mediaMetadata?.id,
-                            currentAlbumId = mediaMetadata?.album?.id,
-                            isPlaying = isPlaying,
-                            navController = navController,
-                            playerConnection = playerConnection,
-                            haptic = haptic,
-                        )
+            if (artists.isNotEmpty()) {
+                item(key = "artists_row", contentType = "artists_row") {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = SearchHorizontalPadding),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp, bottom = 8.dp),
+                    ) {
+                        items(
+                            items = artists,
+                            key = { artist -> "artist_${artist.id}" },
+                        ) { artist ->
+                            SearchArtistChip(
+                                artist = artist,
+                                onClick = { navController.navigate("artist/${artist.id}") },
+                            )
+                        }
                     }
                 }
-            } else if (fallbackItems.isNotEmpty()) {
-                itemsIndexed(
-                    items = fallbackItems,
-                    key = { index, item -> "fallback_${index}_${item.id}" },
-                    contentType = { _, _ -> 2 },
-                ) { _, item ->
-                    SuggestedResultRow(
-                        item = item,
-                        currentMediaId = mediaMetadata?.id,
-                        currentAlbumId = mediaMetadata?.album?.id,
-                        isPlaying = isPlaying,
-                        navController = navController,
-                        playerConnection = playerConnection,
-                        haptic = haptic,
-                    )
-                }
+            }
+
+            itemsIndexed(
+                items = songs,
+                key = { index, item -> "song_${index}_${item.id}" },
+                contentType = { _, _ -> 2 },
+            ) { _, item ->
+                SuggestedResultRow(
+                    item = item,
+                    currentMediaId = mediaMetadata?.id,
+                    currentAlbumId = mediaMetadata?.album?.id,
+                    isPlaying = isPlaying,
+                    navController = navController,
+                    playerConnection = playerConnection,
+                    haptic = haptic,
+                )
             }
 
             items(
@@ -661,6 +658,39 @@ private fun LiveSearchSuggestionsPanel(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SearchArtistChip(
+    artist: ArtistItem,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier =
+            Modifier
+                .width(80.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick)
+                .padding(vertical = 4.dp),
+    ) {
+        ItemThumbnail(
+            thumbnailUrl = artist.thumbnail,
+            isActive = false,
+            isPlaying = false,
+            shape = CircleShape,
+            modifier = Modifier.size(72.dp),
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = artist.title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

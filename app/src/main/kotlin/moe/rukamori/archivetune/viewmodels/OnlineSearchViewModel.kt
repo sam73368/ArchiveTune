@@ -56,6 +56,7 @@ import moe.rukamori.archivetune.constants.PauseSearchHistoryKey
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.SearchHistory
 import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
+import moe.rukamori.archivetune.utils.SongVersions.dropSingleTwins
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.utils.reportException
@@ -291,7 +292,7 @@ class OnlineSearchViewModel
                                                     filterAiContent(
                                                         (if (summaryIndex == 0) extraArtists + summary.items else summary.items)
                                                             .distinctBy { item -> item.id }
-                                                            .dropCleanTwins(),
+                                                            .dropCleanTwins().dropSingleTwins(),
                                                         aiContentFilterPolicy,
                                                     ),
                                             )
@@ -341,7 +342,7 @@ class OnlineSearchViewModel
                                                 false,
                                             ),
                                         ).filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false))
-                                        .dropCleanTwins(),
+                                        .dropCleanTwins().dropSingleTwins(),
                                     aiContentFilterPolicy,
                                     ),
                                 ),
@@ -428,7 +429,7 @@ class OnlineSearchViewModel
             if (generation != loadGeneration) return
             viewStateMap[filter] =
                 ItemsPage(
-                    (viewState.items + continuedItems).distinctBy { it.id }.dropCleanTwins(),
+                    (viewState.items + continuedItems).distinctBy { it.id }.dropCleanTwins().dropSingleTwins(),
                     searchResult.continuation,
                 )
         }

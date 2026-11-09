@@ -136,6 +136,7 @@ import moe.rukamori.archivetune.ui.utils.resize
 import moe.rukamori.archivetune.ui.utils.thumbnailSourceRatio
 import moe.rukamori.archivetune.utils.joinByBullet
 import moe.rukamori.archivetune.utils.rememberPreference
+import moe.rukamori.archivetune.utils.SongVersions
 import moe.rukamori.archivetune.utils.rememberViewCountText
 import moe.rukamori.archivetune.utils.reportException
 import androidx.compose.runtime.getValue
@@ -403,7 +404,14 @@ fun SongListItem(
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = true)
     val resolvedSwipeContentBackgroundColor = swipeContentBackgroundColor ?: MaterialTheme.colorScheme.surface
-    val fetchedViewCount = rememberViewCountText(song.id, enabled = viewCountText == null && !song.song.isLocal)
+    val firstArtistName = song.artists.firstOrNull()?.name
+    val viewGroup = remember(song.song.title, firstArtistName) { SongVersions.viewGroupOf(song.song.title, firstArtistName) }
+    val fetchedViewCount =
+        rememberViewCountText(
+            videoId = song.id,
+            enabled = viewCountText == null && !song.song.isLocal,
+            group = viewGroup,
+        )
     val viewCountLabel = viewCountText ?: fetchedViewCount
 
     val content: @Composable () -> Unit = {
@@ -792,12 +800,20 @@ fun YouTubeListItem(
     },
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = true)
+    val songItem = item as? SongItem
+    val songArtistName = songItem?.artists?.firstOrNull()?.name
+    val viewGroup =
+        remember(songItem?.title, songArtistName) {
+            songItem?.let { SongVersions.viewGroupOf(it.title, songArtistName) }
+        }
     val fetchedViewCount =
         rememberViewCountText(
-            videoId = (item as? SongItem)?.id,
+            videoId = songItem?.id,
             enabled = viewCountText.isNullOrBlank(),
+            group = viewGroup,
+            knownCount = songItem?.viewCount,
         )
-    val viewCountLabel = viewCountText?.takeIf { it.isNotBlank() } ?: fetchedViewCount
+    val viewCountLabel = fetchedViewCount ?: viewCountText?.takeIf { it.isNotBlank() }
 
     val content: @Composable () -> Unit = {
         ListItem(

@@ -69,10 +69,12 @@ import moe.rukamori.archivetune.innertube.utils.completed
 import moe.rukamori.archivetune.innertube.utils.hasYouTubeLoginCookie
 import moe.rukamori.archivetune.models.SimilarRecommendation
 import moe.rukamori.archivetune.utils.SavedAccount
+import moe.rukamori.archivetune.utils.SongVersions
 import moe.rukamori.archivetune.utils.SpeedDialPinType
 import moe.rukamori.archivetune.utils.SyncUtils
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.getAsync
+import moe.rukamori.archivetune.utils.isLowDataModeActive
 import moe.rukamori.archivetune.utils.parseSpeedDialPins
 import moe.rukamori.archivetune.utils.reportException
 import moe.rukamori.archivetune.utils.toPlaybackAuthState
@@ -235,6 +237,8 @@ class HomeViewModel
         private const val HOME_LOAD_TIMEOUT_MS = 90_000L
 
         private const val REFRESH_STUCK_WATCHDOG_MS = 120_000L
+
+        private const val HOME_ALBUM_LOOKUPS = 24
     }
         private val isRefreshing = MutableStateFlow(false)
         private val isLoading = MutableStateFlow(false)
@@ -412,6 +416,27 @@ class HomeViewModel
             }
             reloadRequests.update { current ->
                 if (generation > current.first) generation to manual else current
+            }
+        }
+
+        private suspend fun refineHomeAlbumVersions(
+            generation: Long,
+            page: HomePage,
+            quickPicksSection: HomePage.Section?,
+        ) {
+            try {
+                val budget = java.util.concurrent.atomic.AtomicInteger(HOME_ALBUM_LOOKUPS)
+                val quickPicksItems = quickPicksSection?.let { SongVersions.resolveSongItems(it.items, budget) }
+                val sections = page.sections.map { section -> section.copy(items = SongVersions.resolveSongItems(section.items, budget)) }
+                currentCoroutineContext().ensureActive()
+                remoteRequests.commit(generation) {
+                    remoteQuickPicks.value = quickPicksSection?.copy(items = quickPicksItems ?: quickPicksSection.items)
+                    homePage.value = page.copy(sections = sections)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                reportException(error)
             }
         }
 
@@ -701,6 +726,11 @@ class HomeViewModel
                                 remoteRequests.commit(generation) {
                                     remoteQuickPicks.value = quickPicksSection
                                     homePage.value = pageWithoutQuickPicks
+                                }
+                                if (!context.isLowDataModeActive()) {
+                                    viewModelScope.launch(Dispatchers.IO) {
+                                        refineHomeAlbumVersions(generation, pageWithoutQuickPicks, quickPicksSection)
+                                    }
                                 }
                             }.onFailure {
                                 currentCoroutineContext().ensureActive()

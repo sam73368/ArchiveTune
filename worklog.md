@@ -6546,3 +6546,20 @@ Work Log:
 Stage Summary:
 - Pending CI. To test: save a preset in the Tryptify tab, run AutoEq and check that the status card turns to "EQ is active"; if it says the engine is not available, the native Tryptify library is not loaded on the device.
 
+---
+Task ID: LITE-7
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Search suggestions layout and ranking, album version instead of single, one view count per song across editions.
+
+Work Log:
+- Live search (typing): the panel was capped at 55 % of the height, listed "Artistes" then "Meilleurs Résultats" vertically and mixed albums/playlists with songs. It now uses all the room above the search bar, shows a horizontally scrolling artist row (up to 10), then songs only, then the text suggestions. Songs come from the song-filtered search plus the suggestion items, are merged per song and sorted by `SongVersions.sortByPopularity` (exact title first, then prefix, then all words; popularity inside each tier), so "without me" lists the real "Without Me" songs by view count before unrelated titles. The old suggestion screen and the full result lists use the same ordering/dedup (`popularSongsFirst`, `dropSingleTwins`).
+- Single versus album: `SongVersions.isSingleRelease` (album named like the song or "- Single"). `preferAlbumVersion` looks the song up (FILTER_SONG search, same title key and artist, similar duration, non-single album, album names with deluxe/hits/live words last) and swaps it in, keeping the higher view count. Applied to the artist "Top des titres" list and artist page preview (`SongViewRanking.rank`), the live search, and the remote home sections (refined after the first display, 24 lookups, not in low-data mode). Library/history based quick picks are not changed.
+- Views: counts were fetched per video id, so each edition kept its own number. Rows now show the highest count known for the song group (same title + artist, live/remix kept apart); one extra song search per group finds the other editions, results are persisted. Ranking uses the same group maximum.
+- Unit test `SongVersionsTest` (single detection, live variant key, merge, twin removal, ordering).
+- Not changed / limits: a song whose other edition does not appear in the first page of search results keeps its own count until that edition is seen; the replacement needs a network lookup (skipped in low-data mode); quick picks built from the local database still show whatever version was played.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. To test: type "without me" (artist row on top, Eminem's song first among exact titles), open Eminem's top songs (Without Me opens The Eminem Show), open a deluxe album and compare counts with the standard edition.
+
