@@ -10,6 +10,8 @@
 package moe.rukamori.archivetune.ui.screens.search
 
 import moe.rukamori.archivetune.ui.tv.tvBackButtonFocus
+import moe.rukamori.archivetune.ui.tv.tvFocusRing
+import moe.rukamori.archivetune.ui.tv.tvFocusTracker
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -37,6 +39,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -577,11 +580,28 @@ private fun LiveSearchSuggestionsPanel(
                 contentType = { 1 },
             ) { index ->
                 val query = queries[index]
+                val tv = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
+                val queryFocus = moe.rukamori.archivetune.ui.tv.rememberTvFocusState()
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
                         Modifier
                             .fillMaxWidth()
+                            .then(
+                                if (tv) {
+                                    Modifier
+                                        .tvFocusTracker(queryFocus)
+                                        .background(
+                                            if (queryFocus.focused) {
+                                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                            } else {
+                                                Color.Transparent
+                                            },
+                                        )
+                                } else {
+                                    Modifier
+                                },
+                            )
                             .combinedClickable(
                                 onClick = { onQueryPick(query) },
                                 onLongClick = {},
@@ -666,11 +686,22 @@ private fun SearchArtistChip(
     artist: ArtistItem,
     onClick: () -> Unit,
 ) {
+    val tv = moe.rukamori.archivetune.ui.tv.LocalTvLayout.current
+    val tvFocus = moe.rukamori.archivetune.ui.tv.rememberTvFocusState()
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier =
             Modifier
-                .width(80.dp)
+                .width(if (tv) 96.dp else 80.dp)
+                .then(
+                    if (tv) {
+                        Modifier
+                            .tvFocusRing(tvFocus, 12.dp)
+                            .tvFocusTracker(tvFocus)
+                    } else {
+                        Modifier
+                    },
+                )
                 .clip(RoundedCornerShape(12.dp))
                 .clickable(onClick = onClick)
                 .padding(vertical = 4.dp),

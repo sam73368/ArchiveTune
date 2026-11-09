@@ -6563,3 +6563,18 @@ Work Log:
 Stage Summary:
 - Pending CI. To test: type "without me" (artist row on top, Eminem's song first among exact titles), open Eminem's top songs (Without Me opens The Eminem Show), open a deluxe album and compare counts with the standard edition.
 
+
+---
+Task ID: LITE-8
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Apply the LITE-6/LITE-7 fixes that make sense on the TV flavor.
+
+Work Log:
+- Checked the TV paths: the TV artist page, home, queue and search results reuse `SongListItem`/`YouTubeListItem`, `SongViewRanking`, `HomeViewModel` and `OnlineSearchViewModel`, so the unified view counts, the album-over-single replacement and the popularity ordering already apply on TV with no code change.
+- Live search on TV: the panel already sits at the top next to the TV keyboard and uses the whole height. The new horizontal artist chips and the text suggestion rows had no D-pad highlight; chips now draw the shared TV focus ring (`tvFocusRing`/`tvFocusTracker`) and are wider (96 dp), suggestion rows get a focus background. Phone layout is unchanged.
+- Tryptify equalizer pages: not reworked for TV (they are phone-style screens; the status card and numbered sections are plain focusable content).
+- Nothing compiled locally; not run on a TV device.
+
+Stage Summary:
+- Pending CI. To test on TV: type a song name with the on-screen keyboard, move right into the live panel, check that the focus ring follows the artist chips and that the suggestion rows highlight.
