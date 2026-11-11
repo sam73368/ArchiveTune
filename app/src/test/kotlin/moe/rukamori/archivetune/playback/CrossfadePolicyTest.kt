@@ -219,4 +219,78 @@ class CrossfadePolicyTest {
         assertFalse(CrossfadePolicy.albumLooksContinuous("Alive Again"))
         assertFalse(CrossfadePolicy.albumLooksContinuous(null))
     }
+
+    @Test
+    fun smartWindowWaitsForTheLastWords() {
+        val window =
+            CrossfadePolicy.smartWindow(
+                durationMs = 200_000L,
+                requestedFadeMs = 8_000L,
+                endGuardMs = 150L,
+                minFadeMs = 1_000L,
+                contentEndMs = 199_000L,
+                finalFadeOnsetMs = 199_000L,
+                lastVocalEndMs = 196_000L,
+                incomingStartsWithVoice = false,
+                voiceIntroMaxFadeMs = 2_500L,
+            )
+        assertEquals(196_000L, window?.startMs)
+        assertEquals(3_250L, window?.fadeMs)
+    }
+
+    @Test
+    fun smartWindowUsesFullFadeOverAQuietOutroAndSkipsTrailingSilence() {
+        val window =
+            CrossfadePolicy.smartWindow(
+                durationMs = 200_000L,
+                requestedFadeMs = 6_000L,
+                endGuardMs = 150L,
+                minFadeMs = 1_000L,
+                contentEndMs = 190_000L,
+                finalFadeOnsetMs = 190_000L,
+                lastVocalEndMs = 170_000L,
+                incomingStartsWithVoice = false,
+                voiceIntroMaxFadeMs = 2_500L,
+            )
+        assertEquals(184_250L, window?.startMs)
+        assertEquals(6_000L, window?.fadeMs)
+    }
+
+    @Test
+    fun smartWindowKeepsAMinimumFadeAndShortensForAVoiceIntro() {
+        val abrupt =
+            CrossfadePolicy.smartWindow(
+                durationMs = 200_000L,
+                requestedFadeMs = 8_000L,
+                endGuardMs = 150L,
+                minFadeMs = 1_000L,
+                contentEndMs = 200_000L,
+                finalFadeOnsetMs = 200_000L,
+                lastVocalEndMs = 199_800L,
+                incomingStartsWithVoice = false,
+                voiceIntroMaxFadeMs = 2_500L,
+            )
+        assertEquals(1_000L, abrupt?.fadeMs)
+        val voiceIntro =
+            CrossfadePolicy.smartWindow(
+                durationMs = 200_000L,
+                requestedFadeMs = 8_000L,
+                endGuardMs = 150L,
+                minFadeMs = 1_000L,
+                contentEndMs = 200_000L,
+                finalFadeOnsetMs = 200_000L,
+                lastVocalEndMs = 150_000L,
+                incomingStartsWithVoice = true,
+                voiceIntroMaxFadeMs = 2_500L,
+            )
+        assertEquals(2_500L, voiceIntro?.fadeMs)
+    }
+
+    @Test
+    fun sustainedActivityIgnoresIsolatedSpikes() {
+        val curve = listOf(0.9f, 0.9f, 0.9f, 0.9f, 0.1f, 0.1f, 0.9f, 0.1f, 0.1f)
+        assertEquals(3, CrossfadePolicy.lastSustainedIndex(curve, 0.6f, 0, curve.lastIndex))
+        assertEquals(0L, CrossfadePolicy.incomingCueMs(400L))
+        assertEquals(1_500L, CrossfadePolicy.incomingCueMs(2_000L))
+    }
 }

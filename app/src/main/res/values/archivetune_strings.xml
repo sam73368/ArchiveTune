@@ -642,6 +642,8 @@
     <string name="audio_crossfade_seconds">%1$s s</string>
     <string name="crossfade_gapless_title">Skip continuous albums</string>
     <string name="crossfade_gapless_description">Do not crossfade between songs of a live or continuously mixed album: they already flow into each other.</string>
+    <string name="crossfade_smart_title">Smart crossfade timing</string>
+    <string name="crossfade_smart_description">Listens to each song: the fade only covers the part where the ending song has gone quiet, never its last words, and the next song starts at its first sound. The duration above becomes a maximum. Uses a little extra data to analyse songs.</string>
     <string name="automix_title">Automix</string>
     <string name="automix_enabled_subtitle">Times and blends every transition from the tracks themselves. Turn it off if the phone gets hot or playback stutters.</string>
     <string name="automix_disabled_subtitle">Times and blends transitions automatically, without a slider. Performance may vary on slower devices.</string>

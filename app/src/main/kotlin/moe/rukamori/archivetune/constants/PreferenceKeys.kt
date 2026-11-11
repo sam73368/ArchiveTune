@@ -569,6 +569,7 @@ val AudioOffload = booleanPreferencesKey("audioOffload")
 val CrossfadeEnabledKey = booleanPreferencesKey("crossfadeEnabled")
 val CrossfadeDurationKey = floatPreferencesKey("crossfadeDuration")
 val CrossfadeGaplessKey = booleanPreferencesKey("crossfadeGapless")
+val CrossfadeSmartTimingKey = booleanPreferencesKey("crossfadeSmartTiming")
 
 enum class AutomixPerformanceMode(val inferenceThreads: Int) {
     EFFICIENT(1),

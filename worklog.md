@@ -6611,3 +6611,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test: type "without me" (Eminem Show cover, never the single), open search with an empty field (history at the top), and report whether playback still gets stuck.
+
+---
+Task ID: LITE-11
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Crossfade hides the last words of a song and the spoken intro of the next one; make it follow the audio.
+
+Work Log:
+- Read the plain crossfade path: nothing found that disables it (it only skips live/continuously mixed albums, Cast, podcasts, sleep timer "end of song", and a next song that failed 3 times). Not reproduced.
+- New "Smart crossfade timing" switch (Player settings, `CrossfadeSmartTimingKey`, on by default, off in low-data mode). The plain crossfade now asks the existing AutoMix analyzer for both songs and uses `CrossfadePolicy.smartWindow`: the fade ends where the outgoing song's audible content ends (trailing silence is skipped), it never starts before the last sustained vocal activity (or the song's own fade-out onset), the configured duration is a maximum, the fade is at least 1 s, and it is capped at 2.5 s when the next song opens with a voice. The incoming song is cued 0.5 s before its first audible sound when it has more than 1 s of leading silence. Without an analysis the old fixed timing is used.
+- Unit tests in `CrossfadePolicyTest`.
+- Limits: the vocal detector is the AutoMix heuristic (spectral, not a real voice model), so instrumental passages can be taken for vocals (shorter fade) and quiet speech can be missed; the analysis downloads a low-quality copy of each song.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. To test: Eminem album with crossfade at 8-10 s; the log line "smart crossfade a->b: start=… fade=… cue=…" shows the chosen window.

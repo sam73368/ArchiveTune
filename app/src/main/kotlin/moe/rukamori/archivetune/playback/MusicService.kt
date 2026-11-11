@@ -184,6 +184,7 @@ import moe.rukamori.archivetune.constants.AutoStartOnBluetoothKey
 import moe.rukamori.archivetune.constants.CrossfadeDurationKey
 import moe.rukamori.archivetune.constants.CrossfadeEnabledKey
 import moe.rukamori.archivetune.constants.CrossfadeGaplessKey
+import moe.rukamori.archivetune.constants.CrossfadeSmartTimingKey
 import moe.rukamori.archivetune.constants.DeviceMutePlaybackRecoveryVolumeKey
 import moe.rukamori.archivetune.constants.DiscordShowWhenPausedKey
 import moe.rukamori.archivetune.constants.DiscordTokenKey
@@ -885,6 +886,7 @@ class MusicService :
     private var crossfadeEnabled = false
     private var crossfadeDurationMs = 0L
     private var crossfadeGapless = false
+    private var crossfadeSmartTiming = true
     private var crossfadeTriggerJob: Job? = null
     private var crossfadeJob: Job? = null
     private var secondaryCrossfadePlayer: ExoPlayer? = null
@@ -1138,6 +1140,7 @@ class MusicService :
         val durationSeconds: Float,
         val gapless: Boolean,
         val automixEnabled: Boolean = false,
+        val smartTiming: Boolean = true,
     )
 
     private data class DiscordSyncRequest(
@@ -2203,6 +2206,7 @@ class MusicService :
                     durationSeconds = durationSeconds,
                     gapless = gapless,
                     automixEnabled = automix,
+                    smartTiming = prefs[CrossfadeSmartTimingKey] ?: true,
                 )
             }
 
@@ -2221,6 +2225,7 @@ class MusicService :
                         .roundToLong()
                         .coerceAtLeast(0L)
                 crossfadeGapless = config.gapless
+                crossfadeSmartTiming = config.smartTiming
                 autoMixEnabled = config.automixEnabled
                 AutoMixUiState.enabled.value = autoMixEnabled
                 if (!autoMixEnabled) {
@@ -3517,11 +3522,13 @@ class MusicService :
 
         val currentMediaId = player.currentMediaItem?.mediaId ?: return
         val currentIndex = player.currentMediaItemIndex
-        val triggerAt = duration - effectiveDuration - CROSSFADE_END_GUARD_MS
+        val fixedTriggerAt = duration - effectiveDuration - CROSSFADE_END_GUARD_MS
+        val smartTiming = crossfadeSmartTiming && !isLowDataModeActive()
 
         crossfadeTriggerJob =
             scope.launch(SilentHandler) {
                 var hasPreparedSecondaryPlayer = false
+                var lastSmartVerdict: String? = null
                 while (isActive) {
                     if (!crossfadeEnabled || isCrossfading) return@launch
                     if (player.currentMediaItem?.mediaId != currentMediaId || player.currentMediaItemIndex != currentIndex) {
@@ -3531,17 +3538,36 @@ class MusicService :
                         return@launch
                     }
 
+                    var triggerAt = fixedTriggerAt
+                    var fadeLimit = effectiveDuration
+                    var fadeEndAt = duration - CROSSFADE_END_GUARD_MS
+                    var incomingCueMs = 0L
+                    if (smartTiming) {
+                        val smart = runCatching { smartCrossfadeWindow(target, duration, effectiveDuration) }.getOrNull()
+                        if (smart != null) {
+                            triggerAt = smart.first.startMs
+                            fadeLimit = smart.first.fadeMs
+                            fadeEndAt = smart.first.startMs + smart.first.fadeMs
+                            incomingCueMs = smart.second
+                            val verdict = "start=${smart.first.startMs} fade=${smart.first.fadeMs} cue=${smart.second}"
+                            if (verdict != lastSmartVerdict) {
+                                lastSmartVerdict = verdict
+                                Timber.tag(TAG).d("smart crossfade %s->%s: %s", currentMediaId, target.mediaId, verdict)
+                            }
+                        }
+                    }
+
                     val remainingToTrigger = triggerAt - player.currentPosition
                     if (!hasPreparedSecondaryPlayer && remainingToTrigger <= CROSSFADE_PREPARE_AHEAD_MS) {
-                        prepareSecondaryCrossfadePlayer(target)
+                        prepareSecondaryCrossfadePlayer(target, cueTimeMs = incomingCueMs)
                         hasPreparedSecondaryPlayer = true
                     }
                     if (remainingToTrigger <= 0L) {
                         val adjustedDuration =
-                            (duration - player.currentPosition - CROSSFADE_END_GUARD_MS)
-                                .coerceAtMost(effectiveDuration)
+                            (fadeEndAt - player.currentPosition)
+                                .coerceAtMost(fadeLimit)
                         if (adjustedDuration >= MIN_CROSSFADE_DURATION_MS) {
-                            startCrossfade(target, adjustedDuration)
+                            startCrossfade(target, adjustedDuration, incomingCueMs = incomingCueMs)
                         }
                         return@launch
                     }
@@ -3555,6 +3581,63 @@ class MusicService :
                     delay(sleepMs)
                 }
             }
+    }
+
+    @UnstableApi
+    private fun smartCrossfadeWindow(
+        target: CrossfadeTarget,
+        duration: Long,
+        requestedFadeMs: Long,
+    ): Pair<CrossfadePolicy.SmartWindow, Long>? {
+        val currentItem = player.currentMediaItem ?: return null
+        val nextItem = runCatching { player.getMediaItemAt(target.index) }.getOrNull() ?: return null
+        if (nextItem.mediaId != target.mediaId) return null
+        val engine = autoMixEngine()
+        engine.request(
+            trackId = currentItem.mediaId,
+            uri = currentItem.localConfiguration?.uri ?: android.net.Uri.EMPTY,
+            durationMs = duration,
+        )
+        val nextDurationMs = timelineDurationMsAt(target.index, nextItem)
+        engine.request(
+            trackId = nextItem.mediaId,
+            uri = nextItem.localConfiguration?.uri ?: android.net.Uri.EMPTY,
+            durationMs = nextDurationMs,
+        )
+        val current = engine.analysisFor(currentItem.mediaId)?.takeIf { it.isUsable } ?: return null
+        val next = engine.analysisFor(nextItem.mediaId)?.takeIf { it.isUsable }
+        val step = moe.rukamori.archivetune.playback.automix.AUTO_MIX_CURVE_STEP_MS
+        val contentEndIndex = (current.contentEndMs / step).toInt()
+        val lastVocalIndex =
+            CrossfadePolicy.lastSustainedIndex(
+                curve = current.vocalActivity,
+                threshold = SMART_CROSSFADE_VOCAL_THRESHOLD,
+                fromIndex = ((current.contentEndMs - SMART_CROSSFADE_TAIL_MS) / step).toInt(),
+                toIndex = contentEndIndex,
+            )
+        val lastVocalEndMs = if (lastVocalIndex >= 0) (lastVocalIndex + 1) * step else 0L
+        val incomingStartsWithVoice =
+            next != null &&
+                CrossfadePolicy.hasSustainedActivity(
+                    curve = next.vocalActivity,
+                    threshold = SMART_CROSSFADE_VOCAL_THRESHOLD,
+                    fromIndex = (next.audibleStartMs / step).toInt(),
+                    toIndex = ((next.audibleStartMs + SMART_CROSSFADE_INTRO_MS) / step).toInt(),
+                )
+        val window =
+            CrossfadePolicy.smartWindow(
+                durationMs = duration,
+                requestedFadeMs = requestedFadeMs,
+                endGuardMs = CROSSFADE_END_GUARD_MS,
+                minFadeMs = SMART_CROSSFADE_MIN_FADE_MS,
+                contentEndMs = current.contentEndMs,
+                finalFadeOnsetMs = current.finalFadeOnsetMs,
+                lastVocalEndMs = lastVocalEndMs,
+                incomingStartsWithVoice = incomingStartsWithVoice,
+                voiceIntroMaxFadeMs = SMART_CROSSFADE_VOICE_INTRO_FADE_MS,
+            ) ?: return null
+        val cue = next?.let { CrossfadePolicy.incomingCueMs(it.audibleStartMs) } ?: 0L
+        return window to cue
     }
 
     @UnstableApi
@@ -4067,11 +4150,12 @@ class MusicService :
         target: CrossfadeTarget,
         durationMs: Long,
         plan: AutoMixPlan? = null,
+        incomingCueMs: Long = 0L,
     ) {
         if (isCrossfading || (!crossfadeEnabled && !autoMixEnabled)) return
 
         val smart = plan != null
-        val cueTimeMs = if (smart) plan!!.incomingCueMs.coerceAtLeast(0L) else 0L
+        val cueTimeMs = if (smart) plan!!.incomingCueMs.coerceAtLeast(0L) else incomingCueMs.coerceAtLeast(0L)
         val incomingPlayer = prepareSecondaryCrossfadePlayer(target, cueTimeMs) ?: return
 
         val outgoingMediaId = player.currentMediaItem?.mediaId ?: return
@@ -13731,6 +13815,11 @@ class MusicService :
         const val EFFECTIVE_VOLUME_RAMP_DOWN_MS = 180L
         const val EFFECTIVE_VOLUME_RAMP_MIN_DELTA = 0.015f
         const val MIN_CROSSFADE_DURATION_MS = 500L
+        const val SMART_CROSSFADE_MIN_FADE_MS = 1_000L
+        const val SMART_CROSSFADE_VOICE_INTRO_FADE_MS = 2_500L
+        const val SMART_CROSSFADE_TAIL_MS = 30_000L
+        const val SMART_CROSSFADE_INTRO_MS = 3_000L
+        const val SMART_CROSSFADE_VOCAL_THRESHOLD = 0.6f
         const val MIN_AUTO_MIX_FADE_MS = 2_500L
         const val CROSSFADE_END_GUARD_MS = 150L
         const val CROSSFADE_PREPARE_AHEAD_MS = 30_000L

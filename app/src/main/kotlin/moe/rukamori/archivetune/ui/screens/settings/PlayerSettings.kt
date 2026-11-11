@@ -264,6 +264,11 @@ fun PlayerSettings(
             CrossfadeGaplessKey,
             defaultValue = true,
         )
+    val (crossfadeSmartTiming, onCrossfadeSmartTimingChange) =
+        rememberPreference(
+            moe.rukamori.archivetune.constants.CrossfadeSmartTimingKey,
+            defaultValue = true,
+        )
     val (automixEnabled, onAutomixEnabledChange) =
         rememberPreference(
             AutomixEnabledKey,
@@ -539,6 +544,17 @@ fun PlayerSettings(
                             isEnabled = crossfadeEnabled,
                         )
                     }
+                }
+
+                item {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.crossfade_smart_title)) },
+                        description = stringResource(R.string.crossfade_smart_description),
+                        icon = { Icon(painterResource(R.drawable.auto_awesome), null) },
+                        checked = crossfadeSmartTiming,
+                        onCheckedChange = onCrossfadeSmartTimingChange,
+                        isEnabled = crossfadeEnabled,
+                    )
                 }
 
                 item {

@@ -72,6 +72,71 @@ object CrossfadePolicy {
         return requestedMs.coerceIn(minDurationMs, maxDuration)
     }
 
+    data class SmartWindow(
+        val startMs: Long,
+        val fadeMs: Long,
+    )
+
+    fun lastSustainedIndex(
+        curve: List<Float>,
+        threshold: Float,
+        fromIndex: Int,
+        toIndex: Int,
+    ): Int {
+        val last = toIndex.coerceAtMost(curve.lastIndex)
+        var index = last
+        while (index >= fromIndex.coerceAtLeast(0)) {
+            val windowStart = (index - 3).coerceAtLeast(0)
+            var hits = 0
+            for (i in windowStart..index) {
+                if (curve[i] >= threshold) hits++
+            }
+            if (curve[index] >= threshold && hits >= 3) return index
+            index--
+        }
+        return -1
+    }
+
+    fun hasSustainedActivity(
+        curve: List<Float>,
+        threshold: Float,
+        fromIndex: Int,
+        toIndex: Int,
+    ): Boolean = lastSustainedIndex(curve, threshold, fromIndex, toIndex) >= 0
+
+    fun smartWindow(
+        durationMs: Long,
+        requestedFadeMs: Long,
+        endGuardMs: Long,
+        minFadeMs: Long,
+        contentEndMs: Long,
+        finalFadeOnsetMs: Long,
+        lastVocalEndMs: Long,
+        incomingStartsWithVoice: Boolean,
+        voiceIntroMaxFadeMs: Long,
+    ): SmartWindow? {
+        if (durationMs <= 0L || requestedFadeMs <= 0L) return null
+        val hardEnd = durationMs - endGuardMs
+        if (hardEnd < minFadeMs) return null
+        val end =
+            if (contentEndMs in (durationMs / 2)..hardEnd) {
+                (contentEndMs + 250L).coerceAtMost(hardEnd)
+            } else {
+                hardEnd
+            }
+        val hasOwnFadeOut = finalFadeOnsetMs in 1L until (end - 1_000L)
+        val vocalEnd = lastVocalEndMs.coerceIn(0L, end)
+        val protectedUntil = if (hasOwnFadeOut) minOf(vocalEnd, finalFadeOnsetMs) else vocalEnd
+        val maxFade = if (incomingStartsWithVoice) minOf(requestedFadeMs, voiceIntroMaxFadeMs) else requestedFadeMs
+        var start = maxOf(end - maxFade, protectedUntil)
+        if (end - start < minFadeMs) start = end - minFadeMs
+        if (start < 0L) return null
+        return SmartWindow(startMs = start, fadeMs = end - start)
+    }
+
+    fun incomingCueMs(audibleStartMs: Long): Long =
+        if (audibleStartMs in 1_000L..20_000L) audibleStartMs - 500L else 0L
+
     data class ReadinessSnapshot(
         val isReady: Boolean,
         val isIdle: Boolean,
