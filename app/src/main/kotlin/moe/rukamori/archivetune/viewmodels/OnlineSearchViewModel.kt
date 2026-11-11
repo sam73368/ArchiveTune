@@ -56,6 +56,7 @@ import moe.rukamori.archivetune.constants.PauseSearchHistoryKey
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.SearchHistory
 import moe.rukamori.archivetune.utils.ExplicitDuplicates.dropCleanTwins
+import moe.rukamori.archivetune.utils.SongVersions
 import moe.rukamori.archivetune.utils.SongVersions.dropSingleTwins
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
@@ -292,7 +293,9 @@ class OnlineSearchViewModel
                                                     filterAiContent(
                                                         (if (summaryIndex == 0) extraArtists + summary.items else summary.items)
                                                             .distinctBy { item -> item.id }
-                                                            .dropCleanTwins().dropSingleTwins(),
+                                                            .dropCleanTwins()
+                                                            .let { SongVersions.resolveForDisplay(it) }
+                                                            .dropSingleTwins(),
                                                         aiContentFilterPolicy,
                                                     ),
                                             )
@@ -342,7 +345,9 @@ class OnlineSearchViewModel
                                                 false,
                                             ),
                                         ).filterVideo(!context.dataStore.get(ShowVideosInSearchKey, false))
-                                        .dropCleanTwins().dropSingleTwins(),
+                                        .dropCleanTwins()
+                                        .let { if (filter == FILTER_SONG) SongVersions.resolveForDisplay(it) else it }
+                                        .dropSingleTwins(),
                                     aiContentFilterPolicy,
                                     ),
                                 ),
@@ -429,7 +434,9 @@ class OnlineSearchViewModel
             if (generation != loadGeneration) return
             viewStateMap[filter] =
                 ItemsPage(
-                    (viewState.items + continuedItems).distinctBy { it.id }.dropCleanTwins().dropSingleTwins(),
+                    SongVersions
+                        .withKnownAlbumVersions((viewState.items + continuedItems).distinctBy { it.id }.dropCleanTwins())
+                        .dropSingleTwins(),
                     searchResult.continuation,
                 )
         }

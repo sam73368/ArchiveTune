@@ -26,6 +26,7 @@ import moe.rukamori.archivetune.ui.component.liquidGlassContentColor
 import moe.rukamori.archivetune.ui.component.liquidGlass
 import moe.rukamori.archivetune.ui.component.glassSource
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.material3.HorizontalDivider
@@ -150,6 +151,7 @@ private const val RecentsHeightFraction = 0.55f
 private val LiveChromeReserve = 84.dp
 private const val LiveArtistLimit = 10
 private const val LiveSongRefineCount = 6
+private const val LiveRefineWaitMs = 2_000L
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -200,7 +202,11 @@ fun SearchScreen(
         val isYouTubeSearch = searchProvider == SearchProvider.YOUTUBE
         if (!isYouTubeSearch || liveArtists.isEmpty()) liveArtists = recommendedArtists
         if (!isYouTubeSearch || liveSongs.isEmpty()) {
-            liveSongs = SongVersions.sortByPopularity(SongVersions.mergeSameSongs(recommendedSongs), query)
+            liveSongs =
+                SongVersions.sortByPopularity(
+                    SongVersions.mergeSameSongs(recommendedSongs.map { SongVersions.withKnownAlbumVersion(it) }),
+                    query,
+                )
         }
         if (!isYouTubeSearch) return@LaunchedEffect
 
@@ -251,18 +257,30 @@ fun SearchScreen(
 
             val songs =
                 (songsJob.await() + recommendedSongs)
+                    .map { SongVersions.withKnownAlbumVersion(it) }
                     .let { SongVersions.mergeSameSongs(it) }
                     .let { it.dropSingleTwins() }
             if (searchQuery.trim() != query) return@coroutineScope
             val ranked = SongVersions.sortByPopularity(songs, query)
-            if (ranked.map { it.id } != liveSongs.map { it.id }) liveSongs = ranked
 
-            val refined =
-                SongVersions.preferAlbumVersions(ranked.take(LiveSongRefineCount), maxLookups = LiveSongRefineCount) +
-                    ranked.drop(LiveSongRefineCount)
-            if (searchQuery.trim() != query) return@coroutineScope
-            val reranked = SongVersions.sortByPopularity(SongVersions.mergeSameSongs(refined), query)
-            if (reranked.isNotEmpty() && reranked.map { it.id } != liveSongs.map { it.id }) liveSongs = reranked
+            suspend fun refine(): List<SongItem> {
+                val refined =
+                    SongVersions.preferAlbumVersions(ranked.take(LiveSongRefineCount), maxLookups = LiveSongRefineCount) +
+                        ranked.drop(LiveSongRefineCount)
+                return SongVersions.sortByPopularity(SongVersions.mergeSameSongs(refined).dropSingleTwins(), query)
+            }
+
+            fun publish(result: List<SongItem>) {
+                if (searchQuery.trim() == query && result.map { it.id } != liveSongs.map { it.id }) liveSongs = result
+            }
+
+            val quick = withTimeoutOrNull(LiveRefineWaitMs) { refine() }
+            if (quick != null) {
+                publish(quick)
+            } else {
+                publish(ranked)
+                publish(refine())
+            }
             Unit
         }
     }
@@ -371,7 +389,8 @@ fun SearchScreen(
                     } else {
                         RecentSearchesPanel(
                             recentSearches = recentSearches,
-                            maxHeight = recentsMaxHeight,
+                            maxHeight = if (isTvLayout) recentsMaxHeight else liveMaxHeight,
+                            fillHeight = !isTvLayout,
                             onClearAll = historyViewModel::clearAll,
                             onPick = onSearchQuery,
                         )
@@ -405,6 +424,7 @@ fun SearchScreen(
 private fun RecentSearchesPanel(
     recentSearches: List<SearchHistory>,
     maxHeight: androidx.compose.ui.unit.Dp,
+    fillHeight: Boolean,
     onClearAll: () -> Unit,
     onPick: (String) -> Unit,
 ) {
@@ -412,7 +432,7 @@ private fun RecentSearchesPanel(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .heightIn(max = maxHeight)
+                .then(if (fillHeight) Modifier.height(maxHeight) else Modifier.heightIn(max = maxHeight))
                 .verticalScroll(rememberScrollState()),
     ) {
         if (recentSearches.isEmpty()) {

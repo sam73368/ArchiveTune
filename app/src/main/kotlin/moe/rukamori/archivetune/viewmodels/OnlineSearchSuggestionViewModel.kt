@@ -180,9 +180,9 @@ class OnlineSearchSuggestionViewModel
 
 private const val LIVE_SONG_RESULTS = 12
 
-private fun List<YTItem>.popularSongsFirst(query: String): List<YTItem> {
-    val songs = filterIsInstance<SongItem>()
-    if (songs.size < 2) return this
+private suspend fun List<YTItem>.popularSongsFirst(query: String): List<YTItem> {
+    if (count { it is SongItem } < 2) return SongVersions.resolveForDisplay(this)
+    val songs = SongVersions.resolveForDisplay(filterIsInstance<SongItem>()).filterIsInstance<SongItem>()
     val ranked = SongVersions.sortByPopularity(SongVersions.mergeSameSongs(songs).dropSingleTwins(), query)
     return filterNot { it is SongItem } + ranked
 }

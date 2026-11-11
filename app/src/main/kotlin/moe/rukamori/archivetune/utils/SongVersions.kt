@@ -15,6 +15,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withTimeoutOrNull
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.YTItem
@@ -27,6 +28,8 @@ object SongVersions {
 
     private const val DURATION_TOLERANCE_SEC = 6
     private const val MAX_LOOKUPS = 30
+    private const val DISPLAY_LOOKUPS = 8
+    private const val DISPLAY_TIMEOUT_MS = 2_500L
 
     private val albumNoiseWords =
         setOf(
@@ -81,6 +84,39 @@ object SongVersions {
 
     fun isSingleRelease(song: SongItem): Boolean = isSingleRelease(song.title, song.album?.name)
 
+    private fun isAudioTrack(song: SongItem): Boolean {
+        if (song.isPodcast) return false
+        val type =
+            song.endpoint
+                ?.watchEndpointMusicSupportedConfigs
+                ?.watchEndpointMusicConfig
+                ?.musicVideoType ?: return !song.thumbnail.contains("i.ytimg.com/vi")
+        return type == "MUSIC_VIDEO_TYPE_ATV"
+    }
+
+    fun needsAlbumLookup(song: SongItem): Boolean =
+        isSingleRelease(song) || (song.album == null && isAudioTrack(song))
+
+    private fun versionRank(song: SongItem): Int =
+        when {
+            isSingleRelease(song) -> 2
+            song.album == null -> 1
+            else -> 0
+        }
+
+    fun withKnownAlbumVersion(song: SongItem): SongItem = albumVersionCache[song.id] ?: song
+
+    fun <T : YTItem> withKnownAlbumVersions(items: List<T>): List<YTItem> =
+        items.map { item -> if (item is SongItem) withKnownAlbumVersion(item) else item }.distinctBy { it.id }
+
+    suspend fun resolveForDisplay(
+        items: List<YTItem>,
+        maxLookups: Int = DISPLAY_LOOKUPS,
+        timeoutMs: Long = DISPLAY_TIMEOUT_MS,
+    ): List<YTItem> =
+        withTimeoutOrNull(timeoutMs) { resolveSongItems(items, AtomicInteger(maxLookups)) }
+            ?: withKnownAlbumVersions(items)
+
     private fun hasAlbumNoise(albumName: String): Boolean = fold(albumName).split(' ').any { it in albumNoiseWords }
 
     private fun durationsClose(
@@ -123,7 +159,7 @@ object SongVersions {
     }
 
     suspend fun preferAlbumVersion(song: SongItem): SongItem {
-        if (!isSingleRelease(song)) return song
+        if (!needsAlbumLookup(song)) return song
         albumVersionCache[song.id]?.let { return it }
         val key = groupKeyOf(song) ?: return song
         val artist = song.artists.firstOrNull()?.name.orEmpty()
@@ -135,7 +171,14 @@ object SongVersions {
                     ?.items
                     ?.filterIsInstance<SongItem>()
             } ?: return song
-        val resolved = pickAlbumVersion(song, key, results) ?: song
+        val sameWithAlbum = results.firstOrNull { it.id == song.id && it.album != null }
+        val base = sameWithAlbum ?: song
+        val resolved =
+            if (sameWithAlbum != null && !isSingleRelease(sameWithAlbum)) {
+                sameWithAlbum
+            } else {
+                pickAlbumVersion(base, key, results) ?: song
+            }
         albumVersionCache[song.id] = resolved
         return resolved
     }
@@ -144,13 +187,13 @@ object SongVersions {
         songs: List<SongItem>,
         maxLookups: Int = MAX_LOOKUPS,
     ): List<SongItem> {
-        if (songs.none { isSingleRelease(it) }) return mergeSameSongs(songs)
+        if (songs.none { needsAlbumLookup(it) }) return mergeSameSongs(songs)
         val resolved =
             coroutineScope {
                 var budget = maxLookups
                 songs
                     .map { song ->
-                        if (isSingleRelease(song) && (albumVersionCache.containsKey(song.id) || budget-- > 0)) {
+                        if (needsAlbumLookup(song) && (albumVersionCache.containsKey(song.id) || budget-- > 0)) {
                             async { preferAlbumVersion(song) }
                         } else {
                             CompletableDeferred(song)
@@ -168,7 +211,7 @@ object SongVersions {
             items
                 .map { item ->
                     if (item is SongItem &&
-                        isSingleRelease(item) &&
+                        needsAlbumLookup(item) &&
                         (albumVersionCache.containsKey(item.id) || budget.getAndDecrement() > 0)
                     ) {
                         async<YTItem> { preferAlbumVersion(item) }
@@ -198,7 +241,7 @@ object SongVersions {
             }
             val existing = result[existingIndex]
             val better =
-                if (isSingleRelease(existing) && !isSingleRelease(song)) song else existing
+                if (versionRank(song) < versionRank(existing)) song else existing
             val bestCount = maxOf(existing.viewCount ?: 0L, song.viewCount ?: 0L).takeIf { it > 0L }
             val countSource = if ((song.viewCount ?: 0L) > (existing.viewCount ?: 0L)) song else existing
             result[existingIndex] =
@@ -212,11 +255,11 @@ object SongVersions {
 
     fun <T : YTItem> List<T>.dropSingleTwins(): List<T> {
         val songs = filterIsInstance<SongItem>()
-        if (songs.size < 2 || songs.none { isSingleRelease(it) }) return this
-        val albumKeys = songs.filter { !isSingleRelease(it) }.mapNotNull { groupKeyOf(it) }.toHashSet()
+        if (songs.size < 2 || songs.none { needsAlbumLookup(it) }) return this
+        val albumKeys = songs.filter { versionRank(it) == 0 }.mapNotNull { groupKeyOf(it) }.toHashSet()
         if (albumKeys.isEmpty()) return this
         return filterNot { item ->
-            item is SongItem && isSingleRelease(item) && groupKeyOf(item) in albumKeys
+            item is SongItem && needsAlbumLookup(item) && groupKeyOf(item) in albumKeys
         }
     }
 
@@ -236,8 +279,7 @@ object SongVersions {
             val base = AlbumEditions.trackKey(song.title)
             val haystack = title + " " + song.artists.joinToString(" ") { fold(it.name) }
             return when {
-                title == normalizedQuery || base == normalizedQuery -> 0
-                title.startsWith(normalizedQuery) || base.startsWith(normalizedQuery) -> 1
+                title.startsWith(normalizedQuery) || base.startsWith(normalizedQuery) -> 0
                 normalizedQuery.split(' ').all { it.isEmpty() || haystack.contains(it) } -> 2
                 else -> 3
             }

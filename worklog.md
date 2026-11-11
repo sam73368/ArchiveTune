@@ -6595,3 +6595,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test: artist top songs (numbers strictly descending), home quick picks after a few seconds online (Without Me opens The Eminem Show), type slowly in search and watch that rows no longer jump.
+
+---
+Task ID: LITE-10
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Single still shown for "without me" in live search; recent searches leave the top of the screen empty; playback sometimes stops starting until the app is force-stopped.
+
+Work Log:
+- Single in search: suggestion items carry no album, so `isSingleRelease` was false and they were never replaced; they were also published before the album lookup finished. `SongVersions.needsAlbumLookup` now covers album-less audio tracks (never music videos), a search hit with the same id supplies the album, `mergeSameSongs`/`dropSingleTwins` prefer a real album over an album-less or single entry, and the live panel waits up to 2 s for the album versions before publishing (known versions are applied instantly from the cache). The result screen (summary and Songs filter) and the old suggestion list resolve album versions as well (8 lookups, 2.5 s cap).
+- Ranking: the exact-title tier put "Without M" (50 views) above "Without Me" (382M) while typing; titles starting with the query are now one tier ordered by popularity.
+- Recent searches: the panel was bottom-anchored and capped at 55 % of the height; on phones it now fills the space and starts at the top.
+- Playback stuck until force stop: `BotGuardTokenGenerator` set `permanentlyBroken` for the rest of the process after a single WebView "Uncaught" error, so every later stream was requested without a PoToken. It is now a backoff (30 s doubling to 10 min, reset on success) and the engine is rebuilt. The main stream resolution `runBlocking` in `MusicService` had no overall limit; it is capped at 90 s and fails like any other resolution error. The cause was found by reading the code, not reproduced.
+- Nothing compiled locally; not run on a device. YouTube is not reachable from the build container, so the search responses could not be inspected.
+
+Stage Summary:
+- Pending CI. To test: type "without me" (Eminem Show cover, never the single), open search with an empty field (history at the top), and report whether playback still gets stuck.

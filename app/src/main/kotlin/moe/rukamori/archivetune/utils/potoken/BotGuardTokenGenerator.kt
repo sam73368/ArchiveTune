@@ -55,6 +55,9 @@ object BotGuardTokenGenerator {
     private const val COLD_START_TIMEOUT_MS = 45_000L
 
     private const val WARM_TIMEOUT_MS = 5_000L
+    private const val BROKEN_BASE_BACKOFF_MS = 30_000L
+    private const val BROKEN_MAX_BACKOFF_MS = 600_000L
+    private const val BROKEN_MAX_STRIKES = 5
 
     private const val PLAYER_TOKEN_CACHE_SIZE = 200
 
@@ -65,7 +68,17 @@ object BotGuardTokenGenerator {
             .build()
 
     private var appContext: Context? = null
-    private var permanentlyBroken = false
+    @Volatile
+    private var brokenUntilElapsedMs = 0L
+    private var brokenStrikes = 0
+
+    private fun isTemporarilyBroken(): Boolean = android.os.SystemClock.elapsedRealtime() < brokenUntilElapsedMs
+
+    private fun markBroken() {
+        brokenStrikes = (brokenStrikes + 1).coerceAtMost(BROKEN_MAX_STRIKES)
+        val backoff = (BROKEN_BASE_BACKOFF_MS shl (brokenStrikes - 1)).coerceAtMost(BROKEN_MAX_BACKOFF_MS)
+        brokenUntilElapsedMs = android.os.SystemClock.elapsedRealtime() + backoff
+    }
 
     private val mutex = Mutex()
     private var engine: BotGuardEngine? = null
@@ -85,7 +98,7 @@ object BotGuardTokenGenerator {
 
     suspend fun preWarm(sessionId: String) {
         val ctx = appContext ?: return
-        if (permanentlyBroken) return
+        if (isTemporarilyBroken()) return
         if (sessionId.isBlank()) return
 
         try {
@@ -111,7 +124,7 @@ object BotGuardTokenGenerator {
                 Timber.tag(TAG).w("initialize() not called")
                 return null
             }
-        if (permanentlyBroken) return null
+        if (isTemporarilyBroken()) return null
 
         return mutex.withLock {
             if (isEngineReadyForSession(sessionId)) {
@@ -142,6 +155,7 @@ object BotGuardTokenGenerator {
                         forceNewEngine = false,
                     ).also { result ->
                         playerTokenCache[videoId] = result.playerToken
+                        brokenStrikes = 0
                     }
                 }
             } catch (e: TimeoutCancellationException) {
@@ -151,8 +165,9 @@ object BotGuardTokenGenerator {
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (e: BrokenWebViewException) {
-                Timber.tag(TAG).e(e, "Permanently broken WebView")
-                permanentlyBroken = true
+                Timber.tag(TAG).e(e, "Broken WebView, backing off")
+                markBroken()
+                runCatching { destroyEngineLocked() }
                 null
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "mintToken failed: ${e.message}")

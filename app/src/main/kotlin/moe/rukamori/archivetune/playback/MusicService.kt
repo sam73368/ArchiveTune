@@ -11383,23 +11383,28 @@ class MusicService :
 
         val playbackResult =
             runBlocking(Dispatchers.IO) {
-                retryWithoutPlaybackLoginContext {
-                    YTPlayerUtils.playerResponseForPlayback(
-                        mediaId,
-                        audioQuality = if (lowDataModeActive) AudioQuality.LOW else audioQuality,
-                        connectivityManager = connectivityManager,
-                        preferredStreamClient = preferredStreamClient,
-                        networkMetered = lowDataModeActive,
-                    )
-                }.recoverCatching { youtubeFailure ->
-                    if (youtubeFailure !is YTPlayerUtils.BotDetectionPlaybackException) throw youtubeFailure
+                withTimeoutOrNull(PLAYBACK_RESOLVE_TIMEOUT_MS) {
+                    retryWithoutPlaybackLoginContext {
+                        YTPlayerUtils.playerResponseForPlayback(
+                            mediaId,
+                            audioQuality = if (lowDataModeActive) AudioQuality.LOW else audioQuality,
+                            connectivityManager = connectivityManager,
+                            preferredStreamClient = preferredStreamClient,
+                            networkMetered = lowDataModeActive,
+                        )
+                    }.recoverCatching { youtubeFailure ->
+                        if (youtubeFailure !is YTPlayerUtils.BotDetectionPlaybackException) throw youtubeFailure
 
-                    Timber.tag("MusicService").w(
-                        youtubeFailure,
-                        "YouTube stream clients hit bot detection for %s; trying external audio fallback",
-                        mediaId,
-                    )
-                    throw youtubeFailure
+                        Timber.tag("MusicService").w(
+                            youtubeFailure,
+                            "YouTube stream clients hit bot detection for %s; trying external audio fallback",
+                            mediaId,
+                        )
+                        throw youtubeFailure
+                    }
+                } ?: run {
+                    Timber.tag("MusicService").w("Stream resolution for %s timed out", mediaId)
+                    Result.failure(java.io.IOException("Stream resolution timed out"))
                 }
             }
 
@@ -13644,6 +13649,8 @@ class MusicService :
         private const val ALTERNATE_UPLOAD_CACHE_KEY_PREFIX = "ytalt:"
         private const val UNSYNCED_LYRICS_RETRY_MS = 12L * 60 * 60 * 1000
         private const val ALTERNATE_SEARCH_TIMEOUT_MS = 8_000L
+
+        private const val PLAYBACK_RESOLVE_TIMEOUT_MS = 90_000L
         private const val STUDIO_MIN_TITLE_SCORE = 0.92
         private const val MAX_LYRICS_PRELOAD_LOOKAHEAD = 10
         private const val QUEUE_SAVE_DEBOUNCE_MS = 2_000L

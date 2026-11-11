@@ -69,6 +69,24 @@ class SongVersionsTest {
     }
 
     @Test
+    fun albumLessSongLosesToAlbumVersion() {
+        val bare = song("a", "Without Me", "Eminem", null, views = 100)
+        val album = song("b", "Without Me", "Eminem", "The Eminem Show", views = 50)
+        assertTrue(SongVersions.needsAlbumLookup(bare))
+        assertFalse(SongVersions.needsAlbumLookup(album))
+        assertEquals("b", SongVersions.mergeSameSongs(listOf(bare, album)).single().id)
+        assertEquals(listOf(album), listOf(bare, album).dropSingleTwins())
+    }
+
+    @Test
+    fun prefixMatchesRankByPopularity() {
+        val exactButObscure = song("a", "Without M", "Nobody", "Album", views = 50)
+        val popular = song("b", "Without Me", "Eminem", "The Eminem Show", views = 1_000)
+        val sorted = SongVersions.sortByPopularity(listOf(exactButObscure, popular), "without m")
+        assertEquals(listOf("b", "a"), sorted.map { it.id })
+    }
+
+    @Test
     fun exactTitleMatchesComeFirstThenPopularity() {
         val unrelated = song("a", "Something Else", "Someone", "Album", views = 1_000)
         val lessPopular = song("b", "Without Me", "Eminem", "The Eminem Show", views = 10)
