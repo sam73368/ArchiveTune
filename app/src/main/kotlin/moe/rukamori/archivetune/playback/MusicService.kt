@@ -541,6 +541,7 @@ class MusicService :
     private var audioRouteRecoveryJob: Job? = null
     private var audiblePlaybackRecoveryJob: Job? = null
     private var sourceSwitchPending = false
+    private val multiSourceMissUntil = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private var sourceSwitchExpectedVolume = 1f
     private var sourceSwitchReassertJob: Job? = null
     private var pendingSeekVolumeReassert = false
@@ -3474,24 +3475,39 @@ class MusicService :
             crossfadeFailureMediaId != null &&
             crossfadeFailureMediaId == player.currentMediaItem?.mediaId
 
+    private var lastCrossfadeSkipReason: String? = null
+
+    private fun noteCrossfadeSkip(reason: String) {
+        val key = "${player.currentMediaItem?.mediaId}|$reason"
+        if (key == lastCrossfadeSkipReason) return
+        lastCrossfadeSkipReason = key
+        Timber.tag(TAG).i("crossfade not scheduled: %s", reason)
+    }
+
     private fun scheduleCrossfade() {
         if (!::player.isInitialized) return
         crossfadeTriggerJob?.cancel()
         crossfadeTriggerJob = null
 
         if (isCrossfading) return
-        if (sourceSwitchPending) return
+        if (sourceSwitchPending) {
+            noteCrossfadeSkip("source switch pending")
+            return
+        }
         if (isCrossfadeSuspended()) {
+            noteCrossfadeSkip("suspended after failures")
             localPlayer.pauseAtEndOfMediaItems = false
             releaseSecondaryCrossfadePlayer()
             return
         }
         if (isCastSessionConnected()) {
+            noteCrossfadeSkip("cast session")
             localPlayer.pauseAtEndOfMediaItems = false
             releaseSecondaryCrossfadePlayer()
             return
         }
         if (sleepTimer.pauseWhenSongEnd) {
+            noteCrossfadeSkip("sleep timer at end of song")
             localPlayer.pauseAtEndOfMediaItems = false
             releaseSecondaryCrossfadePlayer()
             return
@@ -3515,6 +3531,7 @@ class MusicService :
         val duration = player.duration
         val effectiveDuration = effectiveCrossfadeDuration(duration)
         if (target == null || effectiveDuration == null) {
+            if (crossfadeEnabled) noteCrossfadeSkip("no target or duration (target=${target?.mediaId} duration=$duration)")
             localPlayer.pauseAtEndOfMediaItems = false
             releaseSecondaryCrossfadePlayer()
             return
@@ -3532,9 +3549,11 @@ class MusicService :
                 while (isActive) {
                     if (!crossfadeEnabled || isCrossfading) return@launch
                     if (player.currentMediaItem?.mediaId != currentMediaId || player.currentMediaItemIndex != currentIndex) {
+                        noteCrossfadeSkip("song changed before the fade could start (was $currentMediaId)")
                         return@launch
                     }
                     if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+                        noteCrossfadeSkip("player idle or ended before the fade could start")
                         return@launch
                     }
 
@@ -3567,7 +3586,10 @@ class MusicService :
                             (fadeEndAt - player.currentPosition)
                                 .coerceAtMost(fadeLimit)
                         if (adjustedDuration >= MIN_CROSSFADE_DURATION_MS) {
+                            lastCrossfadeSkipReason = null
                             startCrossfade(target, adjustedDuration, incomingCueMs = incomingCueMs)
+                        } else {
+                            noteCrossfadeSkip("trigger reached too late (remaining=$adjustedDuration ms)")
                         }
                         return@launch
                     }
@@ -9691,6 +9713,19 @@ class MusicService :
             return null
         }
 
+        val missKey = "$mediaId|${mode.name}|${chain.joinToString(",") { it.name }}"
+        val missCacheable = !isDirectPick && override == null && !mediaId.isSpotifyOnlyId()
+        if (missCacheable) {
+            val missUntil = multiSourceMissUntil[missKey]
+            if (missUntil != null) {
+                if (android.os.SystemClock.elapsedRealtime() < missUntil) {
+                    Timber.tag("MusicService").d("Multi-source skip: %s had no match recently; using YouTube directly", mediaId)
+                    return null
+                }
+                multiSourceMissUntil.remove(missKey)
+            }
+        }
+
         if (lowDataModeActive && !isDirectPick && !mediaId.isSpotifyOnlyId()) {
             tidalActiveMediaIds.remove(mediaId)
             Timber.tag("MusicService").i("Low-data mode active; skipping Tidal/Qobuz for %s", mediaId)
@@ -9854,6 +9889,10 @@ class MusicService :
         Timber.tag("MusicService").w("No lossless source cleared the metadata match gate for \"%s\"; falling back to YouTube", query.title)
         tidalActiveMediaIds.remove(mediaId)
         multiSourceMemoByMediaId.remove(mediaId)
+        if (missCacheable) {
+            if (multiSourceMissUntil.size > MULTI_SOURCE_MISS_MAX_ENTRIES) multiSourceMissUntil.clear()
+            multiSourceMissUntil[missKey] = android.os.SystemClock.elapsedRealtime() + MULTI_SOURCE_MISS_TTL_MS
+        }
         return null
     }
 
@@ -13735,6 +13774,8 @@ class MusicService :
         private const val ALTERNATE_SEARCH_TIMEOUT_MS = 8_000L
 
         private const val PLAYBACK_RESOLVE_TIMEOUT_MS = 90_000L
+        private const val MULTI_SOURCE_MISS_TTL_MS = 15 * 60_000L
+        private const val MULTI_SOURCE_MISS_MAX_ENTRIES = 500
         private const val STUDIO_MIN_TITLE_SCORE = 0.92
         private const val MAX_LYRICS_PRELOAD_LOOKAHEAD = 10
         private const val QUEUE_SAVE_DEBOUNCE_MS = 2_000L

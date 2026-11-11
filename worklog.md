@@ -6627,3 +6627,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test: Eminem album with crossfade at 8-10 s; the log line "smart crossfade a->b: start=… fade=… cue=…" shows the chosen window.
+
+---
+Task ID: LITE-12
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Two logs after "pressed back and it froze for a few seconds".
+
+Work Log:
+- Logs show the current song going back to buffering for 4.6-4.7 s (13:52:05 -> 13:52:09 and 13:53:00 -> 13:53:05), not a UI stall marker. Each time the stream was reopened, the multi-source chain (TIDAL without token, then a SoundCloud search that never matches) ran again for 1-4.6 s before falling back to YouTube. Misses are now remembered for 15 minutes per song/mode/chain.
+- The same logs show a standby crossfade player prepared at 13:51:22 but no crossfade started at the song change (13:51:52), and no reason logged. Added info logs for every reason a crossfade is not scheduled (`noteCrossfadeSkip`).
+- Not found: what reopened the stream about 2.3 s after the activity came to the foreground. `AutoMix: download for analysis failed ... timeout` shows the smart-timing analysis did not get its data for that song.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. Next log should contain "crossfade not scheduled: <reason>" or "crossfade[n] start".
