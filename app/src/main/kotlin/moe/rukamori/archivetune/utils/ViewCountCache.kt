@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import java.util.concurrent.ConcurrentHashMap
@@ -152,6 +153,8 @@ object ViewCountCache {
     }
 }
 
+val LocalViewCountGroupLookup = staticCompositionLocalOf { true }
+
 private val YouTubeVideoIdRegex = Regex("^[A-Za-z0-9_-]{11}$")
 
 /**
@@ -166,12 +169,13 @@ fun rememberViewCountText(
     knownCount: Long? = null,
 ): String? {
     val context = LocalContext.current
+    val groupLookup = LocalViewCountGroupLookup.current
     val showViewCounts by rememberPreference(ShowViewCountsKey, defaultValue = true)
     val lowDataMode by rememberPreference(LowDataModeKey, defaultValue = true)
     val active = enabled && showViewCounts && videoId != null && YouTubeVideoIdRegex.matches(videoId)
 
-    LaunchedEffect(videoId, active, lowDataMode) {
-        if (active && !lowDataMode && videoId != null) {
+    LaunchedEffect(videoId, active, lowDataMode, knownCount != null) {
+        if (active && !lowDataMode && videoId != null && knownCount == null) {
             delay(250)
             ViewCountCache.load(context, videoId)
         }
@@ -179,13 +183,13 @@ fun rememberViewCountText(
 
     val ownCount = if (active && videoId != null) ViewCountCache.counts[videoId]?.toLong() else null
     val groupActive = group != null && showViewCounts && (active || knownCount != null)
-    val ownEffective = ownCount ?: knownCount?.takeIf { showViewCounts }
+    val ownEffective = listOfNotNull(ownCount, knownCount?.takeIf { showViewCounts }).maxOrNull()
 
     LaunchedEffect(group?.key, ownEffective, groupActive) {
         if (groupActive && group != null && ownEffective != null) ViewCountCache.raiseGroup(group.key, ownEffective)
     }
-    LaunchedEffect(group?.key, groupActive, lowDataMode) {
-        if (groupActive && !lowDataMode && group != null) {
+    LaunchedEffect(group?.key, groupActive, lowDataMode, groupLookup) {
+        if (groupActive && !lowDataMode && group != null && groupLookup) {
             delay(400)
             ViewCountCache.loadGroup(context, group)
         }

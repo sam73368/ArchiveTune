@@ -270,6 +270,9 @@ fun OnlineSearchResult(
                     }
                 }
             }
+        androidx.compose.runtime.CompositionLocalProvider(
+            moe.rukamori.archivetune.utils.LocalViewCountGroupLookup provides false,
+        ) {
         YouTubeListItem(
             item = item,
             viewCountText = (item as? SongItem)?.viewCountText,
@@ -358,6 +361,7 @@ fun OnlineSearchResult(
                         onLongClick = longClick,
                     ).animateItem(),
         )
+        }
     }
 
     val barState = rememberSearchResultsBarState()

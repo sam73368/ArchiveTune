@@ -6578,3 +6578,20 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test on TV: type a song name with the on-screen keyboard, move right into the live panel, check that the focus ring follows the artist chips and that the suggestion rows highlight.
+
+---
+Task ID: LITE-9
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Top songs no longer in descending view order; singles still shown in the local home suggestions; live search is janky and unclear.
+
+Work Log:
+- Ranking: `SongViewRanking.rank` sorted on the per-video counts, then the rows raised their label to the song group maximum (other editions) once their own lookup finished, so the visible numbers were no longer descending. `rank` now loads the group counts itself (15 s cap, skipped in low-data mode) and sorts on `displayedCount` = the same maximum the row shows; the row uses `max(own, known)` instead of `own ?: known`.
+- Home, local suggestions: quick picks, the hero picks and the songs of "keep listening" come from the local database, so a played single stayed a single. `HomeViewModel.requestLocalSingleRefine` looks up the album version (12 lookups, not in low-data mode), inserts it in the database as a plain cached song and swaps it in. Liked, library, local-file and podcast songs are never swapped. Resolved pairs are kept in memory so a re-emission of the list does not flash the single again.
+- Search requests: each result row started one view-count request and one song search (edition lookup), i.e. dozens of requests per keystroke pause. Rows that already carry a count from the search response no longer fetch their own count, and `LocalViewCountGroupLookup` turns the edition lookup off inside the live panel and the result lists.
+- Live panel: song keys contained the index, so every refinement rebuilt all rows; keys are the song id now, the list is only replaced when the ids change, the previous results stay visible until the new search answers (YouTube provider), album-version refinement covers the first 6 songs instead of 10. Small section labels (Artists / Songs / Suggestions). Duplicate artist ids in the suggestion response could crash the row (duplicate key); they are de-duplicated.
+- Not changed: the full result screen layout; it still fires 7 requests in "All" mode.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. To test: artist top songs (numbers strictly descending), home quick picks after a few seconds online (Without Me opens The Eminem Show), type slowly in search and watch that rows no longer jump.

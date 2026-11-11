@@ -149,7 +149,7 @@ private val SearchHorizontalPadding = 24.dp
 private const val RecentsHeightFraction = 0.55f
 private val LiveChromeReserve = 84.dp
 private const val LiveArtistLimit = 10
-private const val LiveSongRefineCount = 10
+private const val LiveSongRefineCount = 6
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -195,11 +195,14 @@ fun SearchScreen(
         suggestionPage?.let { page ->
             liveSuggestions = SearchSuggestions(queries = page.queries, recommendedItems = recommended)
         }
-        val recommendedArtists = recommended.filterIsInstance<ArtistItem>()
+        val recommendedArtists = recommended.filterIsInstance<ArtistItem>().distinctBy { it.id }
         val recommendedSongs = recommended.filterIsInstance<SongItem>()
-        liveArtists = recommendedArtists
-        liveSongs = SongVersions.sortByPopularity(SongVersions.mergeSameSongs(recommendedSongs), query)
-        if (searchProvider != SearchProvider.YOUTUBE) return@LaunchedEffect
+        val isYouTubeSearch = searchProvider == SearchProvider.YOUTUBE
+        if (!isYouTubeSearch || liveArtists.isEmpty()) liveArtists = recommendedArtists
+        if (!isYouTubeSearch || liveSongs.isEmpty()) {
+            liveSongs = SongVersions.sortByPopularity(SongVersions.mergeSameSongs(recommendedSongs), query)
+        }
+        if (!isYouTubeSearch) return@LaunchedEffect
 
         coroutineScope {
             val completedQuery =
@@ -244,7 +247,7 @@ fun SearchScreen(
                     .distinctBy { it.id }
                     .take(LiveArtistLimit)
             if (searchQuery.trim() != query) return@coroutineScope
-            if (artists.isNotEmpty()) liveArtists = artists
+            if (artists.map { it.id } != liveArtists.map { it.id }) liveArtists = artists
 
             val songs =
                 (songsJob.await() + recommendedSongs)
@@ -252,14 +255,14 @@ fun SearchScreen(
                     .let { it.dropSingleTwins() }
             if (searchQuery.trim() != query) return@coroutineScope
             val ranked = SongVersions.sortByPopularity(songs, query)
-            if (ranked.isNotEmpty()) liveSongs = ranked
+            if (ranked.map { it.id } != liveSongs.map { it.id }) liveSongs = ranked
 
             val refined =
                 SongVersions.preferAlbumVersions(ranked.take(LiveSongRefineCount), maxLookups = LiveSongRefineCount) +
                     ranked.drop(LiveSongRefineCount)
             if (searchQuery.trim() != query) return@coroutineScope
             val reranked = SongVersions.sortByPopularity(SongVersions.mergeSameSongs(refined), query)
-            if (reranked.isNotEmpty()) liveSongs = reranked
+            if (reranked.isNotEmpty() && reranked.map { it.id } != liveSongs.map { it.id }) liveSongs = reranked
             Unit
         }
     }
@@ -529,6 +532,9 @@ private fun LiveSearchSuggestionsPanel(
                 .fillMaxWidth()
                 .heightIn(max = maxHeight),
     ) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            moe.rukamori.archivetune.utils.LocalViewCountGroupLookup provides false,
+        ) {
         LazyColumn(
             state = listState,
             modifier =
@@ -536,6 +542,9 @@ private fun LiveSearchSuggestionsPanel(
                     .fillMaxWidth(),
         ) {
             if (artists.isNotEmpty()) {
+                item(key = "artists_header", contentType = "header") {
+                    LiveSectionLabel(stringResource(R.string.artists))
+                }
                 item(key = "artists_row", contentType = "artists_row") {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = SearchHorizontalPadding),
@@ -543,7 +552,7 @@ private fun LiveSearchSuggestionsPanel(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(top = 12.dp, bottom = 8.dp),
+                                .padding(bottom = 8.dp),
                     ) {
                         items(
                             items = artists,
@@ -558,11 +567,17 @@ private fun LiveSearchSuggestionsPanel(
                 }
             }
 
-            itemsIndexed(
+            if (songs.isNotEmpty()) {
+                item(key = "songs_header", contentType = "header") {
+                    LiveSectionLabel(stringResource(R.string.songs))
+                }
+            }
+
+            items(
                 items = songs,
-                key = { index, item -> "song_${index}_${item.id}" },
-                contentType = { _, _ -> 2 },
-            ) { _, item ->
+                key = { item -> "song_${item.id}" },
+                contentType = { 2 },
+            ) { item ->
                 SuggestedResultRow(
                     item = item,
                     currentMediaId = mediaMetadata?.id,
@@ -572,6 +587,12 @@ private fun LiveSearchSuggestionsPanel(
                     playerConnection = playerConnection,
                     haptic = haptic,
                 )
+            }
+
+            if (queries.isNotEmpty()) {
+                item(key = "queries_header", contentType = "header") {
+                    LiveSectionLabel(stringResource(R.string.suggestions))
+                }
             }
 
             items(
@@ -624,6 +645,8 @@ private fun LiveSearchSuggestionsPanel(
                     )
                 }
             }
+        }
+
         }
 
         if (hazeState != null && !disableBlur && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -679,6 +702,20 @@ private fun LiveSearchSuggestionsPanel(
             }
         }
     }
+}
+
+@Composable
+private fun LiveSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = SearchHorizontalPadding, end = SearchHorizontalPadding, top = 12.dp, bottom = 6.dp),
+    )
 }
 
 @Composable

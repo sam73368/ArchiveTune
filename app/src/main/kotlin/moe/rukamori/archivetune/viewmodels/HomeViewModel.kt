@@ -24,6 +24,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.TimeoutException
 import kotlinx.coroutines.supervisorScope
@@ -68,6 +69,7 @@ import moe.rukamori.archivetune.innertube.pages.HomePage
 import moe.rukamori.archivetune.innertube.utils.completed
 import moe.rukamori.archivetune.innertube.utils.hasYouTubeLoginCookie
 import moe.rukamori.archivetune.models.SimilarRecommendation
+import moe.rukamori.archivetune.models.toMediaMetadata
 import moe.rukamori.archivetune.utils.SavedAccount
 import moe.rukamori.archivetune.utils.SongVersions
 import moe.rukamori.archivetune.utils.SpeedDialPinType
@@ -239,6 +241,10 @@ class HomeViewModel
         private const val REFRESH_STUCK_WATCHDOG_MS = 120_000L
 
         private const val HOME_ALBUM_LOOKUPS = 24
+
+        private const val LOCAL_ALBUM_LOOKUPS = 12
+
+        private val LOCAL_SINGLE_ID_REGEX = Regex("^[A-Za-z0-9_-]{11}$")
     }
         private val isRefreshing = MutableStateFlow(false)
         private val isLoading = MutableStateFlow(false)
@@ -419,6 +425,84 @@ class HomeViewModel
             }
         }
 
+        private val localAlbumVersions = java.util.concurrent.ConcurrentHashMap<String, Song>()
+        private var localSingleRefineJob: Job? = null
+
+        private fun List<Song>.withKnownAlbumVersions(): List<Song> =
+            if (localAlbumVersions.isEmpty()) this else map { localAlbumVersions[it.id] ?: it }.distinctBy { it.id }
+
+        private fun Song.isSwappableSingle(): Boolean =
+            !song.liked &&
+                song.inLibrary == null &&
+                !song.isLocal &&
+                !song.isPodcast &&
+                LOCAL_SINGLE_ID_REGEX.matches(song.id) &&
+                SongVersions.isSingleRelease(song.title, album?.title ?: song.albumName)
+
+        private suspend fun resolveLocalAlbumVersion(single: Song): Song? {
+            val item =
+                moe.rukamori.archivetune.innertube.models.SongItem(
+                    id = single.id,
+                    title = single.song.title,
+                    artists =
+                        single.artists.map {
+                            moe.rukamori.archivetune.innertube.models.Artist(name = it.name, id = it.channelId ?: it.id)
+                        },
+                    album =
+                        (single.album?.title ?: single.song.albumName)?.let { name ->
+                            moe.rukamori.archivetune.innertube.models.Album(
+                                name = name,
+                                id = single.album?.id ?: single.song.albumId.orEmpty(),
+                            )
+                        },
+                    duration = single.song.duration.takeIf { it > 0 },
+                    thumbnail = single.song.thumbnailUrl.orEmpty(),
+                    explicit = single.song.explicit,
+                )
+            val resolved = SongVersions.preferAlbumVersion(item)
+            if (resolved.id == single.id) return null
+            return withContext(Dispatchers.IO) {
+                database.insert(resolved.toMediaMetadata())
+                database.song(resolved.id).first()
+            }
+        }
+
+        private fun requestLocalSingleRefine() {
+            localSingleRefineJob?.cancel()
+            localSingleRefineJob =
+                viewModelScope.launch {
+                    try {
+                        delay(600)
+                        if (context.isLowDataModeActive()) return@launch
+                        val candidates =
+                            (
+                                quickPicks.value.orEmpty() +
+                                    keepListening.value.orEmpty().filterIsInstance<Song>()
+                            ).filter { it.isSwappableSingle() && !localAlbumVersions.containsKey(it.id) }
+                                .distinctBy { it.id }
+                                .take(LOCAL_ALBUM_LOOKUPS)
+                        if (candidates.isEmpty()) return@launch
+                        var changed = false
+                        for (single in candidates) {
+                            val albumVersion = resolveLocalAlbumVersion(single) ?: continue
+                            localAlbumVersions[single.id] = albumVersion
+                            changed = true
+                        }
+                        if (!changed) return@launch
+                        quickPicks.value = quickPicks.value?.withKnownAlbumVersions()
+                        heroPicks.value = heroPicks.value.withKnownAlbumVersions()
+                        keepListening.value =
+                            keepListening.value
+                                ?.map { item -> if (item is Song) localAlbumVersions[item.id] ?: item else item }
+                                ?.distinctBy { it.id }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        reportException(error)
+                    }
+                }
+        }
+
         private suspend fun refineHomeAlbumVersions(
             generation: Long,
             page: HomePage,
@@ -530,10 +614,12 @@ class HomeViewModel
                                         flowOf(null)
                                     }
                                 }
-                            }.collect { picks ->
+                            }.collect { emitted ->
                                 attempts = 0
+                                val picks = emitted?.withKnownAlbumVersions()
                                 quickPicks.value = picks
                                 refreshHeroPicks(picks.orEmpty())
+                                requestLocalSingleRefine()
                             }
                     } catch (cancellation: CancellationException) {
                         throw cancellation
@@ -570,8 +656,10 @@ class HomeViewModel
                         null
                     }
                 }
-            quickPicks.value = picks
-            refreshHeroPicks(picks.orEmpty())
+            val shown = picks?.withKnownAlbumVersions()
+            quickPicks.value = shown
+            refreshHeroPicks(shown.orEmpty())
+            requestLocalSingleRefine()
         }
 
         private fun refreshHeroPicks(pool: List<Song>) {
@@ -695,7 +783,9 @@ class HomeViewModel
                                         it.artist.thumbnailUrl != null
                                 }.shuffled()
                                 .take(5)
-                        keepListening.value = (keepListeningSongs + keepListeningAlbums + keepListeningArtists).shuffled()
+                        keepListening.value =
+                            (keepListeningSongs.withKnownAlbumVersions() + keepListeningAlbums + keepListeningArtists).shuffled()
+                        requestLocalSingleRefine()
                     }
 
                     launchHomeSection {

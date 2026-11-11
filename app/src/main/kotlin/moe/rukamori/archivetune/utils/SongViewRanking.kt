@@ -33,6 +33,10 @@ object SongViewRanking {
     private const val COUNT_TIMEOUT_MS = 40_000L
     private const val RETRY_TIMEOUT_MS = 10_000L
     private const val IN_FLIGHT_WAIT_MS = 3_000
+    private const val GROUP_TIMEOUT_MS = 15_000L
+
+    fun displayedCount(song: SongItem): Long =
+        maxOf(ViewCountCache.counts[song.id]?.toLong() ?: -1L, SongVersions.popularityOf(song))
 
     class Collected(
         val songs: List<SongItem>,
@@ -100,8 +104,21 @@ object SongViewRanking {
             val key = SongVersions.groupKeyOf(song)
             if (count != null && key != null) ViewCountCache.raiseGroup(key, count)
         }
-        return head.sortedByDescending { song ->
-            maxOf(ViewCountCache.counts[song.id]?.toLong() ?: -1L, SongVersions.popularityOf(song))
-        } + tail
+        if (!context.isLowDataModeActive()) {
+            withTimeoutOrNull(GROUP_TIMEOUT_MS) {
+                coroutineScope {
+                    head
+                        .mapNotNull { song -> SongVersions.viewGroupOf(song.title, song.artists.firstOrNull()?.name) }
+                        .distinctBy { it.key }
+                        .map { group -> launch { ViewCountCache.loadGroup(context, group) } }
+                        .joinAll()
+                }
+            }
+        }
+        return head
+            .withIndex()
+            .sortedWith(
+                compareByDescending<IndexedValue<SongItem>> { displayedCount(it.value) }.thenBy { it.index },
+            ).map { it.value } + tail
     }
 }
