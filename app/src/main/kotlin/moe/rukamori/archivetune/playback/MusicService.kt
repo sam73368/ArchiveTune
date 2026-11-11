@@ -3585,8 +3585,14 @@ class MusicService :
                         val adjustedDuration =
                             (fadeEndAt - player.currentPosition)
                                 .coerceAtMost(fadeLimit)
-                        if (adjustedDuration >= MIN_CROSSFADE_DURATION_MS) {
+                        if (adjustedDuration >= MIN_CROSSFADE_DURATION_MS - CROSSFADE_TRIGGER_SLACK_MS) {
                             lastCrossfadeSkipReason = null
+                            Timber.tag(TAG).i(
+                                "crossfade trigger: fade=%d ms requested=%d ms smart=%s",
+                                adjustedDuration,
+                                crossfadeDurationMs,
+                                lastSmartVerdict != null,
+                            )
                             startCrossfade(target, adjustedDuration, incomingCueMs = incomingCueMs)
                         } else {
                             noteCrossfadeSkip("trigger reached too late (remaining=$adjustedDuration ms)")
@@ -3651,12 +3657,12 @@ class MusicService :
                 durationMs = duration,
                 requestedFadeMs = requestedFadeMs,
                 endGuardMs = CROSSFADE_END_GUARD_MS,
-                minFadeMs = SMART_CROSSFADE_MIN_FADE_MS,
+                minFadeMs = requestedFadeMs.coerceIn(MIN_CROSSFADE_DURATION_MS, SMART_CROSSFADE_MIN_FADE_MS),
                 contentEndMs = current.contentEndMs,
                 finalFadeOnsetMs = current.finalFadeOnsetMs,
                 lastVocalEndMs = lastVocalEndMs,
                 incomingStartsWithVoice = incomingStartsWithVoice,
-                voiceIntroMaxFadeMs = SMART_CROSSFADE_VOICE_INTRO_FADE_MS,
+                voiceIntroMaxFadeMs = SMART_CROSSFADE_VOICE_INTRO_FADE_MS.coerceAtLeast(SMART_CROSSFADE_MIN_FADE_MS),
             ) ?: return null
         val cue = next?.let { CrossfadePolicy.incomingCueMs(it.audibleStartMs) } ?: 0L
         return window to cue
@@ -13856,8 +13862,9 @@ class MusicService :
         const val EFFECTIVE_VOLUME_RAMP_DOWN_MS = 180L
         const val EFFECTIVE_VOLUME_RAMP_MIN_DELTA = 0.015f
         const val MIN_CROSSFADE_DURATION_MS = 500L
-        const val SMART_CROSSFADE_MIN_FADE_MS = 1_000L
-        const val SMART_CROSSFADE_VOICE_INTRO_FADE_MS = 2_500L
+        const val SMART_CROSSFADE_MIN_FADE_MS = 3_000L
+        const val SMART_CROSSFADE_VOICE_INTRO_FADE_MS = 4_000L
+        const val CROSSFADE_TRIGGER_SLACK_MS = 200L
         const val SMART_CROSSFADE_TAIL_MS = 30_000L
         const val SMART_CROSSFADE_INTRO_MS = 3_000L
         const val SMART_CROSSFADE_VOCAL_THRESHOLD = 0.6f

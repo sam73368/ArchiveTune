@@ -6642,3 +6642,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI. Next log should contain "crossfade not scheduled: <reason>" or "crossfade[n] start".
+
+---
+Task ID: LITE-13
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Log after LITE-12: still no audible crossfade.
+
+Work Log:
+- Log line "crossfade not scheduled: trigger reached too late (remaining=499 ms)": the fixed-timing trigger fired about 650 ms before the end, which corresponds to a configured duration at the 0.5 s minimum; the remaining fade (499 ms) then failed the `>= 500` check, so no fade ever started at that setting. The check now has 200 ms of slack and an info log "crossfade trigger: fade=… requested=… smart=…".
+- No "smart crossfade" line in the log: no analysis was available for those songs, so the fixed timing applied.
+- Smart timing minimum fade raised from 1 s to 3 s (capped by the configured duration) and the voice-intro cap from 2.5 s to 4 s, so the transition stays an audible fade.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. The user should check the crossfade duration slider (the log suggests 0.5 s).
