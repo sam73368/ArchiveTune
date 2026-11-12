@@ -6721,3 +6721,16 @@ Work Log:
 
 Stage Summary:
 - Pending CI. After updating, the app resyncs Plex at start (or Settings > Plex > Sync now). Search "eminem": one Eminem; open it: Plex albums section at the bottom. Search "perusse": the Plex artist.
+
+---
+Task ID: LITE-18
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: The full results page ("All", after Enter) had no horizontal artist row like the live panel.
+
+Work Log:
+- `OnlineSearchResult` (All mode) now starts with the "Artists" label and the same horizontal row of `SearchArtistChip` (made internal), built from every artist in the summary and the Artists filter, plus matching Plex artists once all YouTube sections are loaded and only when YouTube has no artist of that name. Artist rows are removed from the vertical sections, and a section left empty is dropped.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. To test: search "eminem", press Enter, scroll the artist row.

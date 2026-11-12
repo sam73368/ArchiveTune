@@ -733,7 +733,7 @@ private fun LiveSearchSuggestionsPanel(
     }
 }
 
-private fun List<ArtistItem>.notIn(youTubeArtists: List<ArtistItem>): List<ArtistItem> {
+internal fun List<ArtistItem>.notIn(youTubeArtists: List<ArtistItem>): List<ArtistItem> {
     if (isEmpty()) return this
     val names =
         youTubeArtists
@@ -742,7 +742,7 @@ private fun List<ArtistItem>.notIn(youTubeArtists: List<ArtistItem>): List<Artis
     return filterNot { moe.rukamori.archivetune.utils.AlbumKindCatalog.normalizeArtist(it.title) in names }
 }
 
-private suspend fun plexArtistsMatching(
+internal suspend fun plexArtistsMatching(
     database: moe.rukamori.archivetune.db.MusicDatabase,
     query: String,
 ): List<ArtistItem> {
@@ -771,7 +771,7 @@ private suspend fun plexArtistsMatching(
 }
 
 @Composable
-private fun LiveSectionLabel(text: String) {
+internal fun LiveSectionLabel(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,
@@ -785,7 +785,7 @@ private fun LiveSectionLabel(text: String) {
 }
 
 @Composable
-private fun SearchArtistChip(
+internal fun SearchArtistChip(
     artist: ArtistItem,
     onClick: () -> Unit,
 ) {

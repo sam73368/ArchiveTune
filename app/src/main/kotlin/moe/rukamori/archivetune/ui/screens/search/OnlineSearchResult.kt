@@ -205,6 +205,16 @@ fun OnlineSearchResult(
                     }
             }
         }
+    val plexDatabase = moe.rukamori.archivetune.LocalDatabase.current
+    var plexRowArtists by remember(viewModel.query) { mutableStateOf<List<ArtistItem>>(emptyList()) }
+    LaunchedEffect(viewModel.query) {
+        plexRowArtists = plexArtistsMatching(plexDatabase, viewModel.query)
+    }
+    val youTubeRowArtists =
+        allModeSections
+            .flatMap { it.items }
+            .filterIsInstance<ArtistItem>()
+            .distinctBy { it.id }
     val isAllModeLoaded =
         searchSummary != null ||
             listOf(
@@ -451,7 +461,45 @@ fun OnlineSearchResult(
             }
 
             if (searchFilter == null) {
-                allModeSections.forEachIndexed { index, summary ->
+                val rowArtists =
+                    (
+                        (if (isAllModeLoaded) plexRowArtists.notIn(youTubeRowArtists) else emptyList()) +
+                            youTubeRowArtists
+                    ).distinctBy { it.id }
+                val listedSections =
+                    if (rowArtists.isEmpty()) {
+                        allModeSections
+                    } else {
+                        allModeSections
+                            .map { summary -> summary.copy(items = summary.items.filterNot { it is ArtistItem }) }
+                            .filter { it.items.isNotEmpty() }
+                    }
+                if (rowArtists.isNotEmpty()) {
+                    item(key = "all_artists_header", contentType = "section_header") {
+                        LiveSectionLabel(stringResource(R.string.artists))
+                    }
+                    item(key = "all_artists_row", contentType = "artists_row") {
+                        androidx.compose.foundation.lazy.LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                        ) {
+                            items(
+                                items = rowArtists,
+                                key = { artist -> "row_artist_${artist.id}" },
+                            ) { artist ->
+                                SearchArtistChip(
+                                    artist = artist,
+                                    onClick = { navController.navigate("artist/${artist.id}") },
+                                )
+                            }
+                        }
+                    }
+                }
+                listedSections.forEachIndexed { index, summary ->
                     if (index > 0) {
                         item(key = "divider_$index", contentType = "divider") {
                             HorizontalDivider(
@@ -504,7 +552,7 @@ fun OnlineSearchResult(
                     }
                 }
 
-                if (allModeSections.isEmpty() && isAllModeLoaded) {
+                if (allModeSections.isEmpty() && rowArtists.isEmpty() && isAllModeLoaded) {
                     item(key = "empty_all", contentType = "empty") {
                         EmptyPlaceholder(
                             icon = R.drawable.search,
