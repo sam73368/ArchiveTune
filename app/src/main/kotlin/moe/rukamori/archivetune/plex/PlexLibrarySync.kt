@@ -22,6 +22,7 @@ import moe.rukamori.archivetune.constants.PlexLastSyncKey
 import moe.rukamori.archivetune.constants.PlexServerMachineIdKey
 import moe.rukamori.archivetune.constants.PlexServerTokenKey
 import moe.rukamori.archivetune.constants.PlexServerUriKey
+import moe.rukamori.archivetune.constants.PlexSyncVersionKey
 import moe.rukamori.archivetune.constants.PlexSyncedSongCountKey
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.AlbumArtistMap
@@ -31,6 +32,7 @@ import moe.rukamori.archivetune.db.entities.FormatEntity
 import moe.rukamori.archivetune.db.entities.SongAlbumMap
 import moe.rukamori.archivetune.db.entities.SongArtistMap
 import moe.rukamori.archivetune.db.entities.SongEntity
+import moe.rukamori.archivetune.utils.AlbumKindCatalog
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.getAsync
 import timber.log.Timber
@@ -55,6 +57,7 @@ sealed interface PlexSyncState {
 object PlexLibrarySync {
     private const val TAG = "PlexLibrarySync"
     private const val SQL_BATCH = 500
+    private const val SYNC_VERSION = 2
     private const val AUTO_SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000L
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -91,6 +94,7 @@ object PlexLibrarySync {
     suspend fun isDue(context: Context): Boolean {
         val uri = context.dataStore.getAsync(PlexServerUriKey)
         if (uri.isNullOrBlank()) return false
+        if ((context.dataStore.getAsync(PlexSyncVersionKey) ?: 0) < SYNC_VERSION) return true
         val last = context.dataStore.getAsync(PlexLastSyncKey) ?: 0L
         return System.currentTimeMillis() - last > AUTO_SYNC_INTERVAL_MS
     }
@@ -161,6 +165,7 @@ object PlexLibrarySync {
         context.dataStore.edit {
             it[PlexLastSyncKey] = System.currentTimeMillis()
             it[PlexSyncedSongCountKey] = seen.size
+            it[PlexSyncVersionKey] = SYNC_VERSION
         }
         Timber.tag(TAG).i("Plex sync: %d tracks in %d sections, %d removed", seen.size, sections.size, stale.size)
         return seen.size
@@ -184,7 +189,7 @@ object PlexLibrarySync {
         val artistIds =
             tracks.flatMap { track ->
                 val albumArtistName = track.albumArtist ?: track.artist
-                listOf(artistIdOf(track.artistKey, albumArtistName), artistIdOf(null, track.artist))
+                (listOf(albumArtistName) + songArtistNames(track.artist, albumArtistName)).map(::artistIdOf)
             }.distinct()
         val existingArtists =
             artistIds
@@ -207,9 +212,8 @@ object PlexLibrarySync {
                 val songId = songIds[position]
                 val existing = existingSongs[songId]?.song
                 val albumArtistName = track.albumArtist ?: track.artist
-                val albumArtistId = artistIdOf(track.artistKey, albumArtistName)
-                val songArtistId =
-                    if (track.artist == albumArtistName) albumArtistId else artistIdOf(null, track.artist)
+                val albumArtistId = artistIdOf(albumArtistName)
+                val songArtists = songArtistNames(track.artist, albumArtistName).map { it to artistIdOf(it) }
                 val albumId = track.albumKey?.let { "$PLEX_ALBUM_ID_PREFIX$it" }
                 val albumThumb = PlexClient.thumbUrl(baseUri, token, track.albumThumb)
                 val durationSeconds = track.durationMs?.let { (it / 1000L).toInt() } ?: -1
@@ -220,7 +224,10 @@ object PlexLibrarySync {
                         ArtistEntity(
                             id = albumArtistId,
                             name = albumArtistName,
-                            thumbnailUrl = PlexClient.thumbUrl(baseUri, token, track.artistThumb) ?: albumThumb,
+                            thumbnailUrl =
+                                PlexClient.thumbUrl(baseUri, token, track.artistThumb)
+                                    ?: previous?.thumbnailUrl
+                                    ?: albumThumb,
                             channelId = null,
                             lastUpdateTime = now,
                             bookmarkedAt = previous?.bookmarkedAt,
@@ -229,20 +236,22 @@ object PlexLibrarySync {
                         ),
                     )
                 }
-                if (songArtistId != albumArtistId && writtenArtists.add(songArtistId)) {
-                    val previous = existingArtists[songArtistId]
-                    upsert(
-                        ArtistEntity(
-                            id = songArtistId,
-                            name = track.artist,
-                            thumbnailUrl = previous?.thumbnailUrl ?: albumThumb,
-                            channelId = null,
-                            lastUpdateTime = now,
-                            bookmarkedAt = previous?.bookmarkedAt,
-                            blockedAt = previous?.blockedAt,
-                            isLocal = true,
-                        ),
-                    )
+                songArtists.forEach { (name, id) ->
+                    if (id != albumArtistId && writtenArtists.add(id)) {
+                        val previous = existingArtists[id]
+                        upsert(
+                            ArtistEntity(
+                                id = id,
+                                name = previous?.name ?: name,
+                                thumbnailUrl = previous?.thumbnailUrl ?: albumThumb,
+                                channelId = null,
+                                lastUpdateTime = now,
+                                bookmarkedAt = previous?.bookmarkedAt,
+                                blockedAt = previous?.blockedAt,
+                                isLocal = true,
+                            ),
+                        )
+                    }
                 }
                 if (albumId != null && writtenAlbums.add(albumId)) {
                     val previous = existingAlbums[albumId]
@@ -307,9 +316,9 @@ object PlexLibrarySync {
                     ),
                 )
                 deleteSongArtistMaps(songId)
-                insert(SongArtistMap(songId = songId, artistId = songArtistId, position = 0))
-                if (songArtistId != albumArtistId) {
-                    insert(SongArtistMap(songId = songId, artistId = albumArtistId, position = 1))
+                val mappedIds = (songArtists.map { it.second } + albumArtistId).distinct()
+                mappedIds.forEachIndexed { index, artistId ->
+                    insert(SongArtistMap(songId = songId, artistId = artistId, position = index))
                 }
                 deleteSongAlbumMaps(songId)
                 if (albumId != null) {
@@ -319,15 +328,26 @@ object PlexLibrarySync {
         }
     }
 
-    private fun artistIdOf(
-        ratingKey: String?,
-        name: String,
-    ): String =
-        if (!ratingKey.isNullOrBlank()) {
-            "$PLEX_ARTIST_ID_PREFIX$ratingKey"
-        } else {
-            PLEX_ARTIST_ID_PREFIX + "n" + Integer.toHexString(name.lowercase().trim().hashCode())
-        }
+    fun artistIdOf(name: String): String {
+        val key = AlbumKindCatalog.normalizeArtist(name).ifBlank { name.lowercase().trim() }
+        return PLEX_ARTIST_ID_PREFIX + "n" + Integer.toHexString(key.hashCode())
+    }
+
+    private val ARTIST_SEPARATORS =
+        Regex("""\s*(?:/|;|\s+feat\.?\s+|\s+ft\.?\s+|\s+featuring\s+)\s*""", RegexOption.IGNORE_CASE)
+
+    fun songArtistNames(
+        raw: String,
+        albumArtist: String,
+    ): List<String> {
+        if (raw == albumArtist) return listOf(raw)
+        return raw
+            .split(ARTIST_SEPARATORS)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { AlbumKindCatalog.normalizeArtist(it) }
+            .ifEmpty { listOf(raw) }
+    }
 
     fun mimeTypeOf(
         container: String?,

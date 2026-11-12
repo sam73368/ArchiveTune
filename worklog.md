@@ -6705,3 +6705,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test: Settings > Integrations > Plex > Sign in, approve in the browser, wait for the sync, search "perusse".
+
+---
+Task ID: LITE-17
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Searching "Eminem" showed several Eminem artists (Plex "Eminem/…", "Eminem;…", a guest "Eminem" with another album's cover, and the YouTube one). Chosen fix: split names, only real Plex artists, Plex only when YouTube lacks the artist, Plex section on the YouTube artist page.
+
+Work Log:
+- Sync: combined track artists are split on "/", ";", "feat.", "ft.", "featuring" (not when the string is the album artist itself, so "AC/DC" stays whole); every Plex artist id is now derived from the normalized name, so a guest appearance and the album artist are one artist. `SYNC_VERSION = 2` makes the next app start resync, and the old artist rows are pruned.
+- Search: only Plex artists that have albums on the server (`plexArtists` requires an album_artist_map row) and only when no YouTube artist with the same normalized name is in the results; they are added once the YouTube artist searches answer.
+- Artist page: a YouTube artist page appends an "On your Plex server" album grid with the Plex albums whose album artist has the same normalized name ("see all" uses the existing local section registry).
+- Tests: name splitting and accent-insensitive ids in `PlexMediaIdTest`.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. After updating, the app resyncs Plex at start (or Settings > Plex > Sync now). Search "eminem": one Eminem; open it: Plex albums section at the bottom. Search "perusse": the Plex artist.

@@ -36,4 +36,18 @@ class PlexMediaIdTest {
         assertEquals("audio/mp4", PlexLibrarySync.mimeTypeOf(null, "aac"))
         assertEquals("", PlexLibrarySync.mimeTypeOf("wma", null))
     }
+
+    @Test
+    fun combinedArtistNamesAreSplit() {
+        assertEquals(listOf("Eminem", "Dr. Dre"), PlexLibrarySync.songArtistNames("Eminem/Dr. Dre", "Eminem"))
+        assertEquals(listOf("Eminem", "50 Cent"), PlexLibrarySync.songArtistNames("Eminem; 50 Cent", "Eminem"))
+        assertEquals(listOf("Eminem", "Rihanna"), PlexLibrarySync.songArtistNames("Eminem feat. Rihanna", "Eminem"))
+        assertEquals(listOf("AC/DC"), PlexLibrarySync.songArtistNames("AC/DC", "AC/DC"))
+    }
+
+    @Test
+    fun artistIdsIgnoreCaseAndAccents() {
+        assertEquals(PlexLibrarySync.artistIdOf("François Pérusse"), PlexLibrarySync.artistIdOf("francois perusse"))
+        assertTrue(PlexLibrarySync.artistIdOf("Eminem").startsWith(PLEX_ARTIST_ID_PREFIX))
+    }
 }

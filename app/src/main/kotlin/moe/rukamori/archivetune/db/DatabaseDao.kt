@@ -735,8 +735,15 @@ interface DatabaseDao {
     @Query("SELECT id FROM song WHERE id LIKE 'plex://%'")
     suspend fun plexSongIds(): List<String>
 
-    @Query("SELECT * FROM artist WHERE id LIKE 'LAplex%' AND blockedAt IS NULL")
+    @Query(
+        "SELECT * FROM artist WHERE id LIKE 'LAplex%' AND blockedAt IS NULL " +
+            "AND EXISTS(SELECT 1 FROM album_artist_map WHERE album_artist_map.artistId = artist.id)",
+    )
     suspend fun plexArtists(): List<ArtistEntity>
+
+    @Transaction
+    @Query("SELECT * FROM album WHERE id LIKE 'PLEXALBUM%' ORDER BY year DESC, title COLLATE NOCASE")
+    suspend fun plexAlbums(): List<Album>
 
     @Query("UPDATE album SET songCount = :songCount, duration = :duration WHERE id = :albumId")
     fun updateAlbumStats(

@@ -632,4 +632,5 @@
     <string name="plex_sign_out">Déconnecter</string>
     <string name="plex_sign_out_description">Retire le serveur et ses titres d\'ArchiveTune</string>
     <string name="plex_sign_out_confirm">Les titres de ce serveur Plex seront retirés de ta bibliothèque. Tes fichiers sur le serveur ne sont pas touchés.</string>
+    <string name="plex_on_your_server">Sur ton serveur Plex</string>
 </resources>

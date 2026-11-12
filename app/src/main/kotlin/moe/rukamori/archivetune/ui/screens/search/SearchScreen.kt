@@ -188,9 +188,6 @@ fun SearchScreen(
         if (searchQuery.trim() != query) return@LaunchedEffect
 
         val plexArtists = plexArtistsMatching(database, query)
-        if (plexArtists.isNotEmpty()) {
-            liveArtists = (plexArtists + liveArtists).distinctBy { it.id }
-        }
 
         val suggestionPage = YouTube.searchSuggestions(query).getOrNull()
         val recommended =
@@ -206,8 +203,10 @@ fun SearchScreen(
         val recommendedArtists = recommended.filterIsInstance<ArtistItem>().distinctBy { it.id }
         val recommendedSongs = recommended.filterIsInstance<SongItem>()
         val isYouTubeSearch = searchProvider == SearchProvider.YOUTUBE
-        if (!isYouTubeSearch || liveArtists.size <= plexArtists.size) {
-            liveArtists = (plexArtists + recommendedArtists).distinctBy { it.id }
+        if (!isYouTubeSearch) {
+            liveArtists = (plexArtists.notIn(recommendedArtists) + recommendedArtists).distinctBy { it.id }
+        } else if (liveArtists.isEmpty()) {
+            liveArtists = recommendedArtists
         }
         if (!isYouTubeSearch || liveSongs.isEmpty()) {
             liveSongs =
@@ -257,8 +256,9 @@ fun SearchScreen(
                 }
 
             val artists =
-                (plexArtists + recommendedArtists + completedArtistsJob.await() + exactArtistsJob.await())
+                (recommendedArtists + completedArtistsJob.await() + exactArtistsJob.await())
                     .distinctBy { it.id }
+                    .let { youTubeArtists -> plexArtists.notIn(youTubeArtists) + youTubeArtists }
                     .take(LiveArtistLimit)
             if (searchQuery.trim() != query) return@coroutineScope
             if (artists.map { it.id } != liveArtists.map { it.id }) liveArtists = artists
@@ -731,6 +731,15 @@ private fun LiveSearchSuggestionsPanel(
             }
         }
     }
+}
+
+private fun List<ArtistItem>.notIn(youTubeArtists: List<ArtistItem>): List<ArtistItem> {
+    if (isEmpty()) return this
+    val names =
+        youTubeArtists
+            .map { moe.rukamori.archivetune.utils.AlbumKindCatalog.normalizeArtist(it.title) }
+            .toHashSet()
+    return filterNot { moe.rukamori.archivetune.utils.AlbumKindCatalog.normalizeArtist(it.title) in names }
 }
 
 private suspend fun plexArtistsMatching(

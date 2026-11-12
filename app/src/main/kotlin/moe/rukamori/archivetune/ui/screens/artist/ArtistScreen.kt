@@ -394,8 +394,18 @@ fun ArtistScreen(
     }
     val albumReplacements by viewModel.albumReplacements.collectAsStateWithLifecycle()
     val albumOverrides by viewModel.albumOverrides.collectAsStateWithLifecycle()
+    val plexDatabase = moe.rukamori.archivetune.LocalDatabase.current
+    val plexArtistName = artistPage?.artist?.title
+    var plexAlbumItems by remember { mutableStateOf<List<AlbumItem>>(emptyList()) }
+    LaunchedEffect(plexArtistName) {
+        plexAlbumItems =
+            plexArtistName
+                ?.let { name -> plexAlbumsFor(plexDatabase, name) }
+                .orEmpty()
+    }
+    val plexSectionTitle = stringResource(R.string.plex_on_your_server)
     val orderedRemoteSections =
-        remember(artistPage?.sections, albumReplacements, albumOverrides) {
+        remember(artistPage?.sections, albumReplacements, albumOverrides, plexAlbumItems, plexSectionTitle) {
             val sections =
                 artistPage?.sections.orEmpty().map { section ->
                     val onlyAlbums = section.items.isNotEmpty() && section.items.all { it is AlbumItem }
@@ -414,10 +424,22 @@ fun ArtistScreen(
                 sections.firstOrNull { section ->
                     section.layout == ArtistSectionLayout.LIST && section.items.all { it is SongItem }
                 }
-            if (topSongsSection == null) {
-                sections
+            val ordered =
+                if (topSongsSection == null) {
+                    sections
+                } else {
+                    listOf(topSongsSection) + sections.filterNot { it === topSongsSection }
+                }
+            if (plexAlbumItems.isEmpty() || ordered.isEmpty()) {
+                ordered
             } else {
-                listOf(topSongsSection) + sections.filterNot { it === topSongsSection }
+                ordered +
+                    ArtistSection(
+                        title = plexSectionTitle,
+                        items = plexAlbumItems,
+                        moreEndpoint = null,
+                        layout = ArtistSectionLayout.GRID,
+                    )
             }
         }
 
@@ -2845,6 +2867,34 @@ private fun String.toArtistCompactCountText(): String? {
             ?: return null
 
     return formatCompactCount(count)
+}
+
+private suspend fun plexAlbumsFor(
+    database: moe.rukamori.archivetune.db.MusicDatabase,
+    artistName: String,
+): List<AlbumItem> {
+    val wanted = moe.rukamori.archivetune.utils.AlbumKindCatalog.normalizeArtist(artistName)
+    if (wanted.isBlank()) return emptyList()
+    return runCatching { database.plexAlbums() }
+        .getOrDefault(emptyList())
+        .filter { album ->
+            album.artists.any { artist ->
+                artist.blockedAt == null &&
+                    moe.rukamori.archivetune.utils.AlbumKindCatalog.normalizeArtist(artist.name) == wanted
+            }
+        }.map { album ->
+            AlbumItem(
+                browseId = album.id,
+                playlistId = "",
+                title = album.album.title,
+                artists =
+                    album.artists.map { artist ->
+                        moe.rukamori.archivetune.innertube.models.Artist(name = artist.name, id = artist.id)
+                    },
+                year = album.album.year,
+                thumbnail = album.album.thumbnailUrl.orEmpty(),
+            )
+        }
 }
 
 private fun albumsSectionOpener(
