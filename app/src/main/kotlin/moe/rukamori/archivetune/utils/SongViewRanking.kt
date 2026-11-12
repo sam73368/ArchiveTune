@@ -31,10 +31,11 @@ object SongViewRanking {
     /** Only this many songs are ranked (one request each); the rest keep YouTube's order after them. */
     const val MAX_RANKED = 100
     private const val MAX_CONTINUATIONS = 10
-    private const val COUNT_TIMEOUT_MS = 40_000L
+    private const val COUNT_TIMEOUT_MS = 20_000L
+    private const val ALBUM_TIMEOUT_MS = 10_000L
     private const val RETRY_TIMEOUT_MS = 10_000L
     private const val IN_FLIGHT_WAIT_MS = 3_000
-    private const val GROUP_TIMEOUT_MS = 15_000L
+    private const val GROUP_TIMEOUT_MS = 10_000L
 
     fun displayedCount(song: SongItem): Long =
         maxOf(ViewCountCache.counts[song.id]?.toLong() ?: -1L, SongVersions.popularityOf(song))
@@ -88,10 +89,12 @@ object SongViewRanking {
     ): List<SongItem> {
         val network = !context.isLowDataModeActive()
         val resolvedHead =
-            SongVersions.preferAlbumVersions(
-                songs.take(MAX_RANKED),
-                maxLookups = if (network) SongVersions.DEFAULT_MAX_LOOKUPS else 0,
-            )
+            withTimeoutOrNull(ALBUM_TIMEOUT_MS) {
+                SongVersions.preferAlbumVersions(
+                    songs.take(MAX_RANKED),
+                    maxLookups = if (network) SongVersions.DEFAULT_MAX_LOOKUPS else 0,
+                )
+            } ?: SongVersions.preferAlbumVersions(songs.take(MAX_RANKED), maxLookups = 0)
         val head = resolvedHead
         val tail = songs.drop(MAX_RANKED).filter { tailSong -> resolvedHead.none { it.id == tailSong.id } }
         if (head.size < 2) return head + tail

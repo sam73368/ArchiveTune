@@ -6685,3 +6685,4 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test on mobile data: open an artist's "Top des titres"; the numbers should be descending right away.
+- Follow-up (same task): the user's low-data mode was off, so the unsorted list was the network ranking still running (album lookups had no time limit, then up to 40 s + 10 s + 3 s + 15 s of count lookups). The immediate known-count sort above covers that wait; the full ranking is now capped tighter (album versions 10 s, counts 20 s, groups 10 s).
