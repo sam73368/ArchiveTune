@@ -176,7 +176,14 @@ class ArtistItemsViewModel
                                         .filterExplicit(context.dataStore.get(HideExplicitKey, false))
                                         .filterVideo(context.dataStore.get(HideVideoKey, true))
                                         .filterBlockedArtists(database.getBlockedArtistIds().toSet())
-                                        .dropCleanTwins(),
+                                        .dropCleanTwins()
+                                        .let { items ->
+                                            if (artistItemsPage.layout == ArtistItemsPageLayout.LIST) {
+                                                SongViewRanking.sortByKnownCounts(items)
+                                            } else {
+                                                items
+                                            }
+                                        },
                                 continuation = artistItemsPage.continuation,
                             )
 
@@ -189,7 +196,7 @@ class ArtistItemsViewModel
                                 artistItemsPage.items.isNotEmpty() &&
                                 artistItemsPage.items.all { it is AlbumItem }
                         if (onlyAlbums) startAlbumPipeline(hasMorePages = artistItemsPage.continuation != null)
-                        if (onlySongs && !context.isLowDataModeActive()) {
+                        if (onlySongs) {
                             ranking = true
                             viewModelScope.launch(Dispatchers.IO) {
                                 try {
@@ -255,15 +262,15 @@ class ArtistItemsViewModel
 
         private suspend fun rankBySongViews(firstPage: ArtistItemsPage) {
             val collected = SongViewRanking.collectSongs(firstPage)
-            val ranked =
-                SongViewRanking.rank(
-                    context,
-                    collected.songs
-                        .filterExplicit(context.dataStore.get(HideExplicitKey, false))
-                        .filterVideo(context.dataStore.get(HideVideoKey, true))
-                        .filterBlockedArtists(database.getBlockedArtistIds().toSet())
-                        .dropCleanTwins(),
-                )
+            val filtered =
+                collected.songs
+                    .filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                    .filterVideo(context.dataStore.get(HideVideoKey, true))
+                    .filterBlockedArtists(database.getBlockedArtistIds().toSet())
+                    .dropCleanTwins()
+            val quick = SongViewRanking.sortByKnownCounts(filtered)
+            if (quick.isNotEmpty()) itemsPage.value = ItemsPage(items = quick, continuation = collected.continuation)
+            val ranked = SongViewRanking.rank(context, filtered)
             if (ranked.isEmpty()) return
             itemsPage.value = ItemsPage(items = ranked, continuation = collected.continuation)
         }

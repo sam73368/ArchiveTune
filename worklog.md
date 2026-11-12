@@ -6670,3 +6670,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test: open search with an empty field, tap "Effacer"; type a query and tap the first artist chip.
+
+---
+Task ID: LITE-15
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Top songs still not sorted by views (screenshot on 5G: 138M, 41M, 59M, 54M, 45M, 26M, 46M, 101M, ...).
+
+Work Log:
+- The list was YouTube's own order: ranking was skipped entirely when low-data mode is active, and low-data mode is on by default and active on any cellular network. On Wi-Fi the full ranking (per-song lookups) also took up to about a minute before replacing YouTube's order.
+- `SongViewRanking.sortByKnownCounts` sorts by the counts already known (the count delivered with the song, the per-video cache and the song group cache), with no network. The top songs page uses it on the first page immediately, again once all pages are collected, then the full network ranking refines it (Wi-Fi only). In low-data mode `rank` resolves album versions from the cache only and returns the known-count order.
+- The artist page top-songs preview is no longer skipped in low-data mode (it loads the song list pages, no per-song lookups).
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. To test on mobile data: open an artist's "Top des titres"; the numbers should be descending right away.

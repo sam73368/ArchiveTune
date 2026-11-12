@@ -28,6 +28,7 @@ object SongVersions {
 
     private const val DURATION_TOLERANCE_SEC = 6
     private const val MAX_LOOKUPS = 30
+    const val DEFAULT_MAX_LOOKUPS = MAX_LOOKUPS
     private const val DISPLAY_LOOKUPS = 8
     private const val DISPLAY_TIMEOUT_MS = 2_500L
 

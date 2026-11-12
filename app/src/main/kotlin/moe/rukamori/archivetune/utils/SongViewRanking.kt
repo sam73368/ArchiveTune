@@ -16,6 +16,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import moe.rukamori.archivetune.innertube.YouTube
 import moe.rukamori.archivetune.innertube.models.BrowseEndpoint
 import moe.rukamori.archivetune.innertube.models.SongItem
+import moe.rukamori.archivetune.innertube.models.YTItem
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPage
 import moe.rukamori.archivetune.innertube.pages.ArtistItemsPageLayout
 
@@ -37,6 +38,17 @@ object SongViewRanking {
 
     fun displayedCount(song: SongItem): Long =
         maxOf(ViewCountCache.counts[song.id]?.toLong() ?: -1L, SongVersions.popularityOf(song))
+
+    fun <T : YTItem> sortByKnownCounts(items: List<T>): List<T> {
+        if (items.count { it is SongItem } < 2) return items
+        return items
+            .withIndex()
+            .sortedWith(
+                compareByDescending<IndexedValue<T>> { indexed ->
+                    (indexed.value as? SongItem)?.let { displayedCount(it) } ?: -1L
+                }.thenBy { it.index },
+            ).map { it.value }
+    }
 
     class Collected(
         val songs: List<SongItem>,
@@ -74,10 +86,16 @@ object SongViewRanking {
         context: Context,
         songs: List<SongItem>,
     ): List<SongItem> {
-        val resolvedHead = SongVersions.preferAlbumVersions(songs.take(MAX_RANKED))
+        val network = !context.isLowDataModeActive()
+        val resolvedHead =
+            SongVersions.preferAlbumVersions(
+                songs.take(MAX_RANKED),
+                maxLookups = if (network) SongVersions.DEFAULT_MAX_LOOKUPS else 0,
+            )
         val head = resolvedHead
         val tail = songs.drop(MAX_RANKED).filter { tailSong -> resolvedHead.none { it.id == tailSong.id } }
         if (head.size < 2) return head + tail
+        if (!network) return sortByKnownCounts(head) + tail
 
         withTimeoutOrNull(COUNT_TIMEOUT_MS) {
             coroutineScope {

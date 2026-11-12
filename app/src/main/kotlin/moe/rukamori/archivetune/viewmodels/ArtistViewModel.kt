@@ -368,7 +368,6 @@ class ArtistViewModel
             hideVideo: Boolean,
             blockedArtistIds: Set<String>,
         ) {
-            if (context.isLowDataModeActive()) return
             val section =
                 sections.firstOrNull { candidate ->
                     candidate.layout == ArtistSectionLayout.LIST &&
