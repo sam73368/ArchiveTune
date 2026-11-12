@@ -6657,3 +6657,16 @@ Work Log:
 
 Stage Summary:
 - Pending CI. The user should check the crossfade duration slider (the log suggests 0.5 s).
+
+---
+Task ID: LITE-14
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: "Clear" in recent searches no longer works.
+
+Work Log:
+- LITE-10 made the recent searches panel fill the height up to the status bar. MainActivity draws a transparent top app bar (AppBarHeight + status bar) over the search route, so the "Clear" header sat under it and the bar received the taps. Both search panels now stop below the app bar (`liveMaxHeight` subtracts `AppBarHeight`; the old 55 % floor is dropped so the reserve always applies).
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. To test: open search with an empty field, tap "Effacer"; type a query and tap the first artist chip.

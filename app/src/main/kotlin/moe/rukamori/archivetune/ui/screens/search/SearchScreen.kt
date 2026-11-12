@@ -361,7 +361,8 @@ fun SearchScreen(
                     if (isTvLayout) {
                         maxHeight - 40.dp
                     } else {
-                        (maxHeight - LiveChromeReserve - statusBarInset).coerceAtLeast(recentsMaxHeight)
+                        (maxHeight - LiveChromeReserve - statusBarInset - moe.rukamori.archivetune.constants.AppBarHeight)
+                            .coerceAtLeast(0.dp)
                     }
 
                 Column(
