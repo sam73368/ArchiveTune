@@ -789,6 +789,14 @@ class MainActivity : ComponentActivity() {
 
         moe.rukamori.archivetune.utils.CrashReporter.onStartup(this)
 
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                if (savedInstanceState == null && moe.rukamori.archivetune.plex.PlexLibrarySync.isDue(this@MainActivity)) {
+                    moe.rukamori.archivetune.plex.PlexLibrarySync.start(this@MainActivity, database)
+                }
+            }
+        }
+
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 val display =

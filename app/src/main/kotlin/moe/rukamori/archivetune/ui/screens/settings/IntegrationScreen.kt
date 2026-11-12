@@ -246,6 +246,24 @@ fun IntegrationScreen(
 
                 item {
                     PreferenceEntry(
+                        modifier = positions.modifierFor("plex"),
+                        title = { Text(stringResource(R.string.plex_settings)) },
+                        description = stringResource(R.string.plex_integration_description),
+                        icon = {
+                            Icon(
+                                painterResource(R.drawable.solar_server_linear),
+                                null,
+                                tint = SettingsIconPalette.Plex,
+                            )
+                        },
+                        onClick = {
+                            navController.navigate("settings/plex")
+                        },
+                    )
+                }
+
+                item {
+                    PreferenceEntry(
                         modifier = positions.modifierFor("deezer"),
                         title = { Text(stringResource(R.string.deezer_integration)) },
                         description = stringResource(R.string.deezer_integration_description),

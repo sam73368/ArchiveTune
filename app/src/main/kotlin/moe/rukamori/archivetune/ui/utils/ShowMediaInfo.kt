@@ -115,6 +115,7 @@ import moe.rukamori.archivetune.playback.dsp.EngineRuntime
 import androidx.media3.common.C
 import moe.rukamori.archivetune.utils.isLocalMediaId
 import moe.rukamori.archivetune.telegram.isTelegramMediaId
+import moe.rukamori.archivetune.plex.isPlexMediaId
 import tf.monochrome.android.audio.dsp.ChannelDetectorProcessor
 import tf.monochrome.android.audio.pipeline.AudioPipelineMonitor
 import tf.monochrome.android.audio.pipeline.OutputDeviceProbe
@@ -266,7 +267,7 @@ fun ShowMediaInfo(videoId: String) {
         outputStats = AudioOutputStatsProvider.resolve(context)
     }
 
-    val isLocal = videoId.isLocalMediaId() || videoId.isTelegramMediaId()
+    val isLocal = videoId.isLocalMediaId() || (videoId.isTelegramMediaId() || videoId.isPlexMediaId())
     val liveStreamInfo = streamInfo?.takeIf { it.mediaId == videoId }
     val codec = currentFormat.codecName()
     val bitrateKbps = currentFormat?.bitrate?.takeIf { it > 0 }?.let { it / 1000 }

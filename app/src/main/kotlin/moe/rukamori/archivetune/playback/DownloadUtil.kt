@@ -523,6 +523,8 @@ class DownloadUtil
 
         private val telegramDataSourceFactory = moe.rukamori.archivetune.telegram.TelegramDataSource.Factory()
 
+        private val plexDownloadDataSourceFactory = moe.rukamori.archivetune.plex.PlexDataSource.Factory(context)
+
         private val deezerDownloadDataSourceFactory =
             CacheDataSource
                 .Factory()
@@ -545,6 +547,7 @@ class DownloadUtil
                     youtubeFactory = youtubeDataSourceFactory,
                     telegramFactory = telegramDataSourceFactory,
                     deezerFactory = deezerDownloadDataSourceFactory,
+                    plexFactory = plexDownloadDataSourceFactory,
                 )
             }
 
@@ -1220,6 +1223,7 @@ class DownloadUtil
             private val youtubeFactory: DataSource.Factory,
             private val telegramFactory: DataSource.Factory,
             private val deezerFactory: DataSource.Factory,
+            private val plexFactory: DataSource.Factory,
         ) : DataSource {
             private val transferListeners = mutableListOf<TransferListener>()
             private var delegate: DataSource? = null
@@ -1234,6 +1238,7 @@ class DownloadUtil
                 val selected =
                     when (scheme) {
                         "telegram" -> telegramFactory
+                        moe.rukamori.archivetune.plex.PLEX_MEDIA_ID_SCHEME -> plexFactory
                         DeezerCrypto.SCHEME -> deezerFactory
                         else -> youtubeFactory
                     }

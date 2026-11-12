@@ -22,6 +22,7 @@ import moe.rukamori.archivetune.canvas.models.looselyMatchesSongIdentity
 import moe.rukamori.archivetune.canvas.models.matchesSongIdentity
 import moe.rukamori.archivetune.constants.PreferredArtworkProvider
 import moe.rukamori.archivetune.telegram.isTelegramMediaId
+import moe.rukamori.archivetune.plex.isPlexMediaId
 import moe.rukamori.archivetune.utils.isLocalMediaId
 import timber.log.Timber
 
@@ -71,7 +72,7 @@ internal suspend fun resolveCanvasArtworkForPlayback(
 
     spotifyTrackId: String? = null,
 ): CanvasArtwork? {
-    val strictIdentity = !(mediaId.isTelegramMediaId() || mediaId.isLocalMediaId())
+    val strictIdentity = !((mediaId.isTelegramMediaId() || mediaId.isPlexMediaId()) || mediaId.isLocalMediaId())
 
     val preferArchiveTuneCanvasFirst = CanvasProviderPriority.preferArchiveTuneCanvasFirst
 
@@ -319,7 +320,7 @@ internal suspend fun hasAnyCanvasSource(
     if (CanvasArtworkPlaybackCache.hasEntry(mediaId)) return true
     if (CanvasResolutionMissCache.isRecentlyMissed(mediaId, requireVertical = false)) return false
 
-    val strictIdentity = !(mediaId.isTelegramMediaId() || mediaId.isLocalMediaId())
+    val strictIdentity = !((mediaId.isTelegramMediaId() || mediaId.isPlexMediaId()) || mediaId.isLocalMediaId())
 
     if (includeAppleMusic) {
         val appleMusic =
@@ -370,7 +371,7 @@ internal suspend fun refetchCanvasArtworkForPlayback(
                 storefront = storefront,
                 requireVertical = requireVertical,
                 forceRefresh = true,
-                strictIdentity = !(mediaId.isTelegramMediaId() || mediaId.isLocalMediaId()),
+                strictIdentity = !((mediaId.isTelegramMediaId() || mediaId.isPlexMediaId()) || mediaId.isLocalMediaId()),
                 albumTitle = albumTitle,
             ) ?: return@withContext null
 

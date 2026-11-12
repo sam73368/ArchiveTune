@@ -202,6 +202,7 @@ private fun searchableSettingsRoute(parentKey: String, scrollKey: String?): Stri
             "tidal" -> "settings/tidal"
             "qobuz" -> "settings/qobuz"
             "telegram" -> "settings/telegram"
+            "plex" -> "settings/plex"
             "lastfm" -> "settings/lastfm"
             "ai_integration" -> "settings/ai_integration"
             "language_packs" -> "settings/language_packs"

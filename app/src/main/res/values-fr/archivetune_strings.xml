@@ -611,4 +611,25 @@
     <string name="stats_time_range">Période</string>
     <string name="stats_listening_patterns">Habitudes d\'écoute</string>
     <string name="stats_artist_breakdown">Répartition par artiste</string>
+    <string name="plex_settings">Plex</string>
+    <string name="plex_server">Serveur Plex</string>
+    <string name="plex_integration_description">Écouter la musique de ton serveur Plex</string>
+    <string name="plex_intro">Connecte-toi avec ton compte Plex pour ajouter la musique de ton serveur à ArchiveTune. Ses artistes, albums et titres apparaissent dans ta bibliothèque et dans la recherche, et sont lus directement depuis ton serveur.</string>
+    <string name="plex_sign_in">Se connecter avec Plex</string>
+    <string name="plex_sign_in_description">Ouvre plex.tv dans ton navigateur pour autoriser ArchiveTune</string>
+    <string name="plex_status_waiting">En attente de l\'autorisation dans le navigateur…</string>
+    <string name="plex_status_connecting">Connexion au serveur…</string>
+    <string name="plex_status_no_server">Aucun serveur Plex trouvé sur ce compte</string>
+    <string name="plex_status_unreachable">Impossible de joindre le serveur par une connexion sécurisée. Vérifie que le serveur est en ligne et que l\'accès à distance ou les connexions sécurisées sont activés.</string>
+    <string name="plex_status_failed">La connexion a échoué</string>
+    <string name="plex_choose_server">Choisir un serveur</string>
+    <string name="plex_syncing">Synchronisation… %1$d / %2$d titres</string>
+    <string name="plex_sync_failed">Dernière synchronisation échouée : %1$s</string>
+    <string name="plex_synced">%1$d titres, synchronisés %2$s</string>
+    <string name="plex_never_synced">Pas encore synchronisé</string>
+    <string name="plex_sync_now">Synchroniser maintenant</string>
+    <string name="plex_sync_now_description">Recharge les artistes, albums et titres du serveur</string>
+    <string name="plex_sign_out">Déconnecter</string>
+    <string name="plex_sign_out_description">Retire le serveur et ses titres d\'ArchiveTune</string>
+    <string name="plex_sign_out_confirm">Les titres de ce serveur Plex seront retirés de ta bibliothèque. Tes fichiers sur le serveur ne sont pas touchés.</string>
 </resources>

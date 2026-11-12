@@ -1097,4 +1097,25 @@
     <string name="dolby_ffmpeg_decoder_desc">Decode Dolby AC-4, DTS and other formats the platform decoders lack through the bundled FFmpeg extension. Mutually exclusive with bit-perfect output, USB-exclusive audio and audio offload</string>
     <string name="dolby_ffmpeg_decoder_unavailable">The bundled FFmpeg decoder extension is not available on this device</string>
     <string name="dolby_ffmpeg_decoder_active_note">Active after playback restarts. The player log lists every audio renderer — FfmpegAudioRenderer present means it is really decoding, not a placeholder</string>
+    <string name="plex_settings">Plex</string>
+    <string name="plex_server">Plex server</string>
+    <string name="plex_integration_description">Play the music library of your Plex server</string>
+    <string name="plex_intro">Sign in with your Plex account to add the music of your Plex server to ArchiveTune. Its artists, albums and songs appear in your library and in search, and play straight from your server.</string>
+    <string name="plex_sign_in">Sign in with Plex</string>
+    <string name="plex_sign_in_description">Opens plex.tv in your browser to approve ArchiveTune</string>
+    <string name="plex_status_waiting">Waiting for approval in the browser…</string>
+    <string name="plex_status_connecting">Connecting to the server…</string>
+    <string name="plex_status_no_server">No Plex server found on this account</string>
+    <string name="plex_status_unreachable">The server could not be reached over a secure connection. Check that the server is online and that remote access or secure connections are enabled.</string>
+    <string name="plex_status_failed">Sign-in failed</string>
+    <string name="plex_choose_server">Choose a server</string>
+    <string name="plex_syncing">Syncing… %1$d / %2$d songs</string>
+    <string name="plex_sync_failed">Last sync failed: %1$s</string>
+    <string name="plex_synced">%1$d songs, synced %2$s</string>
+    <string name="plex_never_synced">Not synced yet</string>
+    <string name="plex_sync_now">Sync now</string>
+    <string name="plex_sync_now_description">Reloads the artists, albums and songs of the server</string>
+    <string name="plex_sign_out">Disconnect</string>
+    <string name="plex_sign_out_description">Removes the server and its songs from ArchiveTune</string>
+    <string name="plex_sign_out_confirm">The songs of this Plex server will be removed from your library. Your files on the server are not touched.</string>
 </resources>

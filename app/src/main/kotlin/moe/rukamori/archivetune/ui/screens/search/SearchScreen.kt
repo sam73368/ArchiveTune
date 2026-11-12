@@ -174,6 +174,7 @@ fun SearchScreen(
     val (hideExplicit) = rememberPreference(HideExplicitKey, defaultValue = false)
     val (showVideosInSearch) = rememberPreference(ShowVideosInSearchKey, defaultValue = false)
     val hideVideo = !showVideosInSearch
+    val database = moe.rukamori.archivetune.LocalDatabase.current
     LaunchedEffect(searchQuery, searchProvider, hideExplicit, hideVideo) {
         val query = searchQuery.trim()
         if (query.isEmpty()) {
@@ -185,6 +186,11 @@ fun SearchScreen(
 
         delay(250)
         if (searchQuery.trim() != query) return@LaunchedEffect
+
+        val plexArtists = plexArtistsMatching(database, query)
+        if (plexArtists.isNotEmpty()) {
+            liveArtists = (plexArtists + liveArtists).distinctBy { it.id }
+        }
 
         val suggestionPage = YouTube.searchSuggestions(query).getOrNull()
         val recommended =
@@ -200,7 +206,9 @@ fun SearchScreen(
         val recommendedArtists = recommended.filterIsInstance<ArtistItem>().distinctBy { it.id }
         val recommendedSongs = recommended.filterIsInstance<SongItem>()
         val isYouTubeSearch = searchProvider == SearchProvider.YOUTUBE
-        if (!isYouTubeSearch || liveArtists.isEmpty()) liveArtists = recommendedArtists
+        if (!isYouTubeSearch || liveArtists.size <= plexArtists.size) {
+            liveArtists = (plexArtists + recommendedArtists).distinctBy { it.id }
+        }
         if (!isYouTubeSearch || liveSongs.isEmpty()) {
             liveSongs =
                 SongVersions.sortByPopularity(
@@ -249,7 +257,7 @@ fun SearchScreen(
                 }
 
             val artists =
-                (recommendedArtists + completedArtistsJob.await() + exactArtistsJob.await())
+                (plexArtists + recommendedArtists + completedArtistsJob.await() + exactArtistsJob.await())
                     .distinctBy { it.id }
                     .take(LiveArtistLimit)
             if (searchQuery.trim() != query) return@coroutineScope
@@ -723,6 +731,34 @@ private fun LiveSearchSuggestionsPanel(
             }
         }
     }
+}
+
+private suspend fun plexArtistsMatching(
+    database: moe.rukamori.archivetune.db.MusicDatabase,
+    query: String,
+): List<ArtistItem> {
+    val words =
+        moe.rukamori.archivetune.utils.AlbumKindCatalog
+            .normalizeArtist(query)
+            .split(' ')
+            .filter { it.isNotBlank() }
+    if (words.isEmpty()) return emptyList()
+    return runCatching { database.plexArtists() }
+        .getOrDefault(emptyList())
+        .filter { artist ->
+            val name = moe.rukamori.archivetune.utils.AlbumKindCatalog.normalizeArtist(artist.name)
+            words.all { word -> name.split(' ').any { it.startsWith(word) } }
+        }.sortedBy { it.name.length }
+        .take(4)
+        .map { artist ->
+            ArtistItem(
+                id = artist.id,
+                title = artist.name,
+                thumbnail = artist.thumbnailUrl,
+                shuffleEndpoint = null,
+                radioEndpoint = null,
+            )
+        }
 }
 
 @Composable

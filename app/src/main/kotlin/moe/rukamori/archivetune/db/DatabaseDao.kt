@@ -729,8 +729,21 @@ interface DatabaseDao {
     @Query("SELECT * FROM song WHERE isLocal = 1 ORDER BY title COLLATE NOCASE, id")
     fun localSongs(): Flow<List<Song>>
 
-    @Query("SELECT id FROM song WHERE isLocal = 1")
+    @Query("SELECT id FROM song WHERE isLocal = 1 AND id NOT LIKE 'plex://%'")
     suspend fun localSongIds(): List<String>
+
+    @Query("SELECT id FROM song WHERE id LIKE 'plex://%'")
+    suspend fun plexSongIds(): List<String>
+
+    @Query("SELECT * FROM artist WHERE id LIKE 'LAplex%' AND blockedAt IS NULL")
+    suspend fun plexArtists(): List<ArtistEntity>
+
+    @Query("UPDATE album SET songCount = :songCount, duration = :duration WHERE id = :albumId")
+    fun updateAlbumStats(
+        albumId: String,
+        songCount: Int,
+        duration: Int,
+    )
 
     @Query("SELECT * FROM artist WHERE id IN (:ids)")
     suspend fun getArtistEntitiesByIds(ids: List<String>): List<ArtistEntity>
@@ -2108,7 +2121,7 @@ interface DatabaseDao {
     @Query("DELETE FROM song WHERE id IN (:songIds)")
     fun deleteSongsByIds(songIds: List<String>)
 
-    @Query("DELETE FROM song WHERE isLocal = 1")
+    @Query("DELETE FROM song WHERE isLocal = 1 AND id NOT LIKE 'plex://%'")
     fun clearLocalSongs()
 
     @Query("DELETE FROM song_artist_map WHERE songId = :songId")

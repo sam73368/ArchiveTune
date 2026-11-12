@@ -6686,3 +6686,22 @@ Work Log:
 Stage Summary:
 - Pending CI. To test on mobile data: open an artist's "Top des titres"; the numbers should be descending right away.
 - Follow-up (same task): the user's low-data mode was off, so the unsorted list was the network ranking still running (album lookups had no time limit, then up to 40 s + 10 s + 3 s + 15 s of count lookups). The immediate known-count sort above covers that wait; the full ranking is now capped tighter (album versions 10 s, counts 20 s, groups 10 s).
+
+---
+Task ID: LITE-16
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Add Plex as a source so the music of Samy's Plex server (e.g. François Pérusse, not on YouTube Music) shows up in search with an artist page and albums, and plays.
+
+Work Log:
+- `plex/PlexClient.kt`: plex.tv PIN sign-in (`/api/v2/pins`, browser approval at app.plex.tv/auth), server discovery (`/api/v2/resources`, https connections only because the app forbids cleartext), connection probe on `/identity` (direct before relay, local before remote), music sections, paged track listing (`type=10`, 500 per page), part key lookup, thumbnail transcode URLs.
+- `plex/PlexLibrarySync.kt`: writes every track as a song (`plex://track/<machineId>/<ratingKey>`, `isLocal = true`, `inLibrary` set so it shows in the library and library search), album artists `LAplex<ratingKey>` (the `LA` prefix makes the artist page skip YouTube and show the local view), albums `PLEXALBUM<ratingKey>`, maps and a format row (mime type from the container). Keeps liked/bookmarked/blocked/play time on resync, removes tracks that left the server, updates album song counts. Runs from the settings page and automatically at app start when the last sync is older than 12 h.
+- `plex/PlexPlayback.kt`: media id helpers, `PlexSession` (client id, part key cache, stream URL with the server token) and `PlexDataSource` routed by the `plex` scheme in `SchemeRoutingDataSource` and in the download router.
+- Local scanner no longer deletes Plex songs (`localSongIds`/`clearLocalSongs` exclude `plex://`). Album pages of local albums no longer query YouTube (a NOT_FOUND answer deleted the album). Plex ids are treated like Telegram ids where YouTube-only features are skipped (radio, lyrics by id, canvas, Discord, Android Auto, studio audio).
+- Settings > Integrations > Plex (`PlexSettings.kt`, route `settings/plex`, searchable): sign in, server choice when several, status and count, sync now, disconnect (removes the Plex songs).
+- Live search shows matching Plex artists first in the artist row (accent-insensitive word prefix match).
+- Tests: `PlexMediaIdTest`.
+- Not done: Plex playlists, transcoding (files are played as stored; formats ExoPlayer cannot decode will fail), servers reachable only over plain http, Plex results on the full results page. Nothing compiled locally; never run against a real Plex server.
+
+Stage Summary:
+- Pending CI. To test: Settings > Integrations > Plex > Sign in, approve in the browser, wait for the sync, search "perusse".

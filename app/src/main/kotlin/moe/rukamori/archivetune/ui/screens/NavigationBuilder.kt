@@ -693,6 +693,12 @@ fun NavGraphBuilder.navigationBuilder(
         AppleMusicSettings(navController)
     }
     composable(
+        route = "settings/plex?scrollTo={scrollTo}",
+        arguments = listOf(navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null }),
+    ) {
+        moe.rukamori.archivetune.ui.screens.settings.PlexSettings(navController, scrollTo = it.savedStateHandle["scrollTo"])
+    }
+    composable(
         route = "settings/jiosaavn?scrollTo={scrollTo}",
         arguments = listOf(navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null }),
     ) {

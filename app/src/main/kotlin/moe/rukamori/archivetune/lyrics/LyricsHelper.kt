@@ -34,6 +34,7 @@ import moe.rukamori.archivetune.constants.deserializeLyricsProviderOrder
 import moe.rukamori.archivetune.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import moe.rukamori.archivetune.models.MediaMetadata
 import moe.rukamori.archivetune.telegram.isTelegramMediaId
+import moe.rukamori.archivetune.plex.isPlexMediaId
 import moe.rukamori.archivetune.utils.GlobalLog
 import moe.rukamori.archivetune.utils.isLocalMediaId
 import moe.rukamori.archivetune.utils.NetworkConnectivityObserver
@@ -556,7 +557,7 @@ class LyricsHelper
             provider: LyricsProvider,
             mediaId: String,
         ): Boolean {
-            val isNonYouTubeId = mediaId.isTelegramMediaId() || mediaId.isLocalMediaId()
+            val isNonYouTubeId = (mediaId.isTelegramMediaId() || mediaId.isPlexMediaId()) || mediaId.isLocalMediaId()
             if (!isNonYouTubeId) return true
 
             return provider !is YouTubeLyricsProvider &&

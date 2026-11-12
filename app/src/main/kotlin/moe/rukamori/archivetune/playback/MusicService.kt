@@ -432,6 +432,7 @@ import moe.rukamori.archivetune.utils.get
 import moe.rukamori.archivetune.utils.getAsync
 import moe.rukamori.archivetune.telegram.TelegramDataSource
 import moe.rukamori.archivetune.telegram.isTelegramMediaId
+import moe.rukamori.archivetune.plex.isPlexMediaId
 import moe.rukamori.archivetune.utils.isLowDataModeActive
 import moe.rukamori.archivetune.utils.reportException
 import moe.rukamori.archivetune.utils.retryWithoutPlaybackLoginContext
@@ -6055,7 +6056,7 @@ class MusicService :
         val currentMediaId = currentMediaMetadata.id
         if (currentSong.value?.song?.isLocal == true ||
             currentMediaId.isLocalMediaId() ||
-            currentMediaId.isTelegramMediaId()
+            (currentMediaId.isTelegramMediaId() || currentMediaId.isPlexMediaId())
         ) {
             return
         }
@@ -7740,7 +7741,7 @@ class MusicService :
 
     private fun maybeAddSmartShuffleSuggestion(seedMediaId: String?) {
         val seed = seedMediaId?.trim()?.takeIf { it.isNotBlank() } ?: return
-        if (seed.isLocalMediaId() || seed.isTelegramMediaId()) return
+        if (seed.isLocalMediaId() || (seed.isTelegramMediaId() || seed.isPlexMediaId())) return
         smartShuffleTransitions++
         val every = dataStore.get(SmartShuffleEveryKey, SMART_SHUFFLE_EVERY).coerceIn(2, 8)
         if (smartShuffleTransitions % every != 0) return
@@ -7802,7 +7803,7 @@ class MusicService :
         }
         nextMediaItemPrefetchJob?.cancel()
 
-        if (mediaId.isLocalMediaId() || mediaId.isTelegramMediaId()) return
+        if (mediaId.isLocalMediaId() || (mediaId.isTelegramMediaId() || mediaId.isPlexMediaId())) return
 
         val prefetchAuthFingerprint = YouTube.currentPlaybackAuthState().fingerprint
         if (playbackUrlCache[mediaId]?.isValidFor(
@@ -8884,6 +8885,7 @@ class MusicService :
             }
         val directFactory = createResolvedUpstreamDataSourceFactory()
         val telegramFactory = TelegramDataSource.Factory()
+        val plexFactory = moe.rukamori.archivetune.plex.PlexDataSource.Factory(this)
         val tidalProgressiveDashFactory = TidalProgressiveDashDataSource.Factory(mediaOkHttpClient)
         val soundCloudHlsFactory = SoundCloudHlsDataSource.Factory(mediaOkHttpClient)
 
@@ -8912,6 +8914,7 @@ class MusicService :
                 cachedFactory = cachedFactory,
                 directFactory = directFactory,
                 telegramFactory = telegramFactory,
+                plexFactory = plexFactory,
                 deezerFactory = deezerFactory,
                 tidalProgressiveDashFactory = tidalProgressiveDashFactory,
                 soundCloudHlsFactory = soundCloudHlsFactory,
@@ -9341,7 +9344,7 @@ class MusicService :
     }
 
     fun refreshSourcesForSong(mediaId: String) {
-        if (mediaId.isLocalMediaId() || mediaId.isTelegramMediaId()) return
+        if (mediaId.isLocalMediaId() || (mediaId.isTelegramMediaId() || mediaId.isPlexMediaId())) return
         scope.launch(Dispatchers.IO) {
             evictDirectStreamCache(mediaId)
 
@@ -9569,7 +9572,7 @@ class MusicService :
         isPrefetch: Boolean = false,
         mode: SourceResolveMode = SourceResolveMode.NORMAL,
     ): DataSpec? {
-        if (mediaId.isLocalMediaId() || mediaId.isTelegramMediaId()) {
+        if (mediaId.isLocalMediaId() || (mediaId.isTelegramMediaId() || mediaId.isPlexMediaId())) {
             Timber.tag("MusicService").d("Multi-source skip: %s is a local/telegram media id", mediaId)
             return null
         }
@@ -11168,7 +11171,7 @@ class MusicService :
 
     private fun prefersStudioAudio(mediaId: String): Boolean =
         !mediaId.isLocalMediaId() &&
-            !mediaId.isTelegramMediaId() &&
+            !(mediaId.isTelegramMediaId() || mediaId.isPlexMediaId()) &&
             dataStore.get(HideVideoKey, true) &&
             !UserChosenClips.contains(mediaId) &&
             isMusicVideoPlayback(mediaId)
@@ -12261,6 +12264,7 @@ class MusicService :
         private val cachedFactory: DataSource.Factory,
         private val directFactory: DataSource.Factory,
         private val telegramFactory: DataSource.Factory,
+        private val plexFactory: DataSource.Factory,
         private val deezerFactory: DataSource.Factory,
         private val tidalProgressiveDashFactory: DataSource.Factory,
         private val soundCloudHlsFactory: DataSource.Factory,
@@ -12279,6 +12283,8 @@ class MusicService :
             val selectedFactory =
                 if (normalizedScheme == "telegram") {
                     telegramFactory
+                } else if (normalizedScheme == moe.rukamori.archivetune.plex.PLEX_MEDIA_ID_SCHEME) {
+                    plexFactory
                 } else if (normalizedScheme == DeezerCrypto.SCHEME) {
                     deezerFactory
                 } else if (normalizedScheme == TidalAudioProvider.PROGRESSIVE_DASH_SCHEME) {
@@ -13232,7 +13238,7 @@ class MusicService :
     private fun String?.isRemotePresenceId(): Boolean {
         val id = this?.trim()?.takeIf { it.isNotBlank() } ?: return false
         return !id.isLocalMediaId() &&
-            !id.isTelegramMediaId() &&
+            !(id.isTelegramMediaId() || id.isPlexMediaId()) &&
             !id.startsWith("LOCAL_ARTIST_") &&
             !id.startsWith("LA") &&
             !id.contains("privately_owned_artist", ignoreCase = true)

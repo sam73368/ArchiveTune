@@ -1675,3 +1675,12 @@ enum class TvPlayerBackground {
     COVER,
 }
 
+
+val PlexClientIdKey = stringPreferencesKey("plexClientId")
+val PlexAccountTokenKey = stringPreferencesKey("plexAccountToken")
+val PlexServerNameKey = stringPreferencesKey("plexServerName")
+val PlexServerMachineIdKey = stringPreferencesKey("plexServerMachineId")
+val PlexServerTokenKey = stringPreferencesKey("plexServerToken")
+val PlexServerUriKey = stringPreferencesKey("plexServerUri")
+val PlexLastSyncKey = longPreferencesKey("plexLastSync")
+val PlexSyncedSongCountKey = intPreferencesKey("plexSyncedSongCount")

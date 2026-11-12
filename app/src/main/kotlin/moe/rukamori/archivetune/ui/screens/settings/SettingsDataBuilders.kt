@@ -165,6 +165,7 @@ internal object SettingsIconPalette {
     val Tidal = Color(0xFF00BFA5)
     val Qobuz = Color(0xFFFF8A65)
     val Telegram = Color(0xFF29A9EB)
+    val Plex = Color(0xFFE5A00D)
     val Internet = Color(0xFF5C6BC0)
     val PoToken = Color(0xFFFFB300)
     val Storage = Color(0xFF78909C)
@@ -827,6 +828,22 @@ fun buildSettingsGroups(
                 SettingsChild("Telegram bots", "telegram_bots_title", listOf("telegram bots", "bot token", "music bot")),
             ),
         )
+    val plexDetail =
+        SettingsItem(
+            key = "plex",
+            icon = painterResource(R.drawable.solar_server_linear),
+            title = "Plex",
+            subtitle = stringResource(R.string.plex_integration_description),
+            accentColor = SettingsIconPalette.Plex,
+            keywords = listOf("plex", "plex server", "media server", "home server", "serveur", "nas", "my music"),
+            onClick = { navController.navigate("settings/plex") },
+            hidden = true,
+            children = listOf(
+                SettingsChild("Sign in with Plex", "plex_sign_in", listOf("plex login", "plex sign in", "connect plex")),
+                SettingsChild("Sync now", "plex_sync", listOf("plex sync", "refresh plex library")),
+                SettingsChild("Disconnect", "plex_sign_out", listOf("plex logout", "disconnect plex")),
+            ),
+        )
     val aiIntegration =
         SettingsItem(
             key = "ai_integration",
@@ -1121,6 +1138,7 @@ fun buildSettingsGroups(
                     tidalDetail,
                     qobuzDetail,
                     telegramDetail,
+                    plexDetail,
                     internet,
                     poToken,
                 ),
