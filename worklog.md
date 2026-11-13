@@ -6734,3 +6734,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test: search "eminem", press Enter, scroll the artist row.
+
+---
+Task ID: LITE-19
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Stutters while playing Plex songs (log 15:19-15:21).
+
+Work Log:
+- The log shows the AutoMix analyzer (used by the smart crossfade) asking the YouTube resolver for streams of `plex://` ids: SimpMusic/NewPipe extractors, Echo, the PoToken WebView, BotGuard and three player clients ran for every Plex track, failed ("Vidéo non disponible"), and were retried after the failure delay; about 270 log lines of that work during playback. The playing stream itself was a 128 kbps file, so bandwidth was not the issue.
+- The analyzer resolver now returns the Plex file URL (`PlexSession.streamUrlBlocking`) for Plex ids, so the smart crossfade can also analyse Plex songs, and returns nothing for Telegram, local and Spotify-only ids instead of querying YouTube.
+- Not proven to be the only cause of the stutters (no underrun line in the log). Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. A new log should contain no YTPlayerUtils/PoToken lines for plex:// ids, and "analysed plex://…" from AutoMix.

@@ -3674,6 +3674,17 @@ class MusicService :
         autoMixAnalyzer?.let { return it }
         val created =
             AutoMixAnalyzer(this) { mediaId ->
+                if (mediaId.isPlexMediaId()) {
+                    return@AutoMixAnalyzer withContext(Dispatchers.IO) {
+                        runCatching {
+                            moe.rukamori.archivetune.plex.PlexSession
+                                .streamUrlBlocking(this@MusicService, mediaId)
+                        }.getOrNull()
+                    }
+                }
+                if (mediaId.isTelegramMediaId() || mediaId.isLocalMediaId() || mediaId.isSpotifyOnlyId()) {
+                    return@AutoMixAnalyzer null
+                }
                 runCatching {
                     withTimeout(AUTO_MIX_RESOLVE_TIMEOUT_MS) {
                         runCatching {
