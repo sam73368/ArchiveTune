@@ -531,6 +531,7 @@ class App :
                 .retryOnConnectionFailure(true)
                 .followRedirects(true)
                 .followSslRedirects(true)
+                .addInterceptor(moe.rukamori.archivetune.plex.PlexSession.imageHostInterceptor)
                 .build()
 
         return ImageLoader

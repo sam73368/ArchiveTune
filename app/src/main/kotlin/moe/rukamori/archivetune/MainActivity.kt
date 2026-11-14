@@ -790,6 +790,7 @@ class MainActivity : ComponentActivity() {
         moe.rukamori.archivetune.utils.CrashReporter.onStartup(this)
 
         lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { moe.rukamori.archivetune.plex.PlexSession.warmUp(this@MainActivity) }
             runCatching {
                 if (savedInstanceState == null && moe.rukamori.archivetune.plex.PlexLibrarySync.isDue(this@MainActivity)) {
                     moe.rukamori.archivetune.plex.PlexLibrarySync.start(this@MainActivity, database)

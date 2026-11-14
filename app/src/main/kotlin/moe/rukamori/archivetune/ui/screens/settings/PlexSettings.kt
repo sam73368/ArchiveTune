@@ -110,7 +110,8 @@ fun PlexSettings(
     suspend fun useServer(server: PlexServer) {
         status = connectingText
         val clientId = PlexSession.clientId(context)
-        val uri = PlexClient.pickConnection(clientId, server)
+        val uris = PlexClient.connectionUris(server)
+        val uri = PlexClient.firstReachable(clientId, server.accessToken, uris)
         if (uri == null) {
             status = unreachableText
             return
@@ -120,7 +121,9 @@ fun PlexSettings(
             it[PlexServerMachineIdKey] = server.machineId
             it[PlexServerTokenKey] = server.accessToken
             it[PlexServerUriKey] = uri
+            it[moe.rukamori.archivetune.constants.PlexServerConnectionsKey] = uris.joinToString("\n")
         }
+        PlexSession.invalidate()
         status = null
         PlexLibrarySync.start(context, database)
     }
@@ -321,6 +324,7 @@ fun PlexSettings(
                                 it.remove(PlexServerMachineIdKey)
                                 it.remove(PlexServerTokenKey)
                                 it.remove(PlexServerUriKey)
+                                it.remove(moe.rukamori.archivetune.constants.PlexServerConnectionsKey)
                             }
                         }
                     },

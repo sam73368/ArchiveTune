@@ -21,7 +21,6 @@ import kotlinx.coroutines.launch
 import moe.rukamori.archivetune.constants.PlexLastSyncKey
 import moe.rukamori.archivetune.constants.PlexServerMachineIdKey
 import moe.rukamori.archivetune.constants.PlexServerTokenKey
-import moe.rukamori.archivetune.constants.PlexServerUriKey
 import moe.rukamori.archivetune.constants.PlexSyncVersionKey
 import moe.rukamori.archivetune.constants.PlexSyncedSongCountKey
 import moe.rukamori.archivetune.db.MusicDatabase
@@ -92,8 +91,7 @@ object PlexLibrarySync {
     }
 
     suspend fun isDue(context: Context): Boolean {
-        val uri = context.dataStore.getAsync(PlexServerUriKey)
-        if (uri.isNullOrBlank()) return false
+        if (context.dataStore.getAsync(PlexServerTokenKey).isNullOrBlank()) return false
         if ((context.dataStore.getAsync(PlexSyncVersionKey) ?: 0) < SYNC_VERSION) return true
         val last = context.dataStore.getAsync(PlexLastSyncKey) ?: 0L
         return System.currentTimeMillis() - last > AUTO_SYNC_INTERVAL_MS
@@ -122,8 +120,7 @@ object PlexLibrarySync {
         context: Context,
         database: MusicDatabase,
     ): Int {
-        val baseUri = context.dataStore.getAsync(PlexServerUriKey)?.takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("No Plex server")
+        val baseUri = PlexSession.baseUriBlocking(context)
         val token = context.dataStore.getAsync(PlexServerTokenKey)?.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("No Plex server")
         val machineId = context.dataStore.getAsync(PlexServerMachineIdKey)?.takeIf { it.isNotBlank() }

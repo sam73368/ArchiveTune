@@ -6748,3 +6748,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI. A new log should contain no YTPlayerUtils/PoToken lines for plex:// ids, and "analysed plex://…" from AutoMix.
+
+---
+Task ID: LITE-20
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Plex album would not start at all in the car (log 07:53-08:55).
+
+Work Log:
+- Log: `SocketTimeoutException(failed to connect to 173-176-20-225.<hash>.plex.direct)` after about 107 s of buffering, one retry, then nothing. The app stored a single server address at sign-in (here the public one) and used it forever: on a network where that address does not answer (home Wi-Fi without NAT loopback, changed public IP, closed port) nothing could play, with a 10 s connect timeout per attempt.
+- `PlexSession.baseUriBlocking`: all https addresses of the server are stored (`PlexServerConnectionsKey`, local, then remote, then Plex relay), probed in parallel (`PlexClient.firstReachable`, 5 s cap, 0.7 s grace for a better address) and the winner is cached per active network for 5 minutes. When none answers, or for installs that only have the old single address, the list and the server token are refreshed from plex.tv (at most every 30 s) and probed again.
+- `PlexDataSource.open` retries once on another address after a connection failure; streaming uses a 6 s connect timeout. Library sync uses the same address selection.
+- Artwork URLs stored at sync time contain the address of that day: the image client rewrites `*.plex.direct` hosts of the same server to the address currently in use (`PlexSession.imageHostInterceptor`); a warm-up runs at app start.
+- Cause inferred from the log and the code, not reproduced. Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. New log lines: "Plex address in use: <host>", "Plex stream open failed (...); trying another address", "No Plex address reachable".

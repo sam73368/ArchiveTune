@@ -10,10 +10,11 @@ package moe.rukamori.archivetune.plex
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -83,6 +84,7 @@ object PlexClient {
     const val PRODUCT = "ArchiveTune"
     private const val PLEX_TV = "https://plex.tv"
     private const val PAGE_SIZE = 500
+    private const val PROBE_GRACE_MS = 700L
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -93,6 +95,16 @@ object PlexClient {
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
     }
+
+    val streamHttp: OkHttpClient by lazy {
+        http
+            .newBuilder()
+            .connectTimeout(6, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private val probeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val probeHttp: OkHttpClient by lazy {
         http
@@ -172,31 +184,56 @@ object PlexClient {
                 .sortedByDescending { it.owned }
         }
 
-    suspend fun pickConnection(
+    fun connectionUris(server: PlexServer): List<String> =
+        server.connections
+            .sortedWith(compareBy<PlexConnection> { it.relay }.thenBy { !it.local })
+            .map { it.uri }
+            .distinct()
+
+    private fun probe(
         clientId: String,
-        server: PlexServer,
-    ): String? =
-        coroutineScope {
-            val ordered =
-                server.connections.sortedWith(
-                    compareBy<PlexConnection> { it.relay }.thenBy { !it.local },
-                )
-            val reachable =
-                ordered
-                    .map { connection ->
-                        async(Dispatchers.IO) {
-                            connection.takeIf {
-                                runCatching {
-                                    probeHttp
-                                        .newCall(request(clientId, server.accessToken, "${it.uri}/identity").get().build())
-                                        .execute()
-                                        .use { response -> response.isSuccessful }
-                                }.getOrDefault(false)
-                            }
-                        }
-                    }.awaitAll()
-            reachable.firstOrNull { it != null }?.uri
+        token: String,
+        uri: String,
+    ): Boolean =
+        runCatching {
+            probeHttp
+                .newCall(request(clientId, token, "$uri/identity").get().build())
+                .execute()
+                .use { response -> response.isSuccessful }
+        }.getOrDefault(false)
+
+    suspend fun firstReachable(
+        clientId: String,
+        token: String,
+        uris: List<String>,
+    ): String? {
+        if (uris.isEmpty()) return null
+        val results = java.util.concurrent.atomic.AtomicReferenceArray<Boolean?>(uris.size)
+        val finished = kotlinx.coroutines.channels.Channel<Int>(uris.size)
+        uris.forEachIndexed { index, uri ->
+            probeScope.launch {
+                results.set(index, probe(clientId, token, uri))
+                finished.trySend(index)
+            }
         }
+        var firstSuccessAt = -1L
+        var received = 0
+        while (received < uris.size) {
+            val best = uris.indices.firstOrNull { results.get(it) == true }
+            if (best != null && (0 until best).all { results.get(it) != null }) break
+            val index =
+                if (firstSuccessAt < 0L) {
+                    finished.receive()
+                } else {
+                    val left = PROBE_GRACE_MS - (System.currentTimeMillis() - firstSuccessAt)
+                    if (left <= 0L) break
+                    withTimeoutOrNull(left) { finished.receive() } ?: break
+                }
+            received++
+            if (results.get(index) == true && firstSuccessAt < 0L) firstSuccessAt = System.currentTimeMillis()
+        }
+        return uris.indices.firstOrNull { results.get(it) == true }?.let { uris[it] }
+    }
 
     suspend fun musicSections(
         clientId: String,
