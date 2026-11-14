@@ -21,6 +21,9 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
 import moe.rukamori.archivetune.constants.PlexAccountTokenKey
 import moe.rukamori.archivetune.constants.PlexClientIdKey
@@ -56,6 +59,7 @@ object PlexSession {
     private const val TAG = "PlexSession"
     private const val VERIFY_TTL_MS = 5 * 60_000L
     private const val REFRESH_MIN_INTERVAL_MS = 30_000L
+    private const val FAILURE_HOLD_MS = 8_000L
 
     private class ActiveBase(
         val uri: String,
@@ -69,6 +73,16 @@ object PlexSession {
     @Volatile
     private var active: ActiveBase? = null
     private var lastRefreshAt = 0L
+    private var failedUntil = 0L
+    private var failedNetworkHandle = 0L
+    private var failedMessage = ""
+
+    enum class Problem { OFFLINE, UNREACHABLE }
+
+    @Volatile
+    private var serverOnline: Boolean? = null
+    private val _problem = MutableStateFlow<Problem?>(null)
+    val problem: StateFlow<Problem?> = _problem.asStateFlow()
 
     fun clientId(context: Context): String {
         context.dataStore.get(PlexClientIdKey)?.takeIf { it.isNotBlank() }?.let { return it }
@@ -93,6 +107,7 @@ object PlexSession {
 
     fun invalidate() {
         active = null
+        failedUntil = 0L
     }
 
     fun isConfigured(context: Context): Boolean = !context.dataStore.get(PlexServerTokenKey).isNullOrBlank()
@@ -122,6 +137,7 @@ object PlexSession {
             }.onFailure { Timber.tag(TAG).w(it, "Plex connection refresh failed") }
                 .getOrNull()
                 ?.firstOrNull { it.machineId == machineId } ?: return false
+        serverOnline = server.online
         val uris = PlexClient.connectionUris(server)
         if (uris.isEmpty()) return false
         runBlocking {
@@ -150,6 +166,9 @@ object PlexSession {
         synchronized(lock) {
             fresh()?.let { return it }
             if (!isConfigured(context)) throw IOException("Plex server not connected")
+            if (failedNetworkHandle == handle && SystemClock.elapsedRealtime() < failedUntil) {
+                throw PlexUnreachableException(failedMessage)
+            }
             val client = clientId(context)
             if (context.dataStore.get(PlexServerConnectionsKey).isNullOrBlank()) refreshConnectionsBlocking(context)
             fun pick(): String? {
@@ -161,9 +180,24 @@ object PlexSession {
                     ?: if (refreshConnectionsBlocking(context)) pick() else null
             if (picked == null) {
                 active = null
-                Timber.tag(TAG).w("No Plex address reachable (%d known)", storedCandidates(context).size)
-                throw IOException("Plex server unreachable on this network")
+                val offline = serverOnline == false
+                Timber.tag(TAG).w(
+                    "No Plex address reachable (%d known, plex.tv says online=%s)",
+                    storedCandidates(context).size,
+                    serverOnline,
+                )
+                _problem.value = if (offline) Problem.OFFLINE else Problem.UNREACHABLE
+                failedMessage =
+                    if (offline) {
+                        "Plex server is offline according to plex.tv"
+                    } else {
+                        "Plex server unreachable on this network"
+                    }
+                failedNetworkHandle = handle
+                failedUntil = SystemClock.elapsedRealtime() + FAILURE_HOLD_MS
+                throw PlexUnreachableException(failedMessage)
             }
+            _problem.value = null
             if (picked != active?.uri) Timber.tag(TAG).i("Plex address in use: %s", Uri.parse(picked).host)
             if (picked != context.dataStore.get(PlexServerUriKey)) {
                 runBlocking { context.dataStore.edit { it[PlexServerUriKey] = picked } }
@@ -243,7 +277,12 @@ class PlexDataSource(
         try {
             openWith(dataSpec, force = false)
         } catch (error: IOException) {
-            if (error is HttpDataSource.InvalidResponseCodeException || error is PlexUnauthorizedException) throw error
+            if (error is HttpDataSource.InvalidResponseCodeException ||
+                error is PlexUnauthorizedException ||
+                error is PlexUnreachableException
+            ) {
+                throw error
+            }
             Timber.tag("PlexSession").w("Plex stream open failed (%s); trying another address", error.message)
             runCatching { upstream.close() }
             PlexSession.invalidate()

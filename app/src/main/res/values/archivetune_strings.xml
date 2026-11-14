@@ -1119,4 +1119,5 @@
     <string name="plex_sign_out_description">Removes the server and its songs from ArchiveTune</string>
     <string name="plex_sign_out_confirm">The songs of this Plex server will be removed from your library. Your files on the server are not touched.</string>
     <string name="plex_on_your_server">On your Plex server</string>
+    <string name="plex_server_offline">plex.tv reports this server as offline. Check that the computer running Plex is on and connected to the internet.</string>
 </resources>

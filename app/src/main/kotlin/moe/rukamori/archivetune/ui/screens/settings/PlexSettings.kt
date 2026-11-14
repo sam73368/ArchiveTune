@@ -95,6 +95,7 @@ fun PlexSettings(
     val (lastSync, _) = rememberPreference(PlexLastSyncKey, 0L)
     val (songCount, _) = rememberPreference(PlexSyncedSongCountKey, 0)
     val syncState by PlexLibrarySync.state.collectAsState()
+    val plexProblem by PlexSession.problem.collectAsState()
 
     var loginJob by remember { mutableStateOf<Job?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
@@ -238,9 +239,15 @@ fun PlexSettings(
                                     when (val state = syncState) {
                                         is PlexSyncState.Running ->
                                             stringResource(R.string.plex_syncing, state.done, state.total)
-                                        is PlexSyncState.Failed ->
-                                            stringResource(R.string.plex_sync_failed, state.message)
                                         else ->
+                                            when (plexProblem) {
+                                                PlexSession.Problem.OFFLINE -> stringResource(R.string.plex_server_offline)
+                                                PlexSession.Problem.UNREACHABLE ->
+                                                    stringResource(R.string.plex_status_unreachable)
+                                                null -> null
+                                            } ?: if (state is PlexSyncState.Failed) {
+                                                stringResource(R.string.plex_sync_failed, state.message)
+                                            } else
                                             if (lastSync > 0L) {
                                                 stringResource(
                                                     R.string.plex_synced,
@@ -261,7 +268,10 @@ fun PlexSettings(
                                 description = stringResource(R.string.plex_sync_now_description),
                                 icon = { Icon(painterResource(R.drawable.sync), null) },
                                 isEnabled = syncState !is PlexSyncState.Running,
-                                onClick = { PlexLibrarySync.start(context, database) },
+                                onClick = {
+                                    PlexSession.invalidate()
+                                    PlexLibrarySync.start(context, database)
+                                },
                             )
                         }
                         item {

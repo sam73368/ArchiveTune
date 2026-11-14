@@ -29,6 +29,7 @@ import kotlinx.serialization.json.longOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import timber.log.Timber
 
 data class PlexPin(
     val id: Long,
@@ -47,6 +48,7 @@ data class PlexServer(
     val accessToken: String,
     val owned: Boolean,
     val connections: List<PlexConnection>,
+    val online: Boolean? = null,
 )
 
 data class PlexSection(
@@ -109,9 +111,9 @@ object PlexClient {
     private val probeHttp: OkHttpClient by lazy {
         http
             .newBuilder()
-            .connectTimeout(4, TimeUnit.SECONDS)
-            .readTimeout(4, TimeUnit.SECONDS)
-            .callTimeout(5, TimeUnit.SECONDS)
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .callTimeout(7, TimeUnit.SECONDS)
             .build()
     }
 
@@ -166,6 +168,7 @@ object PlexClient {
                         machineId = resource.string("clientIdentifier") ?: return@mapNotNull null,
                         accessToken = token,
                         owned = resource.bool("owned") ?: false,
+                        online = resource.bool("presence"),
                         connections =
                             (resource["connections"] as? JsonArray)
                                 .orEmpty()
@@ -194,13 +197,21 @@ object PlexClient {
         clientId: String,
         token: String,
         uri: String,
-    ): Boolean =
-        runCatching {
+    ): Boolean {
+        val host = uri.substringAfter("://").substringBefore('.')
+        return try {
             probeHttp
                 .newCall(request(clientId, token, "$uri/identity").get().build())
                 .execute()
-                .use { response -> response.isSuccessful }
-        }.getOrDefault(false)
+                .use { response ->
+                    if (!response.isSuccessful) Timber.tag("PlexSession").w("Plex probe %s: HTTP %d", host, response.code)
+                    response.code < 500
+                }
+        } catch (error: Exception) {
+            Timber.tag("PlexSession").w("Plex probe %s: %s (%s)", host, error.javaClass.simpleName, error.message)
+            false
+        }
+    }
 
     suspend fun firstReachable(
         clientId: String,
@@ -378,3 +389,7 @@ object PlexClient {
 }
 
 class PlexUnauthorizedException : IOException("Plex token rejected")
+
+class PlexUnreachableException(
+    message: String,
+) : IOException(message)

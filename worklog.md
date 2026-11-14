@@ -6764,3 +6764,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI. New log lines: "Plex address in use: <host>", "Plex stream open failed (...); trying another address", "No Plex address reachable".
+
+---
+Task ID: LITE-21
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Plex still does not start after LITE-20 (log 11:45-11:47).
+
+Work Log:
+- Log: plex.tv answers ("Plex connections refreshed: 10 addresses") but none of the 10 addresses (local, remote, relay) answers the probe, on a network where every other service works. The log did not say why each probe failed, and the player re-probed everything every ~4 s in a loop.
+- Probes now log the reason per address (exception class and message, or HTTP code) and count any HTTP answer below 500 as reachable; probe timeouts raised to 5 s connect / 7 s total.
+- The `presence` flag of the server is read from plex.tv; when it is false the error says the server is offline, and Settings > Plex shows it (`PlexSession.problem`).
+- A full failure is held for 8 s per network and `PlexDataSource` no longer re-probes after `PlexUnreachableException`, so the player fails once instead of looping.
+- Root cause not established: either the server is really unreachable (off, asleep, Plex stopped) or the probe fails for a reason the next log will show. Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. Needed from the user: is the server visible as online in the Plex app / app.plex.tv, and a new log (lines "Plex probe <host>: <reason>").
