@@ -795,6 +795,7 @@ class MusicService :
     private var playbackStallKickMediaId: String? = null
     private var playbackStallKicks = 0
     private var initialBufferRecoveryAttemptedMediaId: String? = null
+    private var initialBufferRecoveryAttempts = 0
 
     @Volatile
     private var codecRecoveryMediaId: String? = null
@@ -5615,7 +5616,8 @@ class MusicService :
                 player.playWhenReady &&
                 player.currentPosition < INITIAL_BUFFER_STALL_POSITION_MS &&
                 mediaId != null &&
-                initialBufferRecoveryAttemptedMediaId != mediaId
+                !(initialBufferRecoveryAttemptedMediaId == mediaId &&
+                    initialBufferRecoveryAttempts >= INITIAL_BUFFER_MAX_RECOVERIES)
 
         if (!shouldWatch) {
             initialBufferRecoveryJob?.cancel()
@@ -5635,17 +5637,33 @@ class MusicService :
                     return@launch
                 }
 
+                if (initialBufferRecoveryAttemptedMediaId != mediaId) initialBufferRecoveryAttempts = 0
                 initialBufferRecoveryAttemptedMediaId = mediaId
+                initialBufferRecoveryAttempts++
                 Timber.tag(TAG).w(
-                    "Initial buffer stalled for %s; invalidating stream caches and re-preparing",
+                    "Initial buffer stalled for %s (attempt %d, loading=%s, buffered=%d ms); dropping stream caches and restarting the load",
                     mediaId,
+                    initialBufferRecoveryAttempts,
+                    player.isLoading,
+                    player.bufferedPosition,
                 )
                 playbackUrlCache.remove(mediaId)
                 invalidateAlternateStream(mediaId)
                 YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
+                if (!isCrossfading) {
+                    crossfadeTriggerJob?.cancel()
+                    crossfadeTriggerJob = null
+                    releaseSecondaryCrossfadePlayer()
+                }
                 if (playbackStreamRecoveryTracker.registerRetryAttempt(mediaId)) {
+                    val index = player.currentMediaItemIndex
+                    val positionMs = player.currentPosition.coerceAtLeast(0L)
+                    player.stop()
+                    player.seekTo(index, positionMs)
                     player.prepare()
-                    if (player.playWhenReady) player.play()
+                    player.play()
+                } else {
+                    Timber.tag(TAG).w("Initial buffer recovery budget exhausted for %s", mediaId)
                 }
             }
     }
@@ -13846,7 +13864,8 @@ class MusicService :
         const val ERROR_CODE_NO_STREAM = 1000001
         const val CHUNK_LENGTH = 8 * 1024 * 1024L
         val RETRYABLE_STREAM_RESPONSE_CODES = setOf(403, 404, 410, 416)
-        private const val INITIAL_BUFFER_STALL_DELAY_MS = 15_000L
+        private const val INITIAL_BUFFER_STALL_DELAY_MS = 10_000L
+        private const val INITIAL_BUFFER_MAX_RECOVERIES = 2
         private const val PLAYBACK_STALL_POLL_MS = 500L
         private const val PLAYBACK_STALL_KICK_MS = 2_500L
         private const val PLAYBACK_STALL_MAX_KICKS = 2

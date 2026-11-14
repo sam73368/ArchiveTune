@@ -6780,3 +6780,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI. Needed from the user: is the server visible as online in the Plex app / app.plex.tv, and a new log (lines "Plex probe <host>: <reason>").
+
+---
+Task ID: LITE-22
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: "Sunny Disposition" (-QnQS7DU82k, YouTube) never started after "Paradigm" (log 17:35-17:38, Android Auto, cellular).
+
+Work Log:
+- Log: the stream URL came from the in-memory cache (prefetch answered in 58 ms, no player request). The main player started pre-loading the song at 17:35:31 and never got audio; the crossfade player for it was "not ready in time" at 17:37:14; the song then stayed in BUFFERING with no error and no new stream resolution until the end of the log.
+- Bug found: the "Initial buffer stalled" recovery (17:37:29) invalidated the caches and called `player.prepare()`, which does nothing while the player is already BUFFERING, so the stuck load kept running with the old URL. It now releases the standby crossfade player, stops the player and re-prepares at the same position (same sequence as the playback-stall recovery), after 10 s instead of 15, up to twice per song, and logs `loading` and `buffered`.
+- Not established: why the first load hung without raising an error (dead cached URL, dead connection after a network hand-over, or a cache lock shared with the standby player).
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. Next log on a stall should show "Initial buffer stalled … restarting the load" followed by "Fetching player response".
