@@ -26,6 +26,8 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -102,10 +104,17 @@ object PlexClient {
     val streamHttp: OkHttpClient by lazy {
         http
             .newBuilder()
+            .connectionPool(ConnectionPool())
+            .dispatcher(Dispatcher())
             .connectTimeout(6, TimeUnit.SECONDS)
             .readTimeout(12, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
+    }
+
+    fun dropStreams() {
+        runCatching { streamHttp.dispatcher.cancelAll() }
+        runCatching { streamHttp.connectionPool.evictAll() }
     }
 
     private val probeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

@@ -6858,3 +6858,21 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test: start a Plex song on a slow network and watch the play button; turn Wi-Fi off during loading, the ring should turn red after about 6 s.
+
+---
+Task ID: LITE-27
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Plex playback no longer starts (log 17:48-18:25).
+
+Work Log:
+- 17:53-17:57 in the car (Android Auto, mobile network 192.0.0.4): Plex played normally through the public address, crossfades included.
+- 18:00:03: buffering mid-song with no error; 18:01:35 network handover (car -> home Wi-Fi 192.168.3.76). The handover handler only dropped the shared media OkHttp client, not the Plex stream client, so the Plex socket opened on the old network was never cancelled and the Plex address chosen for the old network stayed cached in memory.
+- 18:24:37: Play pressed at home, 192-168-0-100 chosen and reachable, but the player stayed buffering; every skip after that also stayed buffering (duration unknown).
+- `PlexClient.streamHttp` now has its own connection pool and dispatcher; `PlexClient.dropStreams()` cancels and evicts only Plex audio connections.
+- Network handover: `PlexSession.invalidate()` + `PlexClient.dropStreams()` next to the existing media client eviction.
+- Watchdog in `MusicService` (every 2 s): Plex item, play requested, buffering, and no data-source activity (`PlaybackLoadActivity`) for 8 s -> log "Plex stream stalled; reconnecting", invalidate the Plex address and drop Plex streams so ExoPlayer retries on a fresh connection. At most once per 8 s.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. A stuck Plex load should now recover by itself within about 10 s; the log line above shows when it does.

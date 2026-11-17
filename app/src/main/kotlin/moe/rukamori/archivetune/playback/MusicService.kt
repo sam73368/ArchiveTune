@@ -1770,8 +1770,30 @@ class MusicService :
             NetworkHandoverWatcher(this) {
                 runCatching { mediaOkHttpClient.connectionPool.evictAll() }
                 runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
+                moe.rukamori.archivetune.plex.PlexSession.invalidate()
+                moe.rukamori.archivetune.plex.PlexClient.dropStreams()
                 retryPlaybackAfterNetworkWait("handover")
             }.also { it.register() }
+
+        scope.launch {
+            var lastKickAt = 0L
+            while (isActive) {
+                delay(PLEX_STALL_CHECK_MS)
+                val now = android.os.SystemClock.elapsedRealtime()
+                val stalled =
+                    player.playWhenReady &&
+                        player.playbackState == Player.STATE_BUFFERING &&
+                        player.currentMediaItem?.mediaId?.startsWith("plex://") == true &&
+                        now - PlaybackLoadActivity.lastSignalAt(now) > PLEX_STALL_KICK_MS &&
+                        now - lastKickAt > PLEX_STALL_KICK_MS
+                if (stalled) {
+                    lastKickAt = now
+                    Timber.tag(TAG).w("Plex stream stalled; reconnecting")
+                    moe.rukamori.archivetune.plex.PlexSession.invalidate()
+                    withContext(Dispatchers.IO) { moe.rukamori.archivetune.plex.PlexClient.dropStreams() }
+                }
+            }
+        }
 
         scope.launch {
             connectivityObserver.networkStatus.collect { isConnected ->
@@ -13959,6 +13981,8 @@ class MusicService :
         const val PRIMARY_MAX_BUFFER_MS = 150_000
 
         const val PRIMARY_BUFFER_FOR_PLAYBACK_MS = 150
+        const val PLEX_STALL_CHECK_MS = 2_000L
+        const val PLEX_STALL_KICK_MS = 8_000L
         const val PRIMARY_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2_500
         const val CROSSFADE_PROMOTION_VOLUME_RECONCILE_MS = 1_500L
         val NON_MEDIA_OUTPUT_DEVICE_TYPES =
