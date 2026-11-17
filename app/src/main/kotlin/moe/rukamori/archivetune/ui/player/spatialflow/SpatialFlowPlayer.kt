@@ -45,7 +45,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -970,7 +969,7 @@ fun SpatialFlowPlayerContent(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (isLoading && !isPlaying) {
-                                        CircularWavyProgressIndicator(modifier = Modifier.size(42.dp))
+                                        moe.rukamori.archivetune.ui.player.PlaybackBufferingIndicator(modifier = Modifier.size(42.dp))
                                     } else {
                                         Icon(
                                             painter =

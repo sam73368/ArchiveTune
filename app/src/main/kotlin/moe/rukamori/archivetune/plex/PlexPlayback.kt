@@ -283,7 +283,10 @@ class PlexDataSource(
         dataSpec: DataSpec,
         force: Boolean,
     ): Long {
-        val url = PlexSession.streamUrlBlocking(context, dataSpec.uri.toString(), force)
+        val url =
+            moe.rukamori.archivetune.playback.PlaybackLoadActivity.resolving {
+                PlexSession.streamUrlBlocking(context, dataSpec.uri.toString(), force)
+            }
         opened = upstream
         return upstream.open(dataSpec.buildUpon().setUri(Uri.parse(url)).build())
     }

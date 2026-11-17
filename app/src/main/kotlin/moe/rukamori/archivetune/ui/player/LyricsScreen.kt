@@ -52,7 +52,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -1365,7 +1364,7 @@ private fun AppleMusicControls(
                         modifier = Modifier.size(74.dp),
                     ) {
                         if (isLoading) {
-                            CircularWavyProgressIndicator(
+                            PlaybackBufferingIndicator(
                                 modifier = Modifier.size(42.dp),
                                 color = foregroundColor,
                             )

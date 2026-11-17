@@ -103,7 +103,7 @@ object PlexClient {
         http
             .newBuilder()
             .connectTimeout(6, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(12, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
     }

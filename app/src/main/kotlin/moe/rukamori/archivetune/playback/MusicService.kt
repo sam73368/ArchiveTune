@@ -8907,10 +8907,12 @@ class MusicService :
     private fun createDataSourceFactory(): DataSource.Factory {
         val cachedFactory =
             ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
-                resolvePlaybackDataSpec(
-                    dataSpec = dataSpec,
-                    allowCacheShortCircuit = true,
-                )
+                PlaybackLoadActivity.resolving {
+                    resolvePlaybackDataSpec(
+                        dataSpec = dataSpec,
+                        allowCacheShortCircuit = true,
+                    )
+                }
             }
         val directFactory = createResolvedUpstreamDataSourceFactory()
         val telegramFactory = TelegramDataSource.Factory()
@@ -8961,7 +8963,7 @@ class MusicService :
                 tidalProgressiveDashFactory = tidalProgressiveDashFactory,
                 soundCloudHlsFactory = soundCloudHlsFactory,
                 echoFactory = echoFactory,
-            )
+            ).also { it.addTransferListener(PlaybackLoadActivity) }
         }
     }
 

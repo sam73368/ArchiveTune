@@ -67,7 +67,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ripple
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -1875,10 +1874,9 @@ private fun AppleMusicControlsColumn(
                     .clip(CircleShape),
         ) {
             if (isLoading) {
-                CircularProgressIndicator(
+                PlaybackBufferingIndicator(
                     color = Color.White,
                     modifier = Modifier.size(AppleMusicPlayPauseSpinnerSize),
-                    strokeWidth = 3.dp,
                 )
             } else {
                 AppleMusicTransportButton(

@@ -6842,3 +6842,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test at home: play a Plex album on Wi-Fi; the log should say "Plex address in use" with the 192-168-0-100 host. Restart the app: the previous queue should come back. The support popup should not appear any more.
+
+---
+Task ID: LITE-26
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: A Plex song (Pérusse) does not start on a very slow Wi-Fi; is it Plex or just slow? Replace the endless play-button spinner with a ring that shows whether loading is progressing or stuck.
+
+Work Log:
+- Log 14:13: Plex was fine. The address was found in 1.2 s (public `173-176-20-225…plex.direct`; the phone was on 172.28.224.48, not the home LAN, so the 192.168.0.100 probe timing out is expected). Sync ran (11146 tracks). Play was pressed at 14:13:58 and the player was still buffering at 14:14:12, with no Plex error, no retry and no exception: the data was just slow to arrive.
+- `playback/PlaybackLoadActivity`: a `TransferListener` added to every playback data source (`createDataSourceFactory`) that records the last time a source opened, received bytes or closed; stream resolution (`resolvePlaybackDataSpec`, `PlexSession.streamUrlBlocking` in `PlexDataSource`) counts as activity for up to 20 s.
+- `ui/player/PlaybackBufferingIndicator`: replaces the play-button spinner of the player styles (default, lyrics screen, Looper, SpatialFlow, Apple Music, BitChord). Indeterminate wave while nothing is buffered yet; once audio arrives it becomes a ring filled by the buffered audio (full at 2.5 s, the rebuffer threshold); when buffering has received nothing for 6 s it turns to the error colour and pulses (stuck).
+- Plex stream read timeout 20 s -> 12 s so a dead connection is retried sooner.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. To test: start a Plex song on a slow network and watch the play button; turn Wi-Fi off during loading, the ring should turn red after about 6 s.

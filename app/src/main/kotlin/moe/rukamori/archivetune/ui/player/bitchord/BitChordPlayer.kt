@@ -62,7 +62,6 @@ import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -1296,9 +1295,8 @@ fun BitChordPlayerContent(
 
                 if (isLoading) {
                     Box(Modifier.size(92.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
+                        moe.rukamori.archivetune.ui.player.PlaybackBufferingIndicator(
                             color = Color.White,
-                            strokeWidth = 3.dp,
                             modifier = Modifier.size(38.dp),
                         )
                     }

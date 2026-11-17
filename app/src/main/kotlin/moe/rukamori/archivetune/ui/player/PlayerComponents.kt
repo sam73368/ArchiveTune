@@ -51,7 +51,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
-import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -842,7 +841,7 @@ fun PlayerPlaybackControls(
                             contentAlignment = Alignment.Center,
                         ) {
                             if (isLoading) {
-                                CircularWavyProgressIndicator(
+                                PlaybackBufferingIndicator(
                                     modifier = Modifier.size(40.dp),
                                     color = icBackgroundColor,
                                 )
@@ -1009,7 +1008,7 @@ fun PlayerPlaybackControls(
                             },
                 ) {
                     if (isLoading) {
-                        CircularWavyProgressIndicator(
+                        PlaybackBufferingIndicator(
                             modifier =
                                 Modifier
                                     .align(Alignment.Center)
@@ -1666,7 +1665,7 @@ private fun V8TransportControls(
                 contentAlignment = Alignment.Center,
             ) {
                 if (isLoading) {
-                    CircularWavyProgressIndicator(
+                    PlaybackBufferingIndicator(
                         modifier = Modifier.size(44.dp),
                         color = foreground,
                     )
