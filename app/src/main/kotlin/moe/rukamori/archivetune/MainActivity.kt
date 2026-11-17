@@ -2568,7 +2568,7 @@ class MainActivity : ComponentActivity() {
                                 !hasPressed && (dataStore[LaunchCountKey] ?: 0) >= remindAfter
                             }
 
-                        if (shouldShow) {
+                        if (SHOW_SUPPORT_PROMPT && shouldShow) {
                             var waited = 0L
                             val waitStep = 500L
                             val maxWait = 30_000L
@@ -4802,3 +4802,5 @@ private fun Context.isTvDevice(): Boolean {
         packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
         packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION)
 }
+
+private const val SHOW_SUPPORT_PROMPT = false

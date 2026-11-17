@@ -117,13 +117,28 @@ object PlexSession {
             context.getSystemService(ConnectivityManager::class.java)?.activeNetwork?.networkHandle
         }.getOrNull() ?: 0L
 
-    private fun storedCandidates(context: Context): List<String> =
-        (
+    private fun phoneAddresses(context: Context): List<String> =
+        runCatching {
+            val manager = context.getSystemService(ConnectivityManager::class.java) ?: return@runCatching emptyList()
+            manager
+                .getLinkProperties(manager.activeNetwork)
+                ?.linkAddresses
+                .orEmpty()
+                .mapNotNull { (it.address as? java.net.Inet4Address)?.hostAddress }
+        }.getOrDefault(emptyList())
+
+    private fun storedCandidates(context: Context): List<String> {
+        val phone = phoneAddresses(context)
+        return (
             context.dataStore
                 .get(PlexServerConnectionsKey)
                 .orEmpty()
                 .split('\n') + context.dataStore.get(PlexServerUriKey).orEmpty()
-        ).map { it.trim() }.filter { it.startsWith("https://") }.distinct()
+        ).map { it.trim() }
+            .filter { it.startsWith("https://") }
+            .distinct()
+            .sortedBy { uri -> PlexDns.rank(Uri.parse(uri).host.orEmpty(), phone) }
+    }
 
     private fun refreshConnectionsBlocking(context: Context): Boolean {
         val now = SystemClock.elapsedRealtime()

@@ -25,6 +25,10 @@ data class PersistQueue(
 }
 
 sealed class QueueType : Serializable {
+    companion object {
+        private const val serialVersionUID = -2054815085004009300L
+    }
+
     object LIST : QueueType() {
         private const val serialVersionUID = 1L
     }
@@ -43,6 +47,10 @@ sealed class QueueType : Serializable {
 }
 
 sealed class QueueData : Serializable {
+    companion object {
+        private const val serialVersionUID = 1L
+    }
+
     data class YouTubeData(
         val videoId: String? = null,
         val playlistId: String? = null,

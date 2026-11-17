@@ -532,6 +532,7 @@ class App :
                 .followRedirects(true)
                 .followSslRedirects(true)
                 .addInterceptor(moe.rukamori.archivetune.plex.PlexSession.imageHostInterceptor)
+                .dns(moe.rukamori.archivetune.plex.PlexDns)
                 .build()
 
         return ImageLoader

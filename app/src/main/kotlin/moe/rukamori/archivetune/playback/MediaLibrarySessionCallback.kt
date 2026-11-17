@@ -231,7 +231,7 @@ class MediaLibrarySessionCallback
             if (!file.exists() || !file.isFile) return null
             return try {
                 file.inputStream().use { fis ->
-                    ObjectInputStream(fis).use { input ->
+                    moe.rukamori.archivetune.utils.LenientObjectInputStream(fis).use { input ->
                         input.readObject() as? PersistQueue
                     }
                 }

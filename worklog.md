@@ -6824,3 +6824,21 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test: queue an album, start Cast, open the queue; all songs should be listed, and a song added while casting should appear after a moment.
+
+---
+Task ID: LITE-25
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Plex playback stutters on (or near) the home Wi-Fi; "Support development" popups keep appearing; look for other Plex playback problems.
+
+Work Log:
+- Log (08:45-08:53): every local Plex address timed out and the public `173-176-20-225.<hash>.plex.direct` address was used. At home this means the stream goes out to the router and back in (NAT hairpin), and many routers also refuse to resolve `*.plex.direct` names to private IPs (DNS rebinding protection), so the LAN address could never be used.
+- `plex/PlexDns`: OkHttp `Dns` that reads the IPv4 address encoded in a `*.plex.direct` host (`192-168-0-100.<hash>.plex.direct` -> 192.168.0.100) and only asks the system DNS for other names. Used by `PlexClient.http` (and therefore the stream and probe clients) and by the image client. TLS still validates against the plex.direct certificate.
+- Candidate order (`PlexSession.storedCandidates`): addresses in the phone's current IPv4 /24 first, then other private addresses, then public/relay, and container bridge gateways (172.16-31.x.1, e.g. Docker) last.
+- Plex audio now goes through the download cache (downloaded Plex songs play from disk) and the player cache (bytes written while streaming, so seeks and replays do not hit the network again). Cache key is the `plex://` id, so it does not depend on the address in use. The stream client retries on connection failure.
+- Persisted queues failed to load (`InvalidClassException` on `QueueType`, stream serialVersionUID -2054815085004009300 vs local 2782047686687512959): the sealed base had no explicit id, so any change to the class broke resume. `QueueType` now pins the old id, `QueueData` pins one too, and both readers use `utils/LenientObjectInputStream`, which accepts the local class when only the serialVersionUID of an app class differs.
+- "Support development" dialog (`StarDialog`, launch-count reminder in `MainActivity`): never shown (`SHOW_SUPPORT_PROMPT = false`). The About screen links are untouched.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. To test at home: play a Plex album on Wi-Fi; the log should say "Plex address in use" with the 192-168-0-100 host. Restart the app: the previous queue should come back. The support popup should not appear any more.

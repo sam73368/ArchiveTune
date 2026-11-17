@@ -93,6 +93,7 @@ object PlexClient {
     val http: OkHttpClient by lazy {
         OkHttpClient
             .Builder()
+            .dns(PlexDns)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
@@ -103,6 +104,7 @@ object PlexClient {
             .newBuilder()
             .connectTimeout(6, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .build()
     }
 

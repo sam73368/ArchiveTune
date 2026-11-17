@@ -8914,7 +8914,20 @@ class MusicService :
             }
         val directFactory = createResolvedUpstreamDataSourceFactory()
         val telegramFactory = TelegramDataSource.Factory()
-        val plexFactory = moe.rukamori.archivetune.plex.PlexDataSource.Factory(this)
+        val plexFactory =
+            CacheDataSource
+                .Factory()
+                .setCache(downloadCache)
+                .setUpstreamDataSourceFactory(
+                    CacheDataSource
+                        .Factory()
+                        .setCache(playerCache)
+                        .setUpstreamDataSourceFactory(moe.rukamori.archivetune.plex.PlexDataSource.Factory(this))
+                        .setCacheWriteDataSinkFactory(
+                            CacheDataSink.Factory().setCache(playerCache).setFragmentSize(C.LENGTH_UNSET.toLong()),
+                        ).setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR),
+                ).setCacheWriteDataSinkFactory(null)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         val tidalProgressiveDashFactory = TidalProgressiveDashDataSource.Factory(mediaOkHttpClient)
         val soundCloudHlsFactory = SoundCloudHlsDataSource.Factory(mediaOkHttpClient)
 
@@ -13352,7 +13365,7 @@ class MusicService :
         return synchronized(persistentStateLock) {
             runCatching {
                 persistentFile.inputStream().use { fis ->
-                    ObjectInputStream(fis).use { input ->
+                    moe.rukamori.archivetune.utils.LenientObjectInputStream(fis).use { input ->
                         val payload = input.readObject()
                         check(payload is T) { "Unexpected persistent payload type for $fileName" }
                         payload
