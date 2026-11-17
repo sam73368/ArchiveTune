@@ -259,6 +259,12 @@ class PlayerConnection(
         }
 
         connectionScope.launch {
+            moe.rukamori.archivetune.cast.CastQueueItems.version.collect {
+                if (!disposed) queueWindows.value = player.getQueueWindows()
+            }
+        }
+
+        connectionScope.launch {
             service.playerFlow.collect { newPlayer ->
                 if (newPlayer != null && newPlayer !== attachedPlayer) {
                     attachToPlayer(newPlayer)

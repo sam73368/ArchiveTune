@@ -27,6 +27,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.cast.framework.CastContext
+import com.google.android.gms.cast.framework.media.RemoteMediaClient
+import com.google.android.gms.cast.framework.media.MediaQueue
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
 import io.ktor.http.ContentType
@@ -61,6 +63,8 @@ import kotlin.math.max
 import kotlin.math.min
 import com.google.android.gms.cast.MediaMetadata as CastMetadata
 
+private const val MAX_FETCHED_QUEUE_ITEMS = 500
+
 class DefaultCastPlaybackRepository(
     context: Context,
 ) : CastPlaybackRepository {
@@ -79,6 +83,48 @@ class DefaultCastPlaybackRepository(
         )
     private var castContext: CastContext? = null
     private var listenerRegistered = false
+    private var queueConverter: GmsCastMediaItemConverter? = null
+    private var queueClient: RemoteMediaClient? = null
+    private val queueCallback =
+        object : MediaQueue.Callback() {
+            override fun itemsReloaded() = fetchQueueItems()
+
+            override fun mediaQueueChanged() = fetchQueueItems()
+
+            override fun itemsInsertedInRange(
+                insertIndex: Int,
+                insertCount: Int,
+            ) = fetchQueueItems()
+
+            override fun itemsUpdatedAtIndexes(indexes: IntArray) = fetchQueueItems()
+        }
+
+    private fun fetchQueueItems() {
+        val queue = queueClient?.mediaQueue ?: return
+        val converter = queueConverter ?: return
+        for (index in 0 until minOf(queue.itemCount, MAX_FETCHED_QUEUE_ITEMS)) {
+            val itemId = queue.itemIdAtIndex(index)
+            if (itemId == MediaQueueItem.INVALID_ITEM_ID || CastQueueItems.has(itemId)) continue
+            val item = queue.getItemAtIndex(index, true) ?: continue
+            runCatching { converter.toMediaItem(item) }
+                .onSuccess { CastQueueItems.put(item.itemId, it) }
+        }
+    }
+
+    private fun attachQueue(session: CastSession?) {
+        val client = session?.remoteMediaClient
+        if (client === queueClient) return
+        queueClient?.mediaQueue?.unregisterCallback(queueCallback)
+        queueClient = client
+        client?.mediaQueue?.registerCallback(queueCallback)
+        fetchQueueItems()
+    }
+
+    private fun detachQueue() {
+        queueClient?.mediaQueue?.unregisterCallback(queueCallback)
+        queueClient = null
+        CastQueueItems.clear()
+    }
     private val remotePlayersBySessionPlayer = ConcurrentHashMap<Player, RemoteCastPlayer>()
 
     override val screenState: StateFlow<CastScreenState> = mutableScreenState
@@ -99,6 +145,9 @@ class DefaultCastPlaybackRepository(
                 mediaItemResolver = mediaItemResolver,
                 localMediaServer = localMediaServer,
             )
+        queueConverter = converter
+        attachQueue(contextResult.sessionManager.currentCastSession)
+        fetchQueueItems()
         val remotePlayer =
             RemoteCastPlayer
                 .Builder(context.applicationContext)
@@ -153,13 +202,17 @@ class DefaultCastPlaybackRepository(
             override fun onSessionStarted(
                 session: CastSession,
                 sessionId: String,
-            ) = updateState(session)
+            ) {
+                attachQueue(session)
+                updateState(session)
+            }
 
             override fun onSessionStartFailed(
                 session: CastSession,
                 error: Int,
             ) {
                 localMediaServer.stop()
+                detachQueue()
                 updateState(null)
             }
 
@@ -170,6 +223,7 @@ class DefaultCastPlaybackRepository(
                 error: Int,
             ) {
                 localMediaServer.stop()
+                detachQueue()
                 updateState(null)
             }
 
@@ -181,13 +235,17 @@ class DefaultCastPlaybackRepository(
             override fun onSessionResumed(
                 session: CastSession,
                 wasSuspended: Boolean,
-            ) = updateState(session)
+            ) {
+                attachQueue(session)
+                updateState(session)
+            }
 
             override fun onSessionResumeFailed(
                 session: CastSession,
                 error: Int,
             ) {
                 localMediaServer.stop()
+                detachQueue()
                 updateState(null)
             }
 
@@ -226,6 +284,7 @@ private class SafeCastTransferCallback(
     ) {
         val transferState = PlayerTransferState.fromPlayer(sourcePlayer)
         if (targetPlayer !== localPlayer) {
+            CastQueueItems.expect(transferState.mediaItems)
             transferState.setToPlayer(targetPlayer)
             return
         }

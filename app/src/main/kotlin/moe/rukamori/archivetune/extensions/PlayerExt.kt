@@ -72,7 +72,7 @@ fun Player.getQueueWindows(): List<Timeline.Window> {
             }
         }
     }
-    return queue.toList()
+    return queue.toList().also { windows -> moe.rukamori.archivetune.cast.CastQueueItems.fill(timeline, windows) }
 }
 
 fun Player.getCurrentQueueIndex(): Int {

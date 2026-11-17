@@ -6810,3 +6810,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI. To test: cast a Pérusse album to the Nest, skip tracks, then disconnect. Log line "Casting Plex file for plex://…".
+
+---
+Task ID: LITE-24
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: After starting Cast, the queue shows only 3 of the 7 songs (header still says 7).
+
+Work Log:
+- Media3 `CastTimelineTracker` (1.10.1, read from androidx/media) only fills item data for the items in `MediaStatus.getQueueItems()`, which the receiver limits to a window around the current item (here previous, current, next). The other queue item ids get `MediaItem.EMPTY`; the queue screen skips rows without metadata, while the duration header counts every window.
+- `cast/CastQueueItems` keeps a Cast item id -> MediaItem map: filled from the queue handed to the receiver at transfer (bound by index on the first timeline with the same size) and from the receiver's `MediaQueue` (all items fetched with `getItemAtIndex`, converted back with the Cast converter). `getQueueWindows` substitutes the known item for any empty window; `PlayerConnection` refreshes the queue when the map grows. Cleared when the session ends.
+- Nothing compiled locally; not run on a device or a Nest.
+
+Stage Summary:
+- Pending CI. To test: queue an album, start Cast, open the queue; all songs should be listed, and a song added while casting should appear after a moment.
