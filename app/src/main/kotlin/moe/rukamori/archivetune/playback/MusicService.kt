@@ -9143,8 +9143,26 @@ class MusicService :
     private fun resolveMediaItemForCast(mediaItem: MediaItem): MediaItem {
         val localConfiguration = mediaItem.localConfiguration ?: return mediaItem
         val uri = localConfiguration.uri
+        val castMediaId = localConfiguration.customCacheKey ?: mediaItem.mediaId
+        if (castMediaId.isPlexMediaId() || uri.scheme.equals(moe.rukamori.archivetune.plex.PLEX_MEDIA_ID_SCHEME, true)) {
+            val plexId = if (castMediaId.isPlexMediaId()) castMediaId else uri.toString()
+            val streamUrl = moe.rukamori.archivetune.plex.PlexSession.streamUrlBlocking(this, plexId)
+            val plexMimeType =
+                localConfiguration.mimeType
+                    ?.substringBefore(";")
+                    ?.takeIf { it.isNotBlank() && !it.endsWith("/*") }
+                    ?: runBlocking(Dispatchers.IO) {
+                        database.format(plexId).first()?.mimeType?.substringBefore(";")?.takeIf { it.isNotBlank() }
+                    }
+            Timber.tag("Cast").i("Casting Plex file for %s", plexId)
+            return mediaItem
+                .buildUpon()
+                .setUri(streamUrl)
+                .apply { plexMimeType?.let(::setMimeType) }
+                .build()
+        }
         if (uri.shouldBypassYouTubeResolver()) return mediaItem
-        val mediaId = localConfiguration.customCacheKey ?: mediaItem.mediaId
+        val mediaId = castMediaId
         val dataSpec =
             DataSpec
                 .Builder()
@@ -11383,6 +11401,12 @@ class MusicService :
             return dataSpec
         }
         val mediaId = dataSpec.key ?: return dataSpec
+        if (mediaId.isPlexMediaId()) {
+            return dataSpec
+                .buildUpon()
+                .setUri(moe.rukamori.archivetune.plex.PlexSession.streamUrlBlocking(this, mediaId).toUri())
+                .build()
+        }
         val lowDataModeActive = isLowDataModeActive()
 
         val wantStudio =

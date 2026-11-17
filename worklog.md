@@ -6795,3 +6795,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI. Next log on a stall should show "Initial buffer stalled … restarting the load" followed by "Fetching player response".
+
+---
+Task ID: LITE-23
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Casting a Plex album (François Pérusse) to a Nest Mini: slow to connect, froze for several seconds, started, froze again (logs 21:43-21:45).
+
+Work Log:
+- The Cast proxy resolves every queue item through `resolveMediaItemForCast`, which sent `plex://` ids to the YouTube resolver: each track ran all YouTube clients (HTTP 400, "Vidéo non disponible", 2-4 s, twice), then the studio rescue found a random YouTube upload and the Nest played that instead of the Plex file ("Playing alternate upload ZdBvTo_1zZQ in place of plex://…"). The Nest also answered "Invalid Request" and the session dropped.
+- Plex items are now cast from the Plex file itself: `resolveMediaItemForCast` returns the Plex stream URL (via `PlexSession`, address chosen for the current network) with the stored mime type, and the phone's local Cast server proxies it. `resolvePlaybackDataSpec` also returns the Plex stream for Plex ids, so no other path can send them to YouTube or the studio rescue.
+- "Skipped 135 frames" (2.2 s) when the session ended: the session listener (main thread) stopped the embedded Ktor server with a 1 s grace / 2 s timeout. The engine is now stopped on a background thread.
+- Nothing compiled locally; not run on a device or a Nest.
+
+Stage Summary:
+- Pending CI. To test: cast a Pérusse album to the Nest, skip tracks, then disconnect. Log line "Casting Plex file for plex://…".

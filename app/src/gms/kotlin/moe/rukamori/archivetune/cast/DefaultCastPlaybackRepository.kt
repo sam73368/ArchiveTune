@@ -512,8 +512,10 @@ private class LocalCastMediaServer(
         port = 0
         hostAddress = null
         currentEngine?.let {
-            runCatching { it.stop(1000, 2000) }
-                .onFailure { error -> Timber.tag("Cast").w(error, "Unable to stop local Cast media server") }
+            Thread({
+                runCatching { it.stop(500, 1500) }
+                    .onFailure { error -> Timber.tag("Cast").w(error, "Unable to stop local Cast media server") }
+            }, "CastServerStop").apply { isDaemon = true }.start()
         }
     }
 
