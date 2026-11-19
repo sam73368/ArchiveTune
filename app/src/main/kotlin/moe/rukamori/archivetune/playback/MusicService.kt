@@ -639,7 +639,7 @@ class MusicService :
                     },
             ).connectionPool(
                 okhttp3.ConnectionPool(96, 10, TimeUnit.MINUTES),
-            ).protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
+            ).protocols(listOf(okhttp3.Protocol.HTTP_1_1))
             .addInterceptor { chain ->
                 val request = chain.request()
                 val host = request.url.host
@@ -791,6 +791,7 @@ class MusicService :
     private val playbackStreamRecoveryTracker = PlaybackStreamRecoveryTracker()
 
     private var initialBufferRecoveryJob: Job? = null
+    private var initialBufferSkipJob: Job? = null
     private var playbackStallWatchdogJob: Job? = null
     private var playbackStallKickMediaId: String? = null
     private var playbackStallKicks = 0
@@ -5672,6 +5673,14 @@ class MusicService :
                 playbackUrlCache.remove(mediaId)
                 invalidateAlternateStream(mediaId)
                 YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
+                YTPlayerUtils.markResolvedStreamRejected(mediaId)
+                withContext(Dispatchers.IO) {
+                    runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
+                    runCatching { mediaOkHttpClient.connectionPool.evictAll() }
+                    if (mediaId.startsWith("plex://")) moe.rukamori.archivetune.plex.PlexClient.dropStreams()
+                }
+                if (player.currentMediaItem?.mediaId != mediaId) return@launch
+                if (initialBufferRecoveryAttempts >= INITIAL_BUFFER_MAX_RECOVERIES) scheduleStalledSongSkip(mediaId)
                 if (!isCrossfading) {
                     crossfadeTriggerJob?.cancel()
                     crossfadeTriggerJob = null
@@ -5687,6 +5696,22 @@ class MusicService :
                 } else {
                     Timber.tag(TAG).w("Initial buffer recovery budget exhausted for %s", mediaId)
                 }
+            }
+    }
+
+    private fun scheduleStalledSongSkip(mediaId: String) {
+        initialBufferSkipJob?.cancel()
+        initialBufferSkipJob =
+            scope.launch {
+                delay(INITIAL_BUFFER_STALL_DELAY_MS + INITIAL_BUFFER_SKIP_GRACE_MS)
+                val stillStuck =
+                    player.currentMediaItem?.mediaId == mediaId &&
+                        player.playWhenReady &&
+                        player.playbackState == Player.STATE_BUFFERING &&
+                        player.currentPosition < INITIAL_BUFFER_STALL_POSITION_MS
+                if (!stillStuck || !player.hasNextMediaItem()) return@launch
+                Timber.tag(TAG).w("Still no audio for %s after %d recoveries; skipping to the next song", mediaId, initialBufferRecoveryAttempts)
+                player.seekToNextMediaItem()
             }
     }
 
@@ -13927,6 +13952,7 @@ class MusicService :
         val RETRYABLE_STREAM_RESPONSE_CODES = setOf(403, 404, 410, 416)
         private const val INITIAL_BUFFER_STALL_DELAY_MS = 10_000L
         private const val INITIAL_BUFFER_MAX_RECOVERIES = 2
+        private const val INITIAL_BUFFER_SKIP_GRACE_MS = 5_000L
         private const val PLAYBACK_STALL_POLL_MS = 500L
         private const val PLAYBACK_STALL_KICK_MS = 2_500L
         private const val PLAYBACK_STALL_MAX_KICKS = 2

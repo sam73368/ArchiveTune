@@ -6876,3 +6876,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI. A stuck Plex load should now recover by itself within about 10 s; the log line above shows when it does.
+
+---
+Task ID: LITE-28
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Playback stutters and then stops completely ("plus rien ne marche"), YouTube songs this time (logs 14:02-14:14).
+
+Work Log:
+- 14:04:44: the URL probe for xQtGVnm80wY timed out (googlevideo did not answer) but the URL was kept and cached for 6 h. 14:12:05: the crossfade's incoming player could not get data in 5 s; 14:12:15 the song became current and stayed at 49 ms buffered; both initial-buffer recoveries restarted it with no effect. 14:14:13: even Il0Va01Ij2w, a song that had already played, stayed at 0 ms buffered, while the resolver's own requests (other clients) still answered in about 100 ms.
+- Cause: the playback OkHttp client negotiated HTTP/2, so every audio stream to a googlevideo host shared one TCP connection and one HTTP/2 flow-control window. Preloads that stop reading (full buffer, crossfade player, aborted loads) keep their streams open; once their unread bytes fill the connection window, every stream on that connection stops receiving data, and retries reuse the same pooled connection, so nothing plays until the app is killed.
+- `mediaOkHttpClient` and `PlexClient.streamHttp` are now HTTP/1.1 only: one connection per stream, as with ExoPlayer's default HTTP stack, so a stalled stream can no longer block the others.
+- Initial buffer recovery: each attempt now also cancels and evicts the media client's calls/connections (and Plex streams for Plex items) and marks the raced resolver stream as rejected so the next resolution uses another client. When both recoveries fail and the song is still silent 15 s later, playback skips to the next song (log "Still no audio for … skipping to the next song").
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. Downloads keep their own HTTP/2 clients (separate pools, not used by the player).

@@ -29,6 +29,7 @@ import kotlinx.serialization.json.longOrNull
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
@@ -106,6 +107,7 @@ object PlexClient {
             .newBuilder()
             .connectionPool(ConnectionPool())
             .dispatcher(Dispatcher())
+            .protocols(listOf(Protocol.HTTP_1_1))
             .connectTimeout(6, TimeUnit.SECONDS)
             .readTimeout(12, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
