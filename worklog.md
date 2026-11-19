@@ -6892,3 +6892,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI. Downloads keep their own HTTP/2 clients (separate pools, not used by the player).
+
+---
+Task ID: LITE-29
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: View counts in the queue do not match the album screen (Girl's Not Grey 177K vs 28M) and some queue rows show no count at all.
+
+Work Log:
+- Album and list rows (`SongListItem`, `YouTubeListItem`) ask `rememberViewCountText` with the song's `SongVersions.viewGroupOf(title, first artist)` group, so they show the highest count among versions of the same song (official video included). The queue row (`MediaMetadataListItem`) passed only the video id, so it showed the audio track's own count, and nothing when that single lookup failed (The Leaving Song).
+- `MediaMetadataListItem` now passes the same view group. Queue, album and lists read the same cached group count.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI.

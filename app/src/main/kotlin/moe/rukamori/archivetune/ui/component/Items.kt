@@ -716,7 +716,12 @@ fun MediaMetadataListItem(
     ListItem(
         title = mediaMetadata.title,
         subtitle = {
-            val viewCountLabel = rememberViewCountText(mediaMetadata.id)
+            val firstArtistName = mediaMetadata.artists.firstOrNull()?.name
+            val viewGroup =
+                remember(mediaMetadata.title, firstArtistName) {
+                    SongVersions.viewGroupOf(mediaMetadata.title, firstArtistName)
+                }
+            val viewCountLabel = rememberViewCountText(mediaMetadata.id, group = viewGroup)
             val smartShuffleLabel =
                 stringResource(R.string.smart_shuffle_suggestion)
                     .takeIf { moe.rukamori.archivetune.utils.SmartShuffleMarks.ids.containsKey(mediaMetadata.id) }
