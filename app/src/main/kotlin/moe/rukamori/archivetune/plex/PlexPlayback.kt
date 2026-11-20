@@ -12,6 +12,7 @@ import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.SystemClock
 import androidx.datastore.preferences.core.edit
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
@@ -19,6 +20,7 @@ import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -274,6 +276,9 @@ class PlexDataSource(
     private val upstream: DataSource,
 ) : DataSource {
     private var opened: DataSource? = null
+    private var openedSpec: DataSpec? = null
+    private var consumed = 0L
+    private var failuresInARow = 0
 
     override fun addTransferListener(transferListener: TransferListener) {
         upstream.addTransferListener(transferListener)
@@ -291,7 +296,14 @@ class PlexDataSource(
         return upstream.open(dataSpec.buildUpon().setUri(Uri.parse(url)).build())
     }
 
-    override fun open(dataSpec: DataSpec): Long =
+    override fun open(dataSpec: DataSpec): Long {
+        openedSpec = dataSpec
+        consumed = 0L
+        failuresInARow = 0
+        return openOrRetry(dataSpec)
+    }
+
+    private fun openOrRetry(dataSpec: DataSpec): Long =
         try {
             openWith(dataSpec, force = false)
         } catch (error: IOException) {
@@ -311,15 +323,55 @@ class PlexDataSource(
         buffer: ByteArray,
         offset: Int,
         length: Int,
-    ): Int = checkNotNull(opened).read(buffer, offset, length)
+    ): Int {
+        while (true) {
+            val source = checkNotNull(opened)
+            try {
+                val read = source.read(buffer, offset, length)
+                if (read > 0) {
+                    consumed += read
+                    failuresInARow = 0
+                }
+                return read
+            } catch (error: IOException) {
+                val spec = openedSpec
+                if (spec == null ||
+                    error is InterruptedIOException ||
+                    Thread.currentThread().isInterrupted ||
+                    failuresInARow >= MAX_RESUMES
+                ) {
+                    throw error
+                }
+                failuresInARow++
+                if (spec.length != C.LENGTH_UNSET.toLong() && consumed >= spec.length) return C.RESULT_END_OF_INPUT
+                Timber.tag("PlexSession").w(
+                    "Plex stream interrupted after %d bytes (%s); resuming (%d/%d)",
+                    consumed,
+                    error.message,
+                    failuresInARow,
+                    MAX_RESUMES,
+                )
+                runCatching { source.close() }
+                opened = null
+                if (failuresInARow > 1) PlexSession.invalidate()
+                openWith(spec.subrange(consumed), force = failuresInARow > 1)
+            }
+        }
+    }
 
     override fun getUri(): Uri? = opened?.uri
 
     override fun getResponseHeaders(): Map<String, List<String>> = opened?.responseHeaders ?: emptyMap()
 
     override fun close() {
-        opened?.close()
+        openedSpec = null
+        val source = opened
         opened = null
+        source?.close()
+    }
+
+    private companion object {
+        const val MAX_RESUMES = 3
     }
 
     class Factory(

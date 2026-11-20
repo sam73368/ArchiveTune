@@ -1580,6 +1580,7 @@ class MusicService :
                     addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
 
                     addAnalyticsListener(pipelineAnalyticsListener())
+                    addAnalyticsListener(plexDiagnosticsListener(this))
                     addListener(audioEffectPlayerListener)
                     setOffloadEnabled(false)
                 }
@@ -4651,6 +4652,7 @@ class MusicService :
             runCatching { outgoingPlayer.removeListener(audioEffectPlayerListener) }
             incomingPlayer.addListener(audioEffectPlayerListener)
             incomingPlayer.addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
+            incomingPlayer.addAnalyticsListener(plexDiagnosticsListener(incomingPlayer))
 
             mediaSession.player = player
             _playerFlow.value = player
@@ -12882,6 +12884,62 @@ class MusicService :
                 ?.takeIf { it in 8_000..384_000 }
         }.getOrNull()
 
+    private fun plexDiagnosticsListener(target: Player): AnalyticsListener =
+        object : AnalyticsListener {
+            private fun plexId(): String? = target.currentMediaItem?.mediaId?.takeIf { it.startsWith("plex://") }
+
+            override fun onAudioUnderrun(
+                eventTime: AnalyticsListener.EventTime,
+                bufferSize: Int,
+                bufferSizeMs: Long,
+                elapsedSinceLastFeedMs: Long,
+            ) {
+                val id = plexId() ?: return
+                Timber.tag("PlexPlayback").w(
+                    "Audio underrun on %s at %dms: sink buffer %dms, %dms since last feed, %dms buffered ahead",
+                    id,
+                    target.currentPosition,
+                    bufferSizeMs,
+                    elapsedSinceLastFeedMs,
+                    target.totalBufferedDuration,
+                )
+            }
+
+            override fun onLoadError(
+                eventTime: AnalyticsListener.EventTime,
+                loadEventInfo: androidx.media3.exoplayer.source.LoadEventInfo,
+                mediaLoadData: androidx.media3.exoplayer.source.MediaLoadData,
+                error: java.io.IOException,
+                wasCanceled: Boolean,
+            ) {
+                val id = plexId() ?: return
+                Timber.tag("PlexPlayback").w(
+                    "Load error on %s at %dms (%s: %s), %dms buffered ahead",
+                    id,
+                    target.currentPosition,
+                    error.javaClass.simpleName,
+                    error.message,
+                    target.totalBufferedDuration,
+                )
+            }
+
+            override fun onPlaybackStateChanged(
+                eventTime: AnalyticsListener.EventTime,
+                state: Int,
+            ) {
+                if (state != Player.STATE_BUFFERING) return
+                val id = plexId() ?: return
+                if (target.currentPosition < PLEX_REBUFFER_LOG_MIN_POSITION_MS) return
+                Timber.tag("PlexPlayback").w(
+                    "Rebuffering %s at %dms, %dms buffered ahead, loading=%b",
+                    id,
+                    target.currentPosition,
+                    target.totalBufferedDuration,
+                    target.isLoading,
+                )
+            }
+        }
+
     private fun pipelineAnalyticsListener(): AnalyticsListener = object : AnalyticsListener {
         override fun onAudioInputFormatChanged(
             eventTime: AnalyticsListener.EventTime,
@@ -14008,6 +14066,7 @@ class MusicService :
 
         const val PRIMARY_BUFFER_FOR_PLAYBACK_MS = 150
         const val PLEX_STALL_CHECK_MS = 2_000L
+        const val PLEX_REBUFFER_LOG_MIN_POSITION_MS = 1_000L
         const val PLEX_STALL_KICK_MS = 8_000L
         const val PRIMARY_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2_500
         const val CROSSFADE_PROMOTION_VOLUME_RECONCILE_MS = 1_500L

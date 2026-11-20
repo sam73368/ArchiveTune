@@ -6906,3 +6906,19 @@ Work Log:
 
 Stage Summary:
 - Pending CI.
+
+---
+Task ID: LITE-30
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Intermittent short audio cuts (fractions of a second) while listening to Plex (François Pérusse); playback then continues normally. No log provided.
+
+Work Log:
+- Reviewed the Plex path end to end (address choice, DNS, stream client, cache chain, network handover, stall watchdog, error handler, buffer settings 40-150 s). With 40 s or more buffered, a dropped or slow connection is normally inaudible; an audible cut means either the buffer ran dry or the audio output itself underran, and the existing logs cannot tell which.
+- `PlexDataSource` now resumes a broken Plex response itself: on a read `IOException` (not a cancellation/interrupt) it reopens the same file at the byte where it stopped (first on the same address, then after re-checking addresses), up to 3 times in a row. ExoPlayer no longer sees the error, so the extractor is not restarted and the load does not go through its retry back-off. This also covers connections cut by a network handover or by the stall watchdog.
+- Plex-only diagnostics on the main and crossfade players (tag `PlexPlayback`): audio underruns (sink buffer, time since last feed, buffered ahead), load errors, and rebuffering after the first second (buffered ahead, loading flag). The next log taken right after a cut will show which of the two it is.
+- Possible non-Plex cause to check: Settings > Player > "Skip silence" removes short pauses, which spoken tracks are full of; it is off by default.
+- Nothing compiled locally; not run on a device. Nothing changed for non-Plex playback.
+
+Stage Summary:
+- Pending CI.
