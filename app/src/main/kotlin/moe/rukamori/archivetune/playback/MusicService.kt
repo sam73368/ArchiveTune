@@ -1798,6 +1798,67 @@ class MusicService :
         }
 
         scope.launch {
+            var stallMediaId: String? = null
+            var kicks = 0
+            var lastKickAt = 0L
+            while (isActive) {
+                delay(MID_SONG_STALL_CHECK_MS)
+                val now = android.os.SystemClock.elapsedRealtime()
+                val mediaId = player.currentMediaItem?.mediaId
+                val casting =
+                    runCatching {
+                        (castPlaybackRepository.screenState.value as? CastScreenState.Success)?.uiState?.isConnected == true
+                    }.getOrDefault(false)
+                val stalled =
+                    mediaId != null &&
+                        !casting &&
+                        !mediaId.startsWith("plex://") &&
+                        !mediaId.isLocalMediaId() &&
+                        player.playWhenReady &&
+                        player.playbackState == Player.STATE_BUFFERING &&
+                        player.currentPosition >= INITIAL_BUFFER_STALL_POSITION_MS &&
+                        now - PlaybackLoadActivity.lastSignalAt(now) > MID_SONG_STALL_KICK_MS
+                if (!stalled) {
+                    if (mediaId != stallMediaId || player.playbackState == Player.STATE_READY) {
+                        stallMediaId = null
+                        kicks = 0
+                    }
+                    continue
+                }
+                if (mediaId != stallMediaId) {
+                    stallMediaId = mediaId
+                    kicks = 0
+                    lastKickAt = 0L
+                }
+                if (now - lastKickAt < MID_SONG_STALL_KICK_MS) continue
+                lastKickAt = now
+                kicks++
+                val position = player.currentPosition
+                Timber.tag(TAG).w(
+                    "Stream stalled mid-song for %s at %dms (attempt %d); fetching a fresh stream",
+                    mediaId,
+                    position,
+                    kicks,
+                )
+                playbackUrlCache.remove(mediaId)
+                invalidateAlternateStream(mediaId)
+                YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
+                if (kicks > 1) YTPlayerUtils.markResolvedStreamRejected(mediaId)
+                withContext(Dispatchers.IO) {
+                    runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
+                    runCatching { mediaOkHttpClient.connectionPool.evictAll() }
+                }
+                if (kicks >= MID_SONG_STALL_REPREPARE_AFTER && player.currentMediaItem?.mediaId == mediaId) {
+                    val index = player.currentMediaItemIndex
+                    player.stop()
+                    player.seekTo(index, position)
+                    player.prepare()
+                    player.play()
+                }
+            }
+        }
+
+        scope.launch {
             connectivityObserver.networkStatus.collect { isConnected ->
                 isNetworkConnected.value = isConnected
                 if (isConnected && waitingForNetworkConnection.value) {
@@ -12886,7 +12947,7 @@ class MusicService :
 
     private fun plexDiagnosticsListener(target: Player): AnalyticsListener =
         object : AnalyticsListener {
-            private fun plexId(): String? = target.currentMediaItem?.mediaId?.takeIf { it.startsWith("plex://") }
+            private fun plexId(): String? = target.currentMediaItem?.mediaId
 
             override fun onAudioUnderrun(
                 eventTime: AnalyticsListener.EventTime,
@@ -12895,7 +12956,7 @@ class MusicService :
                 elapsedSinceLastFeedMs: Long,
             ) {
                 val id = plexId() ?: return
-                Timber.tag("PlexPlayback").w(
+                Timber.tag("PlaybackDiag").w(
                     "Audio underrun on %s at %dms: sink buffer %dms, %dms since last feed, %dms buffered ahead",
                     id,
                     target.currentPosition,
@@ -12913,7 +12974,7 @@ class MusicService :
                 wasCanceled: Boolean,
             ) {
                 val id = plexId() ?: return
-                Timber.tag("PlexPlayback").w(
+                Timber.tag("PlaybackDiag").w(
                     "Load error on %s at %dms (%s: %s), %dms buffered ahead",
                     id,
                     target.currentPosition,
@@ -12930,7 +12991,7 @@ class MusicService :
                 if (state != Player.STATE_BUFFERING) return
                 val id = plexId() ?: return
                 if (target.currentPosition < PLEX_REBUFFER_LOG_MIN_POSITION_MS) return
-                Timber.tag("PlexPlayback").w(
+                Timber.tag("PlaybackDiag").w(
                     "Rebuffering %s at %dms, %dms buffered ahead, loading=%b",
                     id,
                     target.currentPosition,
@@ -14066,6 +14127,9 @@ class MusicService :
 
         const val PRIMARY_BUFFER_FOR_PLAYBACK_MS = 150
         const val PLEX_STALL_CHECK_MS = 2_000L
+        const val MID_SONG_STALL_CHECK_MS = 2_000L
+        const val MID_SONG_STALL_KICK_MS = 10_000L
+        const val MID_SONG_STALL_REPREPARE_AFTER = 2
         const val PLEX_REBUFFER_LOG_MIN_POSITION_MS = 1_000L
         const val PLEX_STALL_KICK_MS = 8_000L
         const val PRIMARY_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2_500

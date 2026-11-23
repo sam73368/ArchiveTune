@@ -6922,3 +6922,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI.
+
+---
+Task ID: LITE-31
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Playback stopped suddenly (log 16:57-17:35).
+
+Work Log:
+- 17:17:36: a 3-hour YouTube video (1dld8oPuQWw, ~204 MB, read in 8 MB requests) started and played for 15 minutes. 17:32:40: the player went to buffering in the middle of the video and never came back (still buffering at 17:35), with no player error, no MusicService line and no retry visible. Every recovery that existed only covered the first 5 s of a song (initial buffer recovery) or Plex items (stall watchdog), so a stall in the middle of a streamed song could last forever. 15 minutes is about where the third 8 MB request starts, which points to a request that hung (reused idle connection or a URL the server stopped serving).
+- New mid-song watchdog in `MusicService` for streamed, non-Plex, non-local items while not casting: play requested, buffering, position past 5 s and no data-source activity for 10 s -> log "Stream stalled mid-song for … (attempt n); fetching a fresh stream", drop the cached stream URLs for the song, cancel and evict the playback HTTP connections so ExoPlayer's retry resolves a fresh URL on a new connection; from the second attempt the raced resolver stream is marked rejected, and the player is re-prepared at the same position. Attempts are spaced 10 s apart and reset when playback is ready or the song changes.
+- The diagnostics listener now logs underruns, load errors and rebuffers for every item (tag `PlaybackDiag`), not just Plex.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI.
