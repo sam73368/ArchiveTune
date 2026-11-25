@@ -26,6 +26,7 @@ import moe.rukamori.archivetune.constants.MaxSongCacheSizeKey
 import moe.rukamori.archivetune.db.InternalDatabase
 import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.listentogether.ListenTogetherClient
+import moe.rukamori.archivetune.playback.BlockingCallMonitor
 import moe.rukamori.archivetune.storage.StorageFolderKind
 import moe.rukamori.archivetune.storage.StorageLocationRepository
 import moe.rukamori.archivetune.utils.dataStore
@@ -76,12 +77,15 @@ internal class LazyCache(
             cache ?: create().also { cache = it }
         }
 
-    private inline fun <T> withDelegate(block: (Cache) -> T): T = block(delegate())
+    private inline fun <T> withDelegate(
+        operation: String,
+        crossinline block: (Cache) -> T,
+    ): T = BlockingCallMonitor.track(BlockingCallMonitor.CACHE, operation) { block(delegate()) }
 
     override fun addListener(
         key: String,
         listener: Cache.Listener,
-    ) = withDelegate { cache -> cache.addListener(key, listener) }
+    ) = withDelegate("addListener") { cache -> cache.addListener(key, listener) }
 
     override fun removeListener(
         key: String,
@@ -91,67 +95,67 @@ internal class LazyCache(
         existing.removeListener(key, listener)
     }
 
-    override fun getCachedSpans(key: String): NavigableSet<CacheSpan> = withDelegate { cache -> cache.getCachedSpans(key) }
+    override fun getCachedSpans(key: String): NavigableSet<CacheSpan> = withDelegate("getCachedSpans") { cache -> cache.getCachedSpans(key) }
 
-    override fun getKeys(): NavigableSet<String> = withDelegate { cache -> TreeSet(cache.keys) }
+    override fun getKeys(): NavigableSet<String> = withDelegate("getKeys") { cache -> TreeSet(cache.keys) }
 
-    override fun getCacheSpace(): Long = withDelegate { cache -> cache.cacheSpace }
+    override fun getCacheSpace(): Long = withDelegate("getCacheSpace") { cache -> cache.cacheSpace }
 
-    override fun getUid(): Long = withDelegate { cache -> cache.uid }
+    override fun getUid(): Long = withDelegate("getUid") { cache -> cache.uid }
 
     override fun getCachedLength(
         key: String,
         position: Long,
         length: Long,
-    ): Long = withDelegate { cache -> cache.getCachedLength(key, position, length) }
+    ): Long = withDelegate("getCachedLength") { cache -> cache.getCachedLength(key, position, length) }
 
     override fun getCachedBytes(
         key: String,
         position: Long,
         length: Long,
-    ): Long = withDelegate { cache -> cache.getCachedBytes(key, position, length) }
+    ): Long = withDelegate("getCachedBytes") { cache -> cache.getCachedBytes(key, position, length) }
 
     override fun applyContentMetadataMutations(
         key: String,
         mutations: ContentMetadataMutations,
-    ) = withDelegate { cache -> cache.applyContentMetadataMutations(key, mutations) }
+    ) = withDelegate("applyContentMetadataMutations") { cache -> cache.applyContentMetadataMutations(key, mutations) }
 
-    override fun getContentMetadata(key: String): ContentMetadata = withDelegate { cache -> cache.getContentMetadata(key) }
+    override fun getContentMetadata(key: String): ContentMetadata = withDelegate("getContentMetadata") { cache -> cache.getContentMetadata(key) }
 
     override fun startReadWrite(
         key: String,
         position: Long,
         length: Long,
-    ): CacheSpan = withDelegate { cache -> cache.startReadWrite(key, position, length) }
+    ): CacheSpan = delegate().startReadWrite(key, position, length)
 
     override fun startReadWriteNonBlocking(
         key: String,
         position: Long,
         length: Long,
-    ): CacheSpan? = withDelegate { cache -> cache.startReadWriteNonBlocking(key, position, length) }
+    ): CacheSpan? = withDelegate("startReadWriteNonBlocking") { cache -> cache.startReadWriteNonBlocking(key, position, length) }
 
     override fun startFile(
         key: String,
         position: Long,
         maxLength: Long,
-    ): File = withDelegate { cache -> cache.startFile(key, position, maxLength) }
+    ): File = withDelegate("startFile") { cache -> cache.startFile(key, position, maxLength) }
 
     override fun commitFile(
         file: File,
         length: Long,
-    ) = withDelegate { cache -> cache.commitFile(file, length) }
+    ) = withDelegate("commitFile") { cache -> cache.commitFile(file, length) }
 
-    override fun releaseHoleSpan(holeSpan: CacheSpan) = withDelegate { cache -> cache.releaseHoleSpan(holeSpan) }
+    override fun releaseHoleSpan(holeSpan: CacheSpan) = withDelegate("releaseHoleSpan") { cache -> cache.releaseHoleSpan(holeSpan) }
 
-    override fun removeSpan(span: CacheSpan) = withDelegate { cache -> cache.removeSpan(span) }
+    override fun removeSpan(span: CacheSpan) = withDelegate("removeSpan") { cache -> cache.removeSpan(span) }
 
-    override fun removeResource(key: String) = withDelegate { cache -> cache.removeResource(key) }
+    override fun removeResource(key: String) = withDelegate("removeResource") { cache -> cache.removeResource(key) }
 
     override fun isCached(
         key: String,
         position: Long,
         length: Long,
-    ): Boolean = withDelegate { cache -> cache.isCached(key, position, length) }
+    ): Boolean = withDelegate("isCached") { cache -> cache.isCached(key, position, length) }
 
     override fun release() {
         val toRelease = synchronized(lock) {

@@ -9,11 +9,13 @@ package moe.rukamori.archivetune.plex
 
 import java.io.IOException
 import java.net.URLEncoder
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -119,7 +121,19 @@ object PlexClient {
         runCatching { streamHttp.connectionPool.evictAll() }
     }
 
-    private val probeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val plexDispatcher =
+        Executors
+            .newCachedThreadPool { runnable -> Thread(runnable, "PlexNetwork").apply { isDaemon = true } }
+            .asCoroutineDispatcher()
+
+    private val probeScope = CoroutineScope(SupervisorJob() + plexDispatcher)
+
+    private val quickHttp: OkHttpClient by lazy {
+        http
+            .newBuilder()
+            .callTimeout(15, TimeUnit.SECONDS)
+            .build()
+    }
 
     private val probeHttp: OkHttpClient by lazy {
         http
@@ -166,11 +180,12 @@ object PlexClient {
         clientId: String,
         accountToken: String,
     ): List<PlexServer> =
-        withContext(Dispatchers.IO) {
+        withContext(plexDispatcher) {
             call(
                 request(clientId, accountToken, "$PLEX_TV/api/v2/resources?includeHttps=1&includeRelay=1")
                     .get()
                     .build(),
+                quickHttp,
             ).jsonArray
                 .mapNotNull { it as? JsonObject }
                 .filter { resource -> resource.string("provides").orEmpty().split(',').contains("server") }
@@ -309,7 +324,7 @@ object PlexClient {
         ratingKey: String,
     ): String? {
         val metadata =
-            container(call(request(clientId, token, "$baseUri/library/metadata/${enc(ratingKey)}").get().build()))
+            container(call(request(clientId, token, "$baseUri/library/metadata/${enc(ratingKey)}").get().build(), quickHttp))
                 ?.get("Metadata") as? JsonArray
         return (metadata?.firstOrNull() as? JsonObject)?.let(::parseTrack)?.partKey
     }
@@ -379,8 +394,11 @@ object PlexClient {
         )
     }
 
-    private fun call(request: Request): JsonElement =
-        http.newCall(request).execute().use { response ->
+    private fun call(
+        request: Request,
+        client: OkHttpClient = http,
+    ): JsonElement =
+        client.newCall(request).execute().use { response ->
             if (response.code == 401) throw PlexUnauthorizedException()
             if (!response.isSuccessful) throw IOException("Plex HTTP ${response.code}")
             json.parseToJsonElement(response.body?.string().orEmpty())

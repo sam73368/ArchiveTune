@@ -21,18 +21,23 @@ import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import java.io.IOException
 import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import moe.rukamori.archivetune.constants.PlexAccountTokenKey
 import moe.rukamori.archivetune.constants.PlexClientIdKey
 import moe.rukamori.archivetune.constants.PlexServerConnectionsKey
 import moe.rukamori.archivetune.constants.PlexServerMachineIdKey
 import moe.rukamori.archivetune.constants.PlexServerTokenKey
 import moe.rukamori.archivetune.constants.PlexServerUriKey
+import moe.rukamori.archivetune.utils.PreferenceStore
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.get
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -62,6 +67,9 @@ object PlexSession {
     private const val VERIFY_TTL_MS = 5 * 60_000L
     private const val REFRESH_MIN_INTERVAL_MS = 30_000L
     private const val FAILURE_HOLD_MS = 8_000L
+    private const val LOCK_WAIT_MS = 12_000L
+    private const val PICK_TIMEOUT_MS = 10_000L
+    private const val REFRESH_TIMEOUT_MS = 15_000L
 
     private class ActiveBase(
         val uri: String,
@@ -69,8 +77,17 @@ object PlexSession {
         val verifiedAt: Long,
     )
 
+    private class Refreshed(
+        val machineId: String,
+        val connections: List<String>,
+        val token: String,
+    )
+
     private val partKeys = ConcurrentHashMap<String, String>()
-    private val lock = Any()
+    private val lock = ReentrantLock()
+
+    @Volatile
+    private var refreshed: Refreshed? = null
 
     @Volatile
     private var active: ActiveBase? = null
@@ -105,12 +122,19 @@ object PlexSession {
     fun forget() {
         partKeys.clear()
         active = null
+        refreshed = null
     }
 
     fun invalidate() {
         active = null
         failedUntil = 0L
     }
+
+    private fun currentRefresh(context: Context): Refreshed? =
+        refreshed?.takeIf { it.machineId == context.dataStore.get(PlexServerMachineIdKey) }
+
+    private fun serverToken(context: Context): String? =
+        currentRefresh(context)?.token ?: context.dataStore.get(PlexServerTokenKey)?.takeIf { it.isNotBlank() }
 
     fun isConfigured(context: Context): Boolean = !context.dataStore.get(PlexServerTokenKey).isNullOrBlank()
 
@@ -131,12 +155,14 @@ object PlexSession {
 
     private fun storedCandidates(context: Context): List<String> {
         val phone = phoneAddresses(context)
-        return (
-            context.dataStore
-                .get(PlexServerConnectionsKey)
-                .orEmpty()
-                .split('\n') + context.dataStore.get(PlexServerUriKey).orEmpty()
-        ).map { it.trim() }
+        val connections =
+            currentRefresh(context)?.connections
+                ?: context.dataStore
+                    .get(PlexServerConnectionsKey)
+                    .orEmpty()
+                    .split('\n')
+        return (connections + context.dataStore.get(PlexServerUriKey).orEmpty())
+            .map { it.trim() }
             .filter { it.startsWith("https://") }
             .distinct()
             .sortedBy { uri -> PlexDns.rank(Uri.parse(uri).host.orEmpty(), phone) }
@@ -150,18 +176,20 @@ object PlexSession {
         val machineId = context.dataStore.get(PlexServerMachineIdKey)?.takeIf { it.isNotBlank() } ?: return false
         val server =
             runCatching {
-                runBlocking { PlexClient.servers(clientId(context), accountToken) }
-            }.onFailure { Timber.tag(TAG).w(it, "Plex connection refresh failed") }
+                runBlocking {
+                    withTimeoutOrNull(REFRESH_TIMEOUT_MS) { PlexClient.servers(clientId(context), accountToken) }
+                        ?: throw SocketTimeoutException("plex.tv did not answer in ${REFRESH_TIMEOUT_MS / 1000}s")
+                }
+            }.onFailure { Timber.tag(TAG).w("Plex connection refresh failed: %s", it.message) }
                 .getOrNull()
                 ?.firstOrNull { it.machineId == machineId } ?: return false
         serverOnline = server.online
         val uris = PlexClient.connectionUris(server)
         if (uris.isEmpty()) return false
-        runBlocking {
-            context.dataStore.edit {
-                it[PlexServerConnectionsKey] = uris.joinToString("\n")
-                it[PlexServerTokenKey] = server.accessToken
-            }
+        refreshed = Refreshed(machineId, uris, server.accessToken)
+        PreferenceStore.launchEdit(context.dataStore) {
+            this[PlexServerConnectionsKey] = uris.joinToString("\n")
+            this[PlexServerTokenKey] = server.accessToken
         }
         Timber.tag(TAG).i("Plex connections refreshed: %d addresses", uris.size)
         return true
@@ -180,7 +208,18 @@ object PlexSession {
                         SystemClock.elapsedRealtime() - it.verifiedAt < VERIFY_TTL_MS
                 }?.uri
         fresh()?.let { return it }
-        synchronized(lock) {
+        val acquired =
+            try {
+                lock.tryLock(LOCK_WAIT_MS, TimeUnit.MILLISECONDS)
+            } catch (interrupted: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw InterruptedIOException("Plex address check interrupted")
+            }
+        if (!acquired) {
+            Timber.tag(TAG).w("Plex address check still busy after %ds; retrying later", LOCK_WAIT_MS / 1000)
+            throw PlexBusyException()
+        }
+        try {
             fresh()?.let { return it }
             if (!isConfigured(context)) throw IOException("Plex server not connected")
             if (failedNetworkHandle == handle && SystemClock.elapsedRealtime() < failedUntil) {
@@ -189,8 +228,10 @@ object PlexSession {
             val client = clientId(context)
             if (context.dataStore.get(PlexServerConnectionsKey).isNullOrBlank()) refreshConnectionsBlocking(context)
             fun pick(): String? {
-                val token = context.dataStore.get(PlexServerTokenKey).orEmpty()
-                return runBlocking { PlexClient.firstReachable(client, token, storedCandidates(context)) }
+                val token = serverToken(context).orEmpty()
+                return runBlocking {
+                    withTimeoutOrNull(PICK_TIMEOUT_MS) { PlexClient.firstReachable(client, token, storedCandidates(context)) }
+                }
             }
             val picked =
                 pick()
@@ -217,10 +258,12 @@ object PlexSession {
             _problem.value = null
             if (picked != active?.uri) Timber.tag(TAG).i("Plex address in use: %s", Uri.parse(picked).host)
             if (picked != context.dataStore.get(PlexServerUriKey)) {
-                runBlocking { context.dataStore.edit { it[PlexServerUriKey] = picked } }
+                PreferenceStore.launchEdit(context.dataStore) { this[PlexServerUriKey] = picked }
             }
             active = ActiveBase(picked, handle, SystemClock.elapsedRealtime())
             return picked
+        } finally {
+            lock.unlock()
         }
     }
 
@@ -258,8 +301,7 @@ object PlexSession {
     ): String {
         val ratingKey = plexRatingKeyOf(mediaId) ?: throw IOException("Not a Plex track: $mediaId")
         val baseUri = baseUriBlocking(context, force)
-        val token = context.dataStore.get(PlexServerTokenKey)?.takeIf { it.isNotBlank() }
-            ?: throw IOException("Plex server not connected")
+        val token = serverToken(context) ?: throw IOException("Plex server not connected")
         val partKey =
             partKeys[ratingKey]
                 ?: PlexClient.partKeyBlocking(clientId(context), baseUri, token, ratingKey)?.also {
@@ -269,6 +311,8 @@ object PlexSession {
         return PlexClient.streamUrl(baseUri, token, partKey)
     }
 }
+
+class PlexBusyException : SocketTimeoutException("Plex address check busy")
 
 @UnstableApi
 class PlexDataSource(
@@ -309,7 +353,8 @@ class PlexDataSource(
         } catch (error: IOException) {
             if (error is HttpDataSource.InvalidResponseCodeException ||
                 error is PlexUnauthorizedException ||
-                error is PlexUnreachableException
+                error is PlexUnreachableException ||
+                error is PlexBusyException
             ) {
                 throw error
             }

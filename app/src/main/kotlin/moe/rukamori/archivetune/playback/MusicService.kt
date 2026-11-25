@@ -1778,21 +1778,55 @@ class MusicService :
             }.also { it.register() }
 
         scope.launch {
+            var stallMediaId: String? = null
+            var kicks = 0
             var lastKickAt = 0L
             while (isActive) {
                 delay(PLEX_STALL_CHECK_MS)
                 val now = android.os.SystemClock.elapsedRealtime()
+                val mediaId = player.currentMediaItem?.mediaId
                 val stalled =
-                    player.playWhenReady &&
+                    mediaId?.startsWith("plex://") == true &&
+                        player.playWhenReady &&
                         player.playbackState == Player.STATE_BUFFERING &&
-                        player.currentMediaItem?.mediaId?.startsWith("plex://") == true &&
-                        now - PlaybackLoadActivity.lastSignalAt(now) > PLEX_STALL_KICK_MS &&
-                        now - lastKickAt > PLEX_STALL_KICK_MS
-                if (stalled) {
-                    lastKickAt = now
-                    Timber.tag(TAG).w("Plex stream stalled; reconnecting")
-                    moe.rukamori.archivetune.plex.PlexSession.invalidate()
-                    withContext(Dispatchers.IO) { moe.rukamori.archivetune.plex.PlexClient.dropStreams() }
+                        now - PlaybackLoadActivity.lastSignalAt(now) > PLEX_STALL_KICK_MS
+                if (!stalled) {
+                    if (mediaId != stallMediaId || player.playbackState == Player.STATE_READY) {
+                        stallMediaId = null
+                        kicks = 0
+                    }
+                    continue
+                }
+                if (mediaId != stallMediaId) {
+                    stallMediaId = mediaId
+                    kicks = 0
+                    lastKickAt = 0L
+                }
+                if (now - lastKickAt < PLEX_STALL_KICK_MS) continue
+                lastKickAt = now
+                kicks++
+                val position = player.currentPosition
+                val cacheBypass = BlockingCallMonitor.cacheBypassActive()
+                Timber.tag(TAG).w(
+                    "Plex stream stalled for %s at %dms (attempt %d, cache bypass=%b); reconnecting",
+                    mediaId,
+                    position,
+                    kicks,
+                    cacheBypass,
+                )
+                if (kicks == 1) BlockingCallMonitor.dumpPlaybackThreads("Plex stall on $mediaId")
+                if (kicks > 1) moe.rukamori.archivetune.plex.PlexSession.invalidate()
+                withContext(Dispatchers.IO) { moe.rukamori.archivetune.plex.PlexClient.dropStreams() }
+                val reprepare =
+                    position >= INITIAL_BUFFER_STALL_POSITION_MS &&
+                        (cacheBypass || kicks >= PLEX_STALL_REPREPARE_AFTER) &&
+                        player.currentMediaItem?.mediaId == mediaId
+                if (reprepare) {
+                    val index = player.currentMediaItemIndex
+                    player.stop()
+                    player.seekTo(index, position)
+                    player.prepare()
+                    player.play()
                 }
             }
         }
@@ -1834,12 +1868,15 @@ class MusicService :
                 lastKickAt = now
                 kicks++
                 val position = player.currentPosition
+                val cacheBypass = BlockingCallMonitor.cacheBypassActive()
                 Timber.tag(TAG).w(
-                    "Stream stalled mid-song for %s at %dms (attempt %d); fetching a fresh stream",
+                    "Stream stalled mid-song for %s at %dms (attempt %d, cache bypass=%b); fetching a fresh stream",
                     mediaId,
                     position,
                     kicks,
+                    cacheBypass,
                 )
+                if (kicks == 1) BlockingCallMonitor.dumpPlaybackThreads("mid-song stall on $mediaId")
                 playbackUrlCache.remove(mediaId)
                 invalidateAlternateStream(mediaId)
                 YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
@@ -1848,7 +1885,7 @@ class MusicService :
                     runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
                     runCatching { mediaOkHttpClient.connectionPool.evictAll() }
                 }
-                if (kicks >= MID_SONG_STALL_REPREPARE_AFTER && player.currentMediaItem?.mediaId == mediaId) {
+                if ((cacheBypass || kicks >= MID_SONG_STALL_REPREPARE_AFTER) && player.currentMediaItem?.mediaId == mediaId) {
                     val index = player.currentMediaItemIndex
                     player.stop()
                     player.seekTo(index, position)
@@ -5726,13 +5763,16 @@ class MusicService :
                 if (initialBufferRecoveryAttemptedMediaId != mediaId) initialBufferRecoveryAttempts = 0
                 initialBufferRecoveryAttemptedMediaId = mediaId
                 initialBufferRecoveryAttempts++
+                val cacheBypass = BlockingCallMonitor.cacheBypassActive()
                 Timber.tag(TAG).w(
-                    "Initial buffer stalled for %s (attempt %d, loading=%s, buffered=%d ms); dropping stream caches and restarting the load",
+                    "Initial buffer stalled for %s (attempt %d, loading=%s, buffered=%d ms, cache bypass=%b); dropping stream caches and restarting the load",
                     mediaId,
                     initialBufferRecoveryAttempts,
                     player.isLoading,
                     player.bufferedPosition,
+                    cacheBypass,
                 )
+                BlockingCallMonitor.dumpPlaybackThreads("initial buffer stall on $mediaId")
                 playbackUrlCache.remove(mediaId)
                 invalidateAlternateStream(mediaId)
                 YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
@@ -9063,16 +9103,22 @@ class MusicService :
                     CacheDataSink.Factory().setCache(playerCache).setFragmentSize(C.LENGTH_UNSET.toLong()),
                 ).setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
+        val uncachedFactory = directFactory
+        val plexUncachedFactory = moe.rukamori.archivetune.plex.PlexDataSource.Factory(this)
+        val deezerUncachedFactory = DeezerDecryptingDataSource.Factory(OkHttpDataSource.Factory(mediaOkHttpClient))
+        val echoUncachedFactory = EchoDecryptingDataSource.Factory(OkHttpDataSource.Factory(mediaOkHttpClient))
+
         return DataSource.Factory {
+            val bypassCache = BlockingCallMonitor.cacheBypassActive()
             SchemeRoutingDataSource(
-                cachedFactory = cachedFactory,
+                cachedFactory = if (bypassCache) uncachedFactory else cachedFactory,
                 directFactory = directFactory,
                 telegramFactory = telegramFactory,
-                plexFactory = plexFactory,
-                deezerFactory = deezerFactory,
+                plexFactory = if (bypassCache) plexUncachedFactory else plexFactory,
+                deezerFactory = if (bypassCache) deezerUncachedFactory else deezerFactory,
                 tidalProgressiveDashFactory = tidalProgressiveDashFactory,
                 soundCloudHlsFactory = soundCloudHlsFactory,
-                echoFactory = echoFactory,
+                echoFactory = if (bypassCache) echoUncachedFactory else echoFactory,
             ).also { it.addTransferListener(PlaybackLoadActivity) }
         }
     }
@@ -9108,10 +9154,12 @@ class MusicService :
             if (scheme == DeezerCrypto.SCHEME || scheme == TidalAudioProvider.PROGRESSIVE_DASH_SCHEME || scheme == SpotifyEchoResolver.SCHEME || scheme == SoundCloudAudioProvider.HLS_SCHEME) {
                 dataSpec
             } else {
-                resolvePlaybackDataSpec(
-                    dataSpec = dataSpec,
-                    allowCacheShortCircuit = false,
-                )
+                PlaybackLoadActivity.resolving {
+                    resolvePlaybackDataSpec(
+                        dataSpec = dataSpec,
+                        allowCacheShortCircuit = false,
+                    )
+                }
             }
         }
     }
@@ -11537,7 +11585,8 @@ class MusicService :
         val wantStudio =
             !lowDataModeActive && !UserChosenClips.contains(mediaId) &&
                 studioVariantPins.getOrPut(mediaId) { prefersStudioAudio(mediaId) }
-        val fullyDownloaded = wantStudio && isFullyDownloaded(mediaId)
+        val cacheBypass = BlockingCallMonitor.cacheBypassActive()
+        val fullyDownloaded = wantStudio && !cacheBypass && isFullyDownloaded(mediaId)
         if (wantStudio && !fullyDownloaded) {
             val studioSpec =
                 resolveMultiSourceDataSpec(dataSpec, mediaId, lowDataModeActive, mode = SourceResolveMode.STUDIO)
@@ -11561,18 +11610,24 @@ class MusicService :
             knownContentLength = formatMemo.knownContentLength
         } else {
             storedFormat =
-                runBlocking(Dispatchers.IO) {
-                    database.format(mediaId).first()
+                BlockingCallMonitor.track(BlockingCallMonitor.DATABASE, "format($mediaId)") {
+                    runBlocking {
+                        withTimeoutOrNull(FORMAT_LOOKUP_TIMEOUT_MS) {
+                            withContext(Dispatchers.IO) { database.format(mediaId).first() }
+                        }
+                    }
                 }
             storedFormat?.let { format ->
                 audioNormalizationFactorCache[mediaId] = resolveAudioNormalizationFactor(mediaId, storedFormat, normalizeAudio = true)
             }
             knownContentLength =
                 contentLengthCache[mediaId] ?: storedFormat?.contentLength?.takeIf { it > 0L } ?: runCatching {
+                    if (cacheBypass) return@runCatching -1L
                     downloadCache
                         .getContentMetadata(mediaId)
                         .get(ContentMetadata.KEY_CONTENT_LENGTH, -1L)
                 }.getOrNull()?.takeIf { it > 0L } ?: runCatching {
+                    if (cacheBypass) return@runCatching -1L
                     playerCache
                         .getContentMetadata(mediaId)
                         .get(ContentMetadata.KEY_CONTENT_LENGTH, -1L)
@@ -11585,7 +11640,7 @@ class MusicService :
         @Suppress("unused") val tidalApplies = !lowDataModeActive && tidalSourceApplies(mediaId)
         val allowPlayerCacheShortCircuit = true
 
-        if (allowCacheShortCircuit) {
+        if (allowCacheShortCircuit && !cacheBypass) {
             resolveCachedDataSpec(
                 dataSpec = dataSpec,
                 mediaId = mediaId,
@@ -11615,7 +11670,7 @@ class MusicService :
                 }
             }
 
-        if (allowCacheShortCircuit && requiredCachedLength != null) {
+        if (allowCacheShortCircuit && !cacheBypass && requiredCachedLength != null) {
             val isFullyCached =
                 downloadCache.isCached(mediaId, dataSpec.position, requiredCachedLength) ||
                     (
@@ -14127,6 +14182,8 @@ class MusicService :
 
         const val PRIMARY_BUFFER_FOR_PLAYBACK_MS = 150
         const val PLEX_STALL_CHECK_MS = 2_000L
+        const val FORMAT_LOOKUP_TIMEOUT_MS = 5_000L
+        const val PLEX_STALL_REPREPARE_AFTER = 3
         const val MID_SONG_STALL_CHECK_MS = 2_000L
         const val MID_SONG_STALL_KICK_MS = 10_000L
         const val MID_SONG_STALL_REPREPARE_AFTER = 2

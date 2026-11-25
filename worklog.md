@@ -6937,3 +6937,22 @@ Work Log:
 
 Stage Summary:
 - Pending CI.
+
+---
+Task ID: LITE-32
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Plex playback froze again (log 17:46-17:48, phone on mobile data) and every following song froze too; make playback from any source resilient so one problem cannot take down every song.
+
+Work Log:
+- Log: from 17:46:29 every Plex song stayed at 0 ms buffered; the stall watchdog invalidated the Plex address every 8 s, yet no Plex probe and no "Plex address in use" line appeared until 17:48:11, so no load reached `PlexDataSource` for almost two minutes: the loads were stuck before the Plex code, in the shared data-source stack (download cache -> player cache -> Plex). The skip-after-two-recoveries logic then skipped 17154, 17155, 17156 and 17157 in turn, because the blockage was global. The same shape (no resolution log at all, even for a cached song) was in the YouTube stalls of LITE-28 and LITE-31.
+- `playback/BlockingCallMonitor`: every call into the three Media3 caches goes through `LazyCache`, which now records it (thread, operation, start time; `startReadWrite`, which waits by design, is not recorded). When a cache call has been running for more than 3 s, `cacheBypassActive()` turns on a 90 s cache bypass and logs the stuck thread's stack.
+- While the bypass is on, new loads skip the caches: the data source factory hands the routing source the uncached factories (YouTube/multi-source through the uncached resolving factory, Plex straight to `PlexDataSource`, Deezer/Echo without the player cache) and `resolvePlaybackDataSpec` skips its cache lookups (download check, content length, cache short-circuits).
+- Recovery paths use it: the initial buffer recovery, the mid-song watchdog and the Plex watchdog re-prepare at the same position as soon as the bypass is on (the stuck load cannot recover by itself); the Plex watchdog also re-prepares a mid-song Plex stall after 3 kicks, and only invalidates the Plex address from its second kick (each invalidation costs a new address check, about 2 s on mobile).
+- Diagnostics: the first stall of a song logs (tag `PlaybackDiag`, at most every 15 s) the cache/database calls waiting more than 2 s with their stacks and the stacks of the ExoPlayer loader and playback threads, so the next log shows exactly where a load is stuck.
+- Plex address check bounded: `ReentrantLock.tryLock(12 s)` instead of `synchronized` (`PlexBusyException`, a `SocketTimeoutException`, so ExoPlayer retries), probe race capped at 10 s, plex.tv refresh capped at 15 s, probes and plex.tv calls on their own `PlexNetwork` threads instead of `Dispatchers.IO`, a 15 s call timeout for plex.tv and the track metadata lookup, and no DataStore write inside the lock (async `PreferenceStore.launchEdit`, with the refreshed connections/token kept in memory per server).
+- The format lookup in `resolvePlaybackDataSpec` is capped at 5 s and recorded as a database call.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI. In the next log after a freeze: "Cache call … stuck" or "Stall diagnostics" lines show the blocked thread; "cache bypass=true" on the recovery lines means playback was moved off the caches.
