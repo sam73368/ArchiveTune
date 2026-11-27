@@ -6956,3 +6956,23 @@ Work Log:
 
 Stage Summary:
 - Pending CI. In the next log after a freeze: "Cache call … stuck" or "Stall diagnostics" lines show the blocked thread; "cache bypass=true" on the recovery lines means playback was moved off the caches.
+
+---
+Task ID: LITE-33
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Drag-and-drop in the queue and playlists gets stuck or cancels (fast upward drags and other cases); then unify the playback recovery watchdogs, reduce the contention on the caches' shared database, and run a targeted playback-stability audit.
+
+Work Log:
+- Reorderable lists (sh.calvin.reorderable 3.1.0, library source read): the main queue started with a zero-height selection spacer, so at the top of the list `firstVisibleItemIndex` was 1 and `canScrollBackward` stayed true. A fast upward drag into the top edge kept the library's auto-scroller "scrolling" a list that could not move; while it runs, normal target search is off and only the move-to-edge logic places the row, so the row stuck at the top until the finger left the edge zone. The spacer is now animated top content padding.
+- Every `onMove` (main queue, Apple Music sheet, Flamingo, SpatialFlow, local playlist, library playlists) now moves rows by key (`moveByKey`) instead of index arithmetic with header offsets (Flamingo's `3 + history` base broke when history changed during a drag) and a dragged id remembered from the previous drag.
+- Queue commits after the drop go through `ui/player/QueueReorder.kt`: `resolveQueueReorder` anchors on the nearest displayed neighbour that still exists in the play order (uid, then unique media id, so a timeline swap during the drag no longer cancels the move), `applyQueueReorder` keeps `moveMediaItem` / shuffle-order behaviour, and the mirror is resynced from `player.getQueueWindows()` immediately. The Apple Music sheet and Flamingo used to skip the resync after a drag, leaving rows with stale `firstPeriodIndex` (swipe-to-remove / tap could hit the wrong song until the next queue change).
+- Main queue: swipe-to-dismiss off while dragging, tap compares uids instead of a stale index, `items` instead of `itemsIndexed`, haptics on lift/move/drop, 8 dp lift shadow on the dragged row. Apple Music sheet: swipe-to-dismiss off while dragging. Flamingo: the list only jumps back to the current song when the current song changes (it used to jump after every drop).
+- Local playlist: the `songs` flow (re-emits whenever a song row changes, e.g. play time) reset the list in the middle of a drag, and quick successive drops mapped visual indices through a stale list. Drops are now committed by playlist-map id through a serialized channel (`applyPlaylistReorder`, DB write non-cancellable, YouTube move on a second channel), and the list is only resynced when not dragging and no reorder is pending (it waits for the DB emission). TV move buttons use the same path. Library playlists: no resync while dragging or while the order update is pending.
+- `playback/PlaybackRecoveryPolicy` (pure) + one loop in `MusicService` replace the output stall watchdog, initial buffer recovery (+ skip job), Plex watchdog and mid-song watchdog. Same thresholds and actions as before, one action at a time, re-prepare only if the song is still current and buffering. Behaviour change: the initial-buffer restart now also needs 6 s without data-source activity (20 s hard cap), so a slow network that is still receiving bytes or resolving is no longer restarted every 10 s.
+- Caches: the shared Media3 `StandaloneDatabaseProvider` runs in WAL mode (no data moved); the video cache moved to its own database (`archivetune_video_cache.db`, the cached video files are dropped once on first start, they are re-downloaded on demand). The player and download caches stay on the shared database: moving them would delete their files.
+- Audit fixes: `onPlayerError` ran six cache lookups on the main thread, exactly when a stuck cache is the likely cause of the error; it now skips them while `BlockingCallMonitor.cacheBusy()`. The resolver's song lookups (`buildSourceQuery`, `isMusicVideoPlayback`) are capped at 5 s and recorded like the format lookup. The Tidal/Qobuz "last probe track" writes no longer block the loader thread on a DataStore write before the stream is returned.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI.

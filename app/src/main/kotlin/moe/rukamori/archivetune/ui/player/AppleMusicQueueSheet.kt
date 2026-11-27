@@ -72,14 +72,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
-import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.QueueEditLockKey
-import moe.rukamori.archivetune.extensions.move
+import moe.rukamori.archivetune.extensions.getQueueWindows
+import moe.rukamori.archivetune.extensions.moveByKey
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.toggleRepeatMode
 import moe.rukamori.archivetune.ui.component.BottomSheetState
@@ -162,8 +162,7 @@ fun AppleMusicQueueSheet(
             }
         }
 
-    var dragInfo by remember { mutableStateOf<AMQueueDragInfo?>(null) }
-    var justCommittedDragUid by remember { mutableStateOf<Any?>(null) }
+    var draggedUid by remember { mutableStateOf<Any?>(null) }
 
     var hasScrolledToCurrent by remember { mutableStateOf(false) }
     LaunchedEffect(mutableQueueWindows.size, currentPlayingUid) {
@@ -180,77 +179,30 @@ fun AppleMusicQueueSheet(
         rememberReorderableLazyListState(
             lazyListState = lazyListState,
         ) onMove@{ from, to ->
-            val fromQueueIndex = from.index
-            val toQueueIndex = to.index
-            if (fromQueueIndex !in mutableQueueWindows.indices ||
-                toQueueIndex !in mutableQueueWindows.indices
-            ) {
-                return@onMove
-            }
-
-            val draggedItemUid =
-                dragInfo?.draggedItemUid ?: mutableQueueWindows[fromQueueIndex].uid
-            val actualFromQueueIndex =
-                mutableQueueWindows.indexOfFirst { it.uid == draggedItemUid }
-            if (actualFromQueueIndex == -1) return@onMove
-
-            mutableQueueWindows.move(actualFromQueueIndex, toQueueIndex)
-
-            val destinationUid: Any? = mutableQueueWindows.getOrNull(toQueueIndex - 1)?.uid
-            dragInfo = AMQueueDragInfo(draggedItemUid, destinationUid)
+            val movedWindow =
+                mutableQueueWindows.moveByKey(from.key, to.key) { it.uid.hashCode() } ?: return@onMove
+            draggedUid = movedWindow.uid
         }
 
-    LaunchedEffect(queueWindows, currentWindowIndex, reorderableState.isAnyItemDragging) {
+    LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
         if (reorderableState.isAnyItemDragging) return@LaunchedEffect
 
-        val completedDrag = dragInfo
-        if (completedDrag != null) {
-            val sourceIndex =
-                queueWindows.indexOfFirst { it.uid == completedDrag.draggedItemUid }
-            val destinationAnchorIndex =
-                queueWindows.indexOfFirst { it.uid == completedDrag.destinationUid }
-            dragInfo = null
-
-            if (sourceIndex != -1) {
-                val destinationIndex =
-                    if (destinationAnchorIndex == -1) {
-                        0
-                    } else if (sourceIndex < destinationAnchorIndex) {
-                        destinationAnchorIndex
-                    } else {
-                        (destinationAnchorIndex + 1).coerceAtMost(queueWindows.lastIndex)
-                    }
-
-                if (sourceIndex != destinationIndex) {
-                    justCommittedDragUid = completedDrag.draggedItemUid
-                    if (!shuffleModeEnabled) {
-                        playerConnection.player.moveMediaItem(sourceIndex, destinationIndex)
-                    } else {
-                        localPlayer.setShuffleOrder(
-                            DefaultShuffleOrder(
-                                queueWindows
-                                    .map { it.firstPeriodIndex }
-                                    .toMutableList()
-                                    .move(sourceIndex, destinationIndex)
-                                    .toIntArray(),
-                                System.currentTimeMillis(),
-                            ),
-                        )
-                    }
-                    return@LaunchedEffect
+        val completedDragUid = draggedUid
+        var latestWindows = queueWindows
+        if (completedDragUid != null) {
+            draggedUid = null
+            val reorder = resolveQueueReorder(queueWindows, mutableQueueWindows.toList(), completedDragUid)
+            if (reorder != null) {
+                runCatching {
+                    playerConnection.player.applyQueueReorder(localPlayer, queueWindows, reorder)
+                    latestWindows = playerConnection.player.getQueueWindows()
                 }
             }
         }
 
-        if (justCommittedDragUid != null) {
-            justCommittedDragUid = null
-            return@LaunchedEffect
-        }
-
         Snapshot.withMutableSnapshot {
             mutableQueueWindows.clear()
-
-            mutableQueueWindows.addAll(queueWindows)
+            mutableQueueWindows.addAll(latestWindows)
         }
     }
 
@@ -550,6 +502,7 @@ fun AppleMusicQueueSheet(
                             },
                             content = { content() },
                             enableDismissFromStartToEnd = false,
+                            gesturesEnabled = !reorderableState.isAnyItemDragging,
                         )
                     }
                 }
@@ -599,9 +552,3 @@ fun AppleMusicQueueSheet(
         }
     }
 }
-
-@Immutable
-private data class AMQueueDragInfo(
-    val draggedItemUid: Any,
-    val destinationUid: Any?,
-)

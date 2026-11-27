@@ -57,6 +57,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -103,7 +104,7 @@ import moe.rukamori.archivetune.constants.PlaylistSortTypeKey
 import moe.rukamori.archivetune.constants.ThumbnailCornerRadius
 import moe.rukamori.archivetune.constants.ShowTagsInLibraryKey
 import moe.rukamori.archivetune.db.entities.Playlist
-import moe.rukamori.archivetune.extensions.move
+import moe.rukamori.archivetune.extensions.moveByKey
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.innertube.models.PlaylistItem
 import moe.rukamori.archivetune.innertube.models.WatchEndpoint
@@ -223,15 +224,21 @@ fun LibraryPlaylistsScreen(
             lazyListState = lazyListState,
             scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) { from, to ->
-            if (from.index in mutablePlaylists.indices && to.index in mutablePlaylists.indices) {
-                mutablePlaylists.move(from.index, to.index)
+            if (mutablePlaylists.moveByKey(from.key, to.key) { it.id } != null) {
                 pendingPlaylistOrderUpdate = true
             }
         }
 
-    LaunchedEffect(visiblePlaylists) {
-        mutablePlaylists.clear()
-        mutablePlaylists.addAll(visiblePlaylists)
+    var syncedPlaylists by remember { mutableStateOf<List<Playlist>?>(null) }
+    LaunchedEffect(visiblePlaylists, reorderableState.isAnyItemDragging, pendingPlaylistOrderUpdate) {
+        if (reorderableState.isAnyItemDragging || pendingPlaylistOrderUpdate || syncedPlaylists === visiblePlaylists) {
+            return@LaunchedEffect
+        }
+        syncedPlaylists = visiblePlaylists
+        Snapshot.withMutableSnapshot {
+            mutablePlaylists.clear()
+            mutablePlaylists.addAll(visiblePlaylists)
+        }
     }
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
@@ -242,6 +249,7 @@ fun LibraryPlaylistsScreen(
                     visibleOrder = mutablePlaylists,
                 ),
             )
+            syncedPlaylists = visiblePlaylists
             pendingPlaylistOrderUpdate = false
         }
     }

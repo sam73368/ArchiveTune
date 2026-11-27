@@ -426,6 +426,7 @@ import moe.rukamori.archivetune.utils.NetworkConnectivityObserver
 import moe.rukamori.archivetune.utils.StreamClientUtils
 import moe.rukamori.archivetune.utils.SyncUtils
 import moe.rukamori.archivetune.utils.YTPlayerUtils
+import moe.rukamori.archivetune.utils.PreferenceStore
 import moe.rukamori.archivetune.utils.dataStore
 import moe.rukamori.archivetune.utils.enumPreference
 import moe.rukamori.archivetune.utils.get
@@ -790,13 +791,7 @@ class MusicService :
     private var lastLoginRecoveryPrompt: Pair<String, Long>? = null
     private val playbackStreamRecoveryTracker = PlaybackStreamRecoveryTracker()
 
-    private var initialBufferRecoveryJob: Job? = null
-    private var initialBufferSkipJob: Job? = null
-    private var playbackStallWatchdogJob: Job? = null
-    private var playbackStallKickMediaId: String? = null
-    private var playbackStallKicks = 0
-    private var initialBufferRecoveryAttemptedMediaId: String? = null
-    private var initialBufferRecoveryAttempts = 0
+    private val playbackRecoveryPolicy = PlaybackRecoveryPolicy()
 
     @Volatile
     private var codecRecoveryMediaId: String? = null
@@ -1777,121 +1772,14 @@ class MusicService :
                 retryPlaybackAfterNetworkWait("handover")
             }.also { it.register() }
 
-        scope.launch {
-            var stallMediaId: String? = null
-            var kicks = 0
-            var lastKickAt = 0L
+        scope.launch(SilentHandler) {
             while (isActive) {
-                delay(PLEX_STALL_CHECK_MS)
-                val now = android.os.SystemClock.elapsedRealtime()
-                val mediaId = player.currentMediaItem?.mediaId
-                val stalled =
-                    mediaId?.startsWith("plex://") == true &&
-                        player.playWhenReady &&
-                        player.playbackState == Player.STATE_BUFFERING &&
-                        now - PlaybackLoadActivity.lastSignalAt(now) > PLEX_STALL_KICK_MS
-                if (!stalled) {
-                    if (mediaId != stallMediaId || player.playbackState == Player.STATE_READY) {
-                        stallMediaId = null
-                        kicks = 0
-                    }
-                    continue
+                val action = playbackRecoveryPolicy.evaluate(playbackRecoverySnapshot())
+                if (action != PlaybackRecoveryAction.None) {
+                    runCatching { executePlaybackRecovery(action) }
+                        .onFailure { Timber.tag(TAG).w(it, "Playback recovery %s failed", action) }
                 }
-                if (mediaId != stallMediaId) {
-                    stallMediaId = mediaId
-                    kicks = 0
-                    lastKickAt = 0L
-                }
-                if (now - lastKickAt < PLEX_STALL_KICK_MS) continue
-                lastKickAt = now
-                kicks++
-                val position = player.currentPosition
-                val cacheBypass = BlockingCallMonitor.cacheBypassActive()
-                Timber.tag(TAG).w(
-                    "Plex stream stalled for %s at %dms (attempt %d, cache bypass=%b); reconnecting",
-                    mediaId,
-                    position,
-                    kicks,
-                    cacheBypass,
-                )
-                if (kicks == 1) BlockingCallMonitor.dumpPlaybackThreads("Plex stall on $mediaId")
-                if (kicks > 1) moe.rukamori.archivetune.plex.PlexSession.invalidate()
-                withContext(Dispatchers.IO) { moe.rukamori.archivetune.plex.PlexClient.dropStreams() }
-                val reprepare =
-                    position >= INITIAL_BUFFER_STALL_POSITION_MS &&
-                        (cacheBypass || kicks >= PLEX_STALL_REPREPARE_AFTER) &&
-                        player.currentMediaItem?.mediaId == mediaId
-                if (reprepare) {
-                    val index = player.currentMediaItemIndex
-                    player.stop()
-                    player.seekTo(index, position)
-                    player.prepare()
-                    player.play()
-                }
-            }
-        }
-
-        scope.launch {
-            var stallMediaId: String? = null
-            var kicks = 0
-            var lastKickAt = 0L
-            while (isActive) {
-                delay(MID_SONG_STALL_CHECK_MS)
-                val now = android.os.SystemClock.elapsedRealtime()
-                val mediaId = player.currentMediaItem?.mediaId
-                val casting =
-                    runCatching {
-                        (castPlaybackRepository.screenState.value as? CastScreenState.Success)?.uiState?.isConnected == true
-                    }.getOrDefault(false)
-                val stalled =
-                    mediaId != null &&
-                        !casting &&
-                        !mediaId.startsWith("plex://") &&
-                        !mediaId.isLocalMediaId() &&
-                        player.playWhenReady &&
-                        player.playbackState == Player.STATE_BUFFERING &&
-                        player.currentPosition >= INITIAL_BUFFER_STALL_POSITION_MS &&
-                        now - PlaybackLoadActivity.lastSignalAt(now) > MID_SONG_STALL_KICK_MS
-                if (!stalled) {
-                    if (mediaId != stallMediaId || player.playbackState == Player.STATE_READY) {
-                        stallMediaId = null
-                        kicks = 0
-                    }
-                    continue
-                }
-                if (mediaId != stallMediaId) {
-                    stallMediaId = mediaId
-                    kicks = 0
-                    lastKickAt = 0L
-                }
-                if (now - lastKickAt < MID_SONG_STALL_KICK_MS) continue
-                lastKickAt = now
-                kicks++
-                val position = player.currentPosition
-                val cacheBypass = BlockingCallMonitor.cacheBypassActive()
-                Timber.tag(TAG).w(
-                    "Stream stalled mid-song for %s at %dms (attempt %d, cache bypass=%b); fetching a fresh stream",
-                    mediaId,
-                    position,
-                    kicks,
-                    cacheBypass,
-                )
-                if (kicks == 1) BlockingCallMonitor.dumpPlaybackThreads("mid-song stall on $mediaId")
-                playbackUrlCache.remove(mediaId)
-                invalidateAlternateStream(mediaId)
-                YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
-                if (kicks > 1) YTPlayerUtils.markResolvedStreamRejected(mediaId)
-                withContext(Dispatchers.IO) {
-                    runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
-                    runCatching { mediaOkHttpClient.connectionPool.evictAll() }
-                }
-                if ((cacheBypass || kicks >= MID_SONG_STALL_REPREPARE_AFTER) && player.currentMediaItem?.mediaId == mediaId) {
-                    val index = player.currentMediaItemIndex
-                    player.stop()
-                    player.seekTo(index, position)
-                    player.prepare()
-                    player.play()
-                }
+                delay(if (player.playWhenReady) PLAYBACK_RECOVERY_TICK_MS else PLAYBACK_RECOVERY_IDLE_TICK_MS)
             }
         }
 
@@ -5675,147 +5563,155 @@ class MusicService :
         extractorPlaybackUrlCache.clear()
     }
 
-    private fun updatePlaybackStallWatchdog() {
-        if (!::player.isInitialized) return
-        if (!player.isPlaying || isCastSessionConnected()) {
-            playbackStallWatchdogJob?.cancel()
-            playbackStallWatchdogJob = null
-            return
-        }
-        if (playbackStallWatchdogJob?.isActive == true) return
-        playbackStallWatchdogJob =
-            scope.launch(SilentHandler) {
-                var watchedMediaId = player.currentMediaItem?.mediaId
-                var lastPositionMs = player.currentPosition
-                var lastAdvanceAt = android.os.SystemClock.elapsedRealtime()
-                while (isActive && player.isPlaying) {
-                    delay(PLAYBACK_STALL_POLL_MS)
-                    val now = android.os.SystemClock.elapsedRealtime()
-                    val mediaId = player.currentMediaItem?.mediaId
-                    val positionMs = player.currentPosition
-                    val advanced = mediaId != watchedMediaId || positionMs != lastPositionMs
-                    if (advanced || isCrossfading || crossfadeHandoffInProgress || player.playbackState != Player.STATE_READY) {
-                        if (advanced && mediaId == watchedMediaId && positionMs > lastPositionMs) {
-                            playbackStallKicks = 0
-                        }
-                        watchedMediaId = mediaId
-                        lastPositionMs = positionMs
-                        lastAdvanceAt = now
-                        continue
-                    }
-                    if (now - lastAdvanceAt < PLAYBACK_STALL_KICK_MS) continue
-                    if (playbackStallKickMediaId != mediaId) {
-                        playbackStallKickMediaId = mediaId
-                        playbackStallKicks = 0
-                    }
-                    if (playbackStallKicks >= PLAYBACK_STALL_MAX_KICKS) continue
-                    playbackStallKicks++
-                    lastAdvanceAt = now
-                    val index = player.currentMediaItemIndex
-                    if (playbackStallKicks == 1) {
-                        Timber.tag(TAG).w("Playback stalled for %s at %dms; flushing the audio output", mediaId, positionMs)
-                        player.seekTo(index, positionMs)
-                    } else {
-                        Timber.tag(TAG).w("Playback still stalled for %s at %dms; rebuilding the audio output", mediaId, positionMs)
-                        player.stop()
-                        player.seekTo(index, positionMs)
-                        player.prepare()
-                        player.play()
-                    }
-                }
-            }
-    }
-
     private fun Throwable.isStuckPlayerFailure(): Boolean =
         generateSequence(this) { it.cause }.take(8).any { cause ->
             cause.javaClass.simpleName == "StuckPlayerException" ||
                 cause.message?.contains("Player stuck playing", ignoreCase = true) == true
         }
 
-    private fun updateInitialBufferRecovery(@Player.State playbackState: Int) {
+    private fun playbackRecoverySnapshot(): PlaybackRecoverySnapshot {
+        val now = android.os.SystemClock.elapsedRealtime()
         val mediaId = player.currentMediaItem?.mediaId
-        val shouldWatch =
-            playbackState == Player.STATE_BUFFERING &&
-                player.playWhenReady &&
-                player.currentPosition < INITIAL_BUFFER_STALL_POSITION_MS &&
-                mediaId != null &&
-                !(initialBufferRecoveryAttemptedMediaId == mediaId &&
-                    initialBufferRecoveryAttempts >= INITIAL_BUFFER_MAX_RECOVERIES)
-
-        if (!shouldWatch) {
-            initialBufferRecoveryJob?.cancel()
-            initialBufferRecoveryJob = null
-            return
-        }
-        if (initialBufferRecoveryJob?.isActive == true) return
-
-        initialBufferRecoveryJob =
-            scope.launch {
-                delay(INITIAL_BUFFER_STALL_DELAY_MS)
-                if (player.playbackState != Player.STATE_BUFFERING ||
-                    !player.playWhenReady ||
-                    player.currentPosition >= INITIAL_BUFFER_STALL_POSITION_MS ||
-                    player.currentMediaItem?.mediaId != mediaId
-                ) {
-                    return@launch
-                }
-
-                if (initialBufferRecoveryAttemptedMediaId != mediaId) initialBufferRecoveryAttempts = 0
-                initialBufferRecoveryAttemptedMediaId = mediaId
-                initialBufferRecoveryAttempts++
-                val cacheBypass = BlockingCallMonitor.cacheBypassActive()
-                Timber.tag(TAG).w(
-                    "Initial buffer stalled for %s (attempt %d, loading=%s, buffered=%d ms, cache bypass=%b); dropping stream caches and restarting the load",
-                    mediaId,
-                    initialBufferRecoveryAttempts,
-                    player.isLoading,
-                    player.bufferedPosition,
-                    cacheBypass,
-                )
-                BlockingCallMonitor.dumpPlaybackThreads("initial buffer stall on $mediaId")
-                playbackUrlCache.remove(mediaId)
-                invalidateAlternateStream(mediaId)
-                YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
-                YTPlayerUtils.markResolvedStreamRejected(mediaId)
-                withContext(Dispatchers.IO) {
-                    runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
-                    runCatching { mediaOkHttpClient.connectionPool.evictAll() }
-                    if (mediaId.startsWith("plex://")) moe.rukamori.archivetune.plex.PlexClient.dropStreams()
-                }
-                if (player.currentMediaItem?.mediaId != mediaId) return@launch
-                if (initialBufferRecoveryAttempts >= INITIAL_BUFFER_MAX_RECOVERIES) scheduleStalledSongSkip(mediaId)
-                if (!isCrossfading) {
-                    crossfadeTriggerJob?.cancel()
-                    crossfadeTriggerJob = null
-                    releaseSecondaryCrossfadePlayer()
-                }
-                if (playbackStreamRecoveryTracker.registerRetryAttempt(mediaId)) {
-                    val index = player.currentMediaItemIndex
-                    val positionMs = player.currentPosition.coerceAtLeast(0L)
-                    player.stop()
-                    player.seekTo(index, positionMs)
-                    player.prepare()
-                    player.play()
-                } else {
-                    Timber.tag(TAG).w("Initial buffer recovery budget exhausted for %s", mediaId)
-                }
-            }
+        return PlaybackRecoverySnapshot(
+            now = now,
+            mediaId = mediaId,
+            source =
+                when {
+                    mediaId == null -> RecoverySource.STREAM
+                    mediaId.startsWith("plex://") -> RecoverySource.PLEX
+                    mediaId.isLocalMediaId() -> RecoverySource.LOCAL
+                    else -> RecoverySource.STREAM
+                },
+            casting = isCastSessionConnected(),
+            playWhenReady = player.playWhenReady,
+            playbackState = player.playbackState,
+            isPlaying = player.isPlaying,
+            positionMs = player.currentPosition,
+            lastDataAt = PlaybackLoadActivity.lastSignalAt(now),
+            crossfading = isCrossfading || crossfadeHandoffInProgress,
+            hasNext = player.hasNextMediaItem(),
+        )
     }
 
-    private fun scheduleStalledSongSkip(mediaId: String) {
-        initialBufferSkipJob?.cancel()
-        initialBufferSkipJob =
-            scope.launch {
-                delay(INITIAL_BUFFER_STALL_DELAY_MS + INITIAL_BUFFER_SKIP_GRACE_MS)
-                val stillStuck =
-                    player.currentMediaItem?.mediaId == mediaId &&
-                        player.playWhenReady &&
-                        player.playbackState == Player.STATE_BUFFERING &&
-                        player.currentPosition < INITIAL_BUFFER_STALL_POSITION_MS
-                if (!stillStuck || !player.hasNextMediaItem()) return@launch
-                Timber.tag(TAG).w("Still no audio for %s after %d recoveries; skipping to the next song", mediaId, initialBufferRecoveryAttempts)
+    private fun isStillStalledOn(mediaId: String): Boolean =
+        player.currentMediaItem?.mediaId == mediaId &&
+            player.playWhenReady &&
+            player.playbackState == Player.STATE_BUFFERING
+
+    private fun reprepareAt(positionMs: Long) {
+        val index = player.currentMediaItemIndex
+        player.stop()
+        player.seekTo(index, positionMs.coerceAtLeast(0L))
+        player.prepare()
+        player.play()
+    }
+
+    private suspend fun executePlaybackRecovery(action: PlaybackRecoveryAction) {
+        when (action) {
+            PlaybackRecoveryAction.None -> Unit
+
+            is PlaybackRecoveryAction.FlushOutput -> {
+                if (player.currentMediaItem?.mediaId != action.mediaId) return
+                Timber.tag(TAG).w("Playback stalled for %s at %dms; flushing the audio output", action.mediaId, action.positionMs)
+                player.seekTo(player.currentMediaItemIndex, action.positionMs)
+            }
+
+            is PlaybackRecoveryAction.RebuildOutput -> {
+                if (player.currentMediaItem?.mediaId != action.mediaId) return
+                Timber.tag(TAG).w("Playback still stalled for %s at %dms; rebuilding the audio output", action.mediaId, action.positionMs)
+                reprepareAt(action.positionMs)
+            }
+
+            is PlaybackRecoveryAction.RestartLoad -> restartStalledLoad(action)
+
+            is PlaybackRecoveryAction.ReconnectPlex -> reconnectStalledPlex(action)
+
+            is PlaybackRecoveryAction.RefreshStream -> refreshStalledStream(action)
+
+            is PlaybackRecoveryAction.SkipStalledSong -> {
+                if (!isStillStalledOn(action.mediaId) || !player.hasNextMediaItem()) return
+                Timber.tag(TAG).w("Still no audio for %s after %d recoveries; skipping to the next song", action.mediaId, action.attempts)
                 player.seekToNextMediaItem()
             }
+        }
+    }
+
+    private suspend fun restartStalledLoad(action: PlaybackRecoveryAction.RestartLoad) {
+        val mediaId = action.mediaId
+        val cacheBypass = BlockingCallMonitor.cacheBypassActive()
+        Timber.tag(TAG).w(
+            "Initial buffer stalled for %s (attempt %d, loading=%s, buffered=%d ms, cache bypass=%b); dropping stream caches and restarting the load",
+            mediaId,
+            action.attempt,
+            player.isLoading,
+            player.bufferedPosition,
+            cacheBypass,
+        )
+        BlockingCallMonitor.dumpPlaybackThreads("initial buffer stall on $mediaId")
+        playbackUrlCache.remove(mediaId)
+        invalidateAlternateStream(mediaId)
+        YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
+        YTPlayerUtils.markResolvedStreamRejected(mediaId)
+        withContext(Dispatchers.IO) {
+            runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
+            runCatching { mediaOkHttpClient.connectionPool.evictAll() }
+            if (mediaId.startsWith("plex://")) moe.rukamori.archivetune.plex.PlexClient.dropStreams()
+        }
+        if (!isStillStalledOn(mediaId)) return
+        if (!isCrossfading) {
+            crossfadeTriggerJob?.cancel()
+            crossfadeTriggerJob = null
+            releaseSecondaryCrossfadePlayer()
+        }
+        if (playbackStreamRecoveryTracker.registerRetryAttempt(mediaId)) {
+            reprepareAt(player.currentPosition)
+        } else {
+            Timber.tag(TAG).w("Initial buffer recovery budget exhausted for %s", mediaId)
+        }
+    }
+
+    private suspend fun reconnectStalledPlex(action: PlaybackRecoveryAction.ReconnectPlex) {
+        val mediaId = action.mediaId
+        val cacheBypass = BlockingCallMonitor.cacheBypassActive()
+        Timber.tag(TAG).w(
+            "Plex stream stalled for %s at %dms (attempt %d, cache bypass=%b); reconnecting",
+            mediaId,
+            action.positionMs,
+            action.attempt,
+            cacheBypass,
+        )
+        if (action.attempt == 1) BlockingCallMonitor.dumpPlaybackThreads("Plex stall on $mediaId")
+        if (action.attempt > 1) moe.rukamori.archivetune.plex.PlexSession.invalidate()
+        withContext(Dispatchers.IO) { moe.rukamori.archivetune.plex.PlexClient.dropStreams() }
+        val reprepare =
+            action.positionMs >= INITIAL_BUFFER_STALL_POSITION_MS &&
+                (cacheBypass || action.attempt >= PLEX_STALL_REPREPARE_AFTER) &&
+                isStillStalledOn(mediaId)
+        if (reprepare) reprepareAt(action.positionMs)
+    }
+
+    private suspend fun refreshStalledStream(action: PlaybackRecoveryAction.RefreshStream) {
+        val mediaId = action.mediaId
+        val cacheBypass = BlockingCallMonitor.cacheBypassActive()
+        Timber.tag(TAG).w(
+            "Stream stalled mid-song for %s at %dms (attempt %d, cache bypass=%b); fetching a fresh stream",
+            mediaId,
+            action.positionMs,
+            action.attempt,
+            cacheBypass,
+        )
+        if (action.attempt == 1) BlockingCallMonitor.dumpPlaybackThreads("mid-song stall on $mediaId")
+        playbackUrlCache.remove(mediaId)
+        invalidateAlternateStream(mediaId)
+        YTPlayerUtils.invalidateCachedStreamUrls(mediaId)
+        if (action.attempt > 1) YTPlayerUtils.markResolvedStreamRejected(mediaId)
+        withContext(Dispatchers.IO) {
+            runCatching { mediaOkHttpClient.dispatcher.cancelAll() }
+            runCatching { mediaOkHttpClient.connectionPool.evictAll() }
+        }
+        if ((cacheBypass || action.attempt >= MID_SONG_STALL_REPREPARE_AFTER) && isStillStalledOn(mediaId)) {
+            reprepareAt(action.positionMs)
+        }
     }
 
     private fun updateNotification() {
@@ -7806,10 +7702,7 @@ class MusicService :
         crossfadeFailureMediaId = null
         lastBitPerfectWireReprepareKey = null
 
-        initialBufferRecoveryJob?.cancel()
-        initialBufferRecoveryJob = null
-        initialBufferRecoveryAttemptedMediaId = null
-        updateInitialBufferRecovery(player.playbackState)
+        playbackRecoveryPolicy.reset()
 
         updateSpotifyPlaybackReporting()
 
@@ -8075,7 +7968,6 @@ class MusicService :
         super.onPlaybackStateChanged(playbackState)
 
         updateHistoryTrackingPlaybackState()
-        updateInitialBufferRecovery(playbackState)
         if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
             enqueueCurrentHistorySessionForFinalization()
             if (!isCrossfading || playbackState == Player.STATE_IDLE) {
@@ -8194,8 +8086,6 @@ class MusicService :
                     if (player.isPlaying) consecutivePlaybackErr = 0
                 }
         }
-        updateInitialBufferRecovery(player.playbackState)
-        updatePlaybackStallWatchdog()
         secondaryCrossfadePlayer?.let { secondaryPlayer ->
             if (isCrossfading && !crossfadeHandoffInProgress) {
                 if (isPlaying) {
@@ -8495,9 +8385,14 @@ class MusicService :
 
         val currentMediaId = player.currentMediaItem?.mediaId ?: return
         val isLocalMedia = currentMediaId.isLocalMediaId()
+        val cacheReadable = !BlockingCallMonitor.cacheBusy()
+        if (!cacheReadable) {
+            Timber.tag(TAG).w("Cache busy while handling a playback error for %s; skipping cache lookups", currentMediaId)
+        }
 
         val isFullyDownloadedMedia =
-            runCatching {
+            cacheReadable &&
+                runCatching {
                 val contentLength =
                     downloadCache
                         .getContentMetadata(currentMediaId)
@@ -8507,6 +8402,7 @@ class MusicService :
 
         val hasAnyCachedData =
             isFullyDownloadedMedia ||
+                cacheReadable &&
                 runCatching {
                     downloadCache.getCachedSpans(currentMediaId).isNotEmpty() ||
                         playerCache.getCachedSpans(currentMediaId).isNotEmpty() ||
@@ -9440,10 +9336,7 @@ class MusicService :
         }
 
     private fun buildSourceQuery(mediaId: String): SourceQuery? {
-        val song =
-            runCatching {
-                runBlocking(Dispatchers.IO) { database.song(mediaId).first() }
-            }.getOrNull()
+        val song = runCatching { boundedSongLookup(mediaId) }.getOrNull()
         val queuedMetadata =
             currentMediaMetadata.value?.takeIf { it.id == mediaId }
                 ?: queuedMetadataByMediaId[mediaId]
@@ -9511,10 +9404,17 @@ class MusicService :
             currentMediaMetadata.value?.takeIf { it.id == mediaId }
                 ?: queuedMetadataByMediaId[mediaId]
         if (queuedMetadata?.isMusicVideo == true) return true
-        return runCatching {
-            runBlocking(Dispatchers.IO) { database.song(mediaId).first() }
-        }.getOrNull()?.song?.isMusicVideo == true
+        return runCatching { boundedSongLookup(mediaId) }.getOrNull()?.song?.isMusicVideo == true
     }
+
+    private fun boundedSongLookup(mediaId: String) =
+        BlockingCallMonitor.track(BlockingCallMonitor.DATABASE, "song($mediaId)") {
+            runBlocking {
+                withTimeoutOrNull(FORMAT_LOOKUP_TIMEOUT_MS) {
+                    withContext(Dispatchers.IO) { database.song(mediaId).first() }
+                }
+            }
+        }
 
     private fun cacheQueuedMetadata() {
         if (player.mediaItemCount == 0) return
@@ -10101,15 +10001,11 @@ class MusicService :
 
             if (winningSource == AudioSourceType.TIDAL) {
                 TidalAudioProvider.lastResolvedTrackId?.takeIf { it.isNotBlank() }?.let { probe ->
-                    runCatching {
-                        runBlocking { dataStore.edit { prefs -> prefs[TidalLastProbeTrackKey] = probe } }
-                    }
+                    PreferenceStore.launchEdit(dataStore) { this[TidalLastProbeTrackKey] = probe }
                 }
             } else if (winningSource == AudioSourceType.QOBUZ) {
                 QobuzAudioProvider.lastResolvedTrackId?.takeIf { it.isNotBlank() }?.let { probe ->
-                    runCatching {
-                        runBlocking { dataStore.edit { prefs -> prefs[QobuzLastProbeTrackKey] = probe } }
-                    }
+                    PreferenceStore.launchEdit(dataStore) { this[QobuzLastProbeTrackKey] = probe }
                 }
             }
             return applyDirectStream(dataSpec, mediaId, winningStream)
@@ -13877,7 +13773,6 @@ class MusicService :
             localPlayer.removeListener(audioEffectPlayerListener)
             player.removeListener(this)
             player.removeListener(sleepTimer)
-            initialBufferRecoveryJob?.cancel()
             player.release()
             castPlaybackRepository.releasePlayer(player)
         } catch (_: Exception) {
@@ -14124,12 +14019,8 @@ class MusicService :
         const val ERROR_CODE_NO_STREAM = 1000001
         const val CHUNK_LENGTH = 8 * 1024 * 1024L
         val RETRYABLE_STREAM_RESPONSE_CODES = setOf(403, 404, 410, 416)
-        private const val INITIAL_BUFFER_STALL_DELAY_MS = 10_000L
-        private const val INITIAL_BUFFER_MAX_RECOVERIES = 2
-        private const val INITIAL_BUFFER_SKIP_GRACE_MS = 5_000L
-        private const val PLAYBACK_STALL_POLL_MS = 500L
-        private const val PLAYBACK_STALL_KICK_MS = 2_500L
-        private const val PLAYBACK_STALL_MAX_KICKS = 2
+        private const val PLAYBACK_RECOVERY_TICK_MS = 500L
+        private const val PLAYBACK_RECOVERY_IDLE_TICK_MS = 2_000L
         private const val INITIAL_BUFFER_STALL_POSITION_MS = 5_000L
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
         const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"
@@ -14181,14 +14072,10 @@ class MusicService :
         const val PRIMARY_MAX_BUFFER_MS = 150_000
 
         const val PRIMARY_BUFFER_FOR_PLAYBACK_MS = 150
-        const val PLEX_STALL_CHECK_MS = 2_000L
         const val FORMAT_LOOKUP_TIMEOUT_MS = 5_000L
         const val PLEX_STALL_REPREPARE_AFTER = 3
-        const val MID_SONG_STALL_CHECK_MS = 2_000L
-        const val MID_SONG_STALL_KICK_MS = 10_000L
         const val MID_SONG_STALL_REPREPARE_AFTER = 2
         const val PLEX_REBUFFER_LOG_MIN_POSITION_MS = 1_000L
-        const val PLEX_STALL_KICK_MS = 8_000L
         const val PRIMARY_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 2_500
         const val CROSSFADE_PROMOTION_VOLUME_RECONCILE_MS = 1_500L
         val NON_MEDIA_OUTPUT_DEVICE_TYPES =

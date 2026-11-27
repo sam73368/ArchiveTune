@@ -66,6 +66,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
@@ -91,9 +92,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.LocalDatabase
 import moe.rukamori.archivetune.LocalDownloadUtil
@@ -106,8 +110,10 @@ import moe.rukamori.archivetune.constants.LiquidGlassEnabledKey
 import moe.rukamori.archivetune.constants.PlaylistEditLockKey
 import moe.rukamori.archivetune.constants.PlaylistSongSortType
 import moe.rukamori.archivetune.constants.SwipeToSongKey
+import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.PlaylistSong
 import moe.rukamori.archivetune.extensions.move
+import moe.rukamori.archivetune.extensions.moveByKey
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.extensions.togglePlayPause
 import moe.rukamori.archivetune.innertube.YouTube
@@ -322,10 +328,6 @@ fun LocalPlaylistScreen(
             !isReorderingEnabled
 
     LaunchedEffect(songs) {
-        mutableSongs.apply {
-            clear()
-            addAll(songs)
-        }
         val songIds = songs.map { it.song.id }
         downloadUtil.downloads.collect { currentDownloads ->
             downloads = currentDownloads
@@ -502,23 +504,29 @@ fun LocalPlaylistScreen(
         }
     }
     val lazyListState = rememberLazyListState()
-    var dragInfo by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var draggedMapId by remember { mutableStateOf<Int?>(null) }
+    var pendingReorders by remember { mutableIntStateOf(0) }
+    var syncedSongs by remember { mutableStateOf<List<PlaylistSong>?>(null) }
+    val reorderRequests = remember { Channel<PlaylistReorderRequest>(Channel.UNLIMITED) }
+    val remoteReorders = remember { Channel<PlaylistRemoteMove>(Channel.UNLIMITED) }
     val reorderableState =
         rememberReorderableLazyListState(
             lazyListState = lazyListState,
             scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
-        ) { from, to ->
-            if (to.index >= headerItems && from.index >= headerItems) {
-                val currentDragInfo = dragInfo
-                dragInfo =
-                    if (currentDragInfo == null) {
-                        (from.index - headerItems) to (to.index - headerItems)
-                    } else {
-                        currentDragInfo.first to (to.index - headerItems)
-                    }
-                mutableSongs.move(from.index - headerItems, to.index - headerItems)
-            }
+        ) onMove@{ from, to ->
+            val moved = mutableSongs.moveByKey(from.key, to.key) { it.map.id } ?: return@onMove
+            draggedMapId = moved.map.id
+            haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
         }
+
+    LaunchedEffect(songs, reorderableState.isAnyItemDragging, pendingReorders) {
+        if (reorderableState.isAnyItemDragging || pendingReorders > 0 || syncedSongs === songs) return@LaunchedEffect
+        syncedSongs = songs
+        Snapshot.withMutableSnapshot {
+            mutableSongs.clear()
+            mutableSongs.addAll(songs)
+        }
+    }
 
     LaunchedEffect(isSearching) {
         if (isSearching) {
@@ -532,59 +540,76 @@ fun LocalPlaylistScreen(
         }
     }
 
-    val commitMove: (Int, Int) -> Unit = { from, to ->
-        // `songs` hides blocked artists / music videos, so its indexes are not the stored
-        // positions: translate through the real `position` of both rows.
-        val orderedBeforeMove = songs
-        val browseId =
-            viewModel.playlist.value
-                ?.playlist
-                ?.browseId
-        val fromPosition = orderedBeforeMove.getOrNull(from)?.map?.position
-        val toPosition = orderedBeforeMove.getOrNull(to)?.map?.position
+    val requestReorder: (Int) -> Unit = { mapId ->
+        pendingReorders += 1
+        reorderRequests.trySend(PlaylistReorderRequest(mapId, mutableSongs.map { it.map.id }))
+    }
 
-        if (fromPosition != null && toPosition != null) {
-            coroutineScope.launch(Dispatchers.IO) {
-                val fullPlaylist = database.playlistSongs(viewModel.playlistId).first()
-                val movedSetVideoId = fullPlaylist.firstOrNull { it.map.position == fromPosition }?.map?.setVideoId
-                val targetIndex = fullPlaylist.indexOfFirst { it.map.position == toPosition }
-                val successorSetVideoId =
-                    if (targetIndex < 0) {
-                        null
-                    } else {
-                        fullPlaylist.getOrNull(if (fromPosition > toPosition) targetIndex else targetIndex + 1)?.map?.setVideoId
+    val moveByOne: (Int, Int) -> Unit = { mapId, offset ->
+        val index = mutableSongs.indexOfFirst { it.map.id == mapId }
+        val target = index + offset
+        if (index != -1 && target in mutableSongs.indices) {
+            mutableSongs.move(index, target)
+            requestReorder(mapId)
+        }
+    }
+
+    LaunchedEffect(reorderRequests) {
+        for (request in reorderRequests) {
+            val before = viewModel.playlistSongs.value
+            val result =
+                runCatching {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        applyPlaylistReorder(database, viewModel.playlistId, request)
                     }
-
-                database.withTransaction {
-                    move(viewModel.playlistId, fromPosition, toPosition)
                 }
+            if (result.isFailure) syncedSongs = null
+            val remoteMove = result.getOrNull()
+            if (remoteMove != null) {
+                withTimeoutOrNull(PLAYLIST_REORDER_SETTLE_TIMEOUT_MS) {
+                    viewModel.playlistSongs.first { it !== before }
+                }
+                val browseId =
+                    viewModel.playlist.value
+                        ?.playlist
+                        ?.browseId
+                if (browseId != null && remoteMove.movedSetVideoId != null) {
+                    remoteReorders.trySend(remoteMove.copy(browseId = browseId))
+                }
+            }
+            pendingReorders = (pendingReorders - 1).coerceAtLeast(0)
+        }
+    }
 
-                if (browseId != null && movedSetVideoId != null) {
+    LaunchedEffect(remoteReorders) {
+        for (remoteMove in remoteReorders) {
+            val browseId = remoteMove.browseId ?: continue
+            val movedSetVideoId = remoteMove.movedSetVideoId ?: continue
+            val failed =
+                withContext(Dispatchers.IO) {
                     runCatching {
                         YouTube
                             .moveSongPlaylist(
                                 browseId,
                                 movedSetVideoId,
-                                successorSetVideoId,
+                                remoteMove.successorSetVideoId,
                             ).getOrThrow()
-                    }.onFailure {
-                        withContext(Dispatchers.Main) {
-                            snackbarHostState.showSnackbar(
-                                message = context.getString(R.string.error_unknown),
-                                withDismissAction = true,
-                            )
-                        }
-                    }
+                    }.isFailure
                 }
+            if (failed) {
+                snackbarHostState.showSnackbar(
+                    message = context.getString(R.string.error_unknown),
+                    withDismissAction = true,
+                )
             }
         }
     }
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
         if (!reorderableState.isAnyItemDragging) {
-            dragInfo?.let { (from, to) ->
-                commitMove(from, to)
-                dragInfo = null
+            draggedMapId?.let { mapId ->
+                draggedMapId = null
+                requestReorder(mapId)
             }
         }
     }
@@ -922,7 +947,7 @@ fun LocalPlaylistScreen(
 
                                     if (isReorderingEnabled && moe.rukamori.archivetune.utils.TvPerformance.isTelevision) {
                                         IconButton(
-                                            onClick = { if (index > 0) commitMove(index, index - 1) },
+                                            onClick = { moveByOne(song.map.id, -1) },
                                             onLongClick = {},
                                         ) {
                                             Icon(
@@ -931,7 +956,7 @@ fun LocalPlaylistScreen(
                                             )
                                         }
                                         IconButton(
-                                            onClick = { if (index < songs.lastIndex) commitMove(index, index + 1) },
+                                            onClick = { moveByOne(song.map.id, 1) },
                                             onLongClick = {},
                                         ) {
                                             Icon(
@@ -945,8 +970,14 @@ fun LocalPlaylistScreen(
                                             onLongClick = {},
                                             modifier =
                                                 Modifier
-                                                    .draggableHandle()
-                                                    .graphicsLayer { alpha = 0.99f },
+                                                    .draggableHandle(
+                                                        onDragStarted = {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                        },
+                                                        onDragStopped = {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                                        },
+                                                    ).graphicsLayer { alpha = 0.99f },
                                         ) {
                                             Icon(
                                                 painter = painterResource(R.drawable.drag_handle),
@@ -954,7 +985,6 @@ fun LocalPlaylistScreen(
                                             )
                                         }
                                     } else if (editable && !selection && !isSearching) {
-                                        // Handle stays visible so reordering is discoverable; a tap explains / unlocks it.
                                         IconButton(
                                             onClick = {
                                                 if (sortType != PlaylistSongSortType.CUSTOM) {
@@ -1066,7 +1096,6 @@ fun LocalPlaylistScreen(
                                                             ListQueue(
                                                                 title = playlist!!.playlist.name,
                                                                 items = songs.map { it.song.toMediaItem() },
-                                                                // index is in filteredSongs (search); map it back to the full list.
                                                                 startIndex = songs.indexOfFirst { it.map.id == song.map.id },
                                                             ),
                                                         )
@@ -1532,3 +1561,52 @@ fun LocalPlaylistScreen(
 }
 
 private const val MediaDetailMetadataSeparator = "  •  "
+
+private const val PLAYLIST_REORDER_SETTLE_TIMEOUT_MS = 2_000L
+
+private data class PlaylistReorderRequest(
+    val mapId: Int,
+    val visibleOrder: List<Int>,
+)
+
+private data class PlaylistRemoteMove(
+    val browseId: String?,
+    val movedSetVideoId: String?,
+    val successorSetVideoId: String?,
+)
+
+private suspend fun applyPlaylistReorder(
+    database: MusicDatabase,
+    playlistId: String,
+    request: PlaylistReorderRequest,
+): PlaylistRemoteMove? {
+    val fullPlaylist = database.playlistSongs(playlistId).first()
+    val moved = fullPlaylist.firstOrNull { it.map.id == request.mapId } ?: return null
+    val visibleIndex = request.visibleOrder.indexOf(request.mapId)
+    if (visibleIndex == -1) return null
+    val positionById = fullPlaylist.associate { it.map.id to it.map.position }
+    val fromPosition = moved.map.position
+    val predecessorPosition = request.visibleOrder.getOrNull(visibleIndex - 1)?.let(positionById::get)
+    val successorPosition = request.visibleOrder.getOrNull(visibleIndex + 1)?.let(positionById::get)
+    val toPosition =
+        when {
+            predecessorPosition != null && predecessorPosition > fromPosition -> predecessorPosition
+            successorPosition != null && successorPosition < fromPosition -> successorPosition
+            else -> return null
+        }
+    val targetIndex = fullPlaylist.indexOfFirst { it.map.position == toPosition }
+    val successorSetVideoId =
+        if (targetIndex < 0) {
+            null
+        } else {
+            fullPlaylist.getOrNull(if (fromPosition > toPosition) targetIndex else targetIndex + 1)?.map?.setVideoId
+        }
+    database.withTransaction {
+        move(playlistId, fromPosition, toPosition)
+    }
+    return PlaylistRemoteMove(
+        browseId = null,
+        movedSetVideoId = moved.map.setVideoId,
+        successorSetVideoId = successorSetVideoId,
+    )
+}

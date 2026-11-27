@@ -8,6 +8,8 @@
 package moe.rukamori.archivetune.di
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
 import androidx.media3.database.DatabaseProvider
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
@@ -167,6 +169,32 @@ internal class LazyCache(
     }
 }
 
+internal const val VIDEO_CACHE_DATABASE_NAME = "archivetune_video_cache.db"
+
+internal class MediaCacheDatabaseProvider(
+    context: Context,
+    name: String,
+) : SQLiteOpenHelper(context.applicationContext, name, null, 1),
+    DatabaseProvider {
+    init {
+        setWriteAheadLoggingEnabled(true)
+    }
+
+    override fun onCreate(db: SQLiteDatabase) = Unit
+
+    override fun onUpgrade(
+        db: SQLiteDatabase,
+        oldVersion: Int,
+        newVersion: Int,
+    ) = Unit
+
+    override fun onDowngrade(
+        db: SQLiteDatabase,
+        oldVersion: Int,
+        newVersion: Int,
+    ) = Unit
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
@@ -180,7 +208,7 @@ object AppModule {
     @Provides
     fun provideDatabaseProvider(
         @ApplicationContext context: Context,
-    ): DatabaseProvider = StandaloneDatabaseProvider(context)
+    ): DatabaseProvider = StandaloneDatabaseProvider(context).apply { setWriteAheadLoggingEnabled(true) }
 
     @Singleton
     @Provides
@@ -223,7 +251,6 @@ object AppModule {
     @VideoCache
     fun provideVideoCache(
         @ApplicationContext context: Context,
-        databaseProvider: DatabaseProvider,
     ): Cache =
         LazyCache {
             val cacheSize = context.dataStore.get(MaxVideoCacheSizeKey, 512)
@@ -235,7 +262,7 @@ object AppModule {
             SimpleCache(
                 StorageLocationRepository.cacheDirectory(context, StorageFolderKind.VIDEO_CACHE),
                 evictor,
-                databaseProvider,
+                MediaCacheDatabaseProvider(context, VIDEO_CACHE_DATABASE_NAME),
             )
         }
 

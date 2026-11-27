@@ -51,7 +51,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -74,7 +73,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.extensions.metadata
-import moe.rukamori.archivetune.extensions.move
+import moe.rukamori.archivetune.extensions.moveByKey
 import moe.rukamori.archivetune.models.MediaMetadata
 import androidx.media3.common.Timeline
 import sh.calvin.reorderable.ReorderableItem
@@ -206,7 +205,7 @@ fun SlidingQueueDrawer(
             val lazyListState = rememberLazyListState()
 
             val mutableQueueWindows = remember { mutableStateListOf<Timeline.Window>() }
-            var dragInfo by remember { mutableStateOf<SfQueueDragInfo?>(null) }
+            var draggedUid by remember { mutableStateOf<Any?>(null) }
 
             val currentPlayingUid =
                 remember(currentSongIndex, queueWindows) {
@@ -215,49 +214,20 @@ fun SlidingQueueDrawer(
 
             val reorderableState =
                 rememberReorderableLazyListState(lazyListState = lazyListState) onMove@{ from, to ->
-                    val fromQueueIndex = from.index
-                    val toQueueIndex = to.index
-                    if (
-                        fromQueueIndex !in mutableQueueWindows.indices ||
-                        toQueueIndex !in mutableQueueWindows.indices
-                    ) {
-                        return@onMove
-                    }
-
-                    val draggedItemUid = dragInfo?.draggedItemUid ?: mutableQueueWindows[fromQueueIndex].uid
-                    val actualFromQueueIndex = mutableQueueWindows.indexOfFirst { it.uid == draggedItemUid }
-                    if (actualFromQueueIndex == -1) return@onMove
-
-                    mutableQueueWindows.move(actualFromQueueIndex, toQueueIndex)
-                    dragInfo =
-                        SfQueueDragInfo(
-                            draggedItemUid = draggedItemUid,
-                            destination =
-                                if (toQueueIndex == 0) {
-                                    SfQueueDragDestination.Start
-                                } else {
-                                    SfQueueDragDestination.After(
-                                        itemUid = mutableQueueWindows[toQueueIndex - 1].uid,
-                                    )
-                                },
-                        )
+                    val movedWindow =
+                        mutableQueueWindows.moveByKey(from.key, to.key) { it.sfQueueItemKey } ?: return@onMove
+                    draggedUid = movedWindow.uid
                 }
 
             LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
                 if (reorderableState.isAnyItemDragging) return@LaunchedEffect
 
-                val completedDrag = dragInfo
-                if (completedDrag != null) {
-                    val sourceIndex = queueWindows.indexOfFirst { it.uid == completedDrag.draggedItemUid }
-                    val destinationIndex = completedDrag.destination.resolveIndex(queueWindows, sourceIndex)
-                    dragInfo = null
-
-                    if (
-                        sourceIndex != -1 &&
-                        destinationIndex != null &&
-                        sourceIndex != destinationIndex
-                    ) {
-                        onReorderQueue(sourceIndex, destinationIndex)
+                val completedDragUid = draggedUid
+                if (completedDragUid != null) {
+                    draggedUid = null
+                    val reorder = resolveQueueReorder(queueWindows, mutableQueueWindows.toList(), completedDragUid)
+                    if (reorder != null) {
+                        onReorderQueue(reorder.from, reorder.to)
                         return@LaunchedEffect
                     }
                 }
@@ -700,38 +670,6 @@ fun SpatialFlowQueueListItem(
             ),
     )
 }
-
-@Immutable
-private data class SfQueueDragInfo(
-    val draggedItemUid: Any,
-    val destination: SfQueueDragDestination,
-)
-
-@Immutable
-private sealed interface SfQueueDragDestination {
-    data object Start : SfQueueDragDestination
-
-    data class After(
-        val itemUid: Any,
-    ) : SfQueueDragDestination
-}
-
-private fun SfQueueDragDestination.resolveIndex(
-    queueWindows: List<Timeline.Window>,
-    sourceIndex: Int,
-): Int? =
-    when (this) {
-        SfQueueDragDestination.Start -> if (queueWindows.isEmpty()) null else 0
-        is SfQueueDragDestination.After -> {
-            val anchorIndex = queueWindows.indexOfFirst { it.uid == itemUid }
-            when {
-                sourceIndex !in queueWindows.indices -> null
-                anchorIndex == -1 -> null
-                sourceIndex < anchorIndex -> anchorIndex
-                else -> (anchorIndex + 1).coerceAtMost(queueWindows.lastIndex)
-            }
-        }
-    }
 
 private val Timeline.Window.sfQueueItemKey: Long
     get() =

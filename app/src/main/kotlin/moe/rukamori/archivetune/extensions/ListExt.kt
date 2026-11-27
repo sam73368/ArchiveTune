@@ -20,6 +20,19 @@ fun <T> MutableList<T>.move(
     return this
 }
 
+fun <T> MutableList<T>.moveByKey(
+    fromKey: Any?,
+    toKey: Any?,
+    keyOf: (T) -> Any?,
+): T? {
+    val fromIndex = indexOfFirst { keyOf(it) == fromKey }
+    val toIndex = indexOfFirst { keyOf(it) == toKey }
+    if (fromIndex == -1 || toIndex == -1 || fromIndex == toIndex) return null
+    val item = removeAt(fromIndex)
+    add(toIndex, item)
+    return item
+}
+
 fun <T : Any> List<T>.mergeNearbyElements(
     key: (T) -> Any = { it },
     merge: (first: T, second: T) -> T = { first, _ -> first },

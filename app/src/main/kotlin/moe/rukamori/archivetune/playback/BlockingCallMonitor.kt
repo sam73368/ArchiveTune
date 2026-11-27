@@ -18,6 +18,7 @@ object BlockingCallMonitor {
 
     private const val TAG = "PlaybackDiag"
     private const val CACHE_STALL_MS = 3_000L
+    private const val CACHE_BUSY_MS = 500L
     private const val CACHE_BYPASS_HOLD_MS = 90_000L
     private const val DUMP_MIN_AGE_MS = 2_000L
     private const val DUMP_FRAMES = 14
@@ -80,6 +81,9 @@ object BlockingCallMonitor {
         }
         return now < cacheBypassUntil
     }
+
+    fun cacheBusy(minAgeMs: Long = CACHE_BUSY_MS): Boolean =
+        cacheBypassActive() || oldest(CACHE, SystemClock.elapsedRealtime(), minAgeMs) != null
 
     fun dumpPlaybackThreads(reason: String) {
         val now = SystemClock.elapsedRealtime()
