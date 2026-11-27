@@ -68,6 +68,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -644,6 +645,9 @@ fun Queue(
         val lazyListState = rememberLazyListState()
         var draggedUid by remember { mutableStateOf<Any?>(null) }
         val reorderTracker = remember { ReorderDragTracker() }
+        LaunchedEffect(reorderTracker, lazyListState) {
+            snapshotFlow { lazyListState.isScrollInProgress }.collect { reorderTracker.onScrollStateChanged(it) }
+        }
 
         val currentPlayingUid =
             remember(currentWindowIndex, queueWindows) {
@@ -969,6 +973,7 @@ fun Queue(
                                                                 }
                                                             },
                                                             onDragStopped = {
+                                                                reorderTracker.onHandleStopped(lazyListState)
                                                                 if (enableHapticFeedback) {
                                                                     haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
                                                                 }

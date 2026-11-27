@@ -7023,3 +7023,17 @@ Work Log:
 
 Stage Summary:
 - Pending CI and a log of one failed drag.
+
+---
+Task ID: LITE-37
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Read the first `QueueDrag` log (07:16) and narrow down why the queue drag ends by itself.
+
+Work Log:
+- Both drags in the log are in the main queue (Long keys = `queueItemKey`). Both ended with the finger reported as not pressed, so the end came from a pointer up/cancel reaching the list, not from the row leaving composition (it is pinned now). Both ends happened right after the finger entered an auto-scroll zone: drag 1 released at y=973 after two 2-row jumps (auto-scroll moves) with the row scrolled out of view, drag 2 released at y=93 (top zone) 230 ms after its last move.
+- Added finer logs: the pointer event type and consumption when the finger goes up during a drag, the handle's own stop with the finger state at that instant (a cancelled gesture shows fingerDown=true), and every start/stop of list scrolling during a drag.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI and a second log.

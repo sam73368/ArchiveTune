@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LocalPinnableContainer
 import timber.log.Timber
@@ -32,9 +33,36 @@ class ReorderDragTracker {
 
     private var moves = 0
 
-    fun onPointer(pressedY: Float?) {
+    fun onPointer(
+        pressedY: Float?,
+        eventType: PointerEventType,
+        anyConsumed: Boolean,
+    ) {
+        val wasPressed = pressed
         pressed = pressedY != null
         if (pressedY != null) lastPressedY = pressedY
+        if (wasPressed && !pressed && draggedKey != null) {
+            Timber.tag(REORDER_LOG_TAG).i(
+                "finger up during drag: type=%s consumed=%b lastY=%.0f",
+                eventType,
+                anyConsumed,
+                lastPressedY,
+            )
+        }
+    }
+
+    fun onHandleStopped(lazyListState: LazyListState) {
+        Timber.tag(REORDER_LOG_TAG).i(
+            "handle stopped: fingerDown=%b y=%.0f scrolling=%b first=%d",
+            pressed,
+            lastPressedY,
+            lazyListState.isScrollInProgress,
+            lazyListState.firstVisibleItemIndex,
+        )
+    }
+
+    fun onScrollStateChanged(scrolling: Boolean) {
+        if (draggedKey != null) Timber.tag(REORDER_LOG_TAG).d("list scrolling=%b during drag y=%.0f", scrolling, lastPressedY)
     }
 
     fun onDragStarted(key: Any) {
@@ -106,7 +134,11 @@ fun Modifier.trackReorderPointer(tracker: ReorderDragTracker): Modifier =
         awaitPointerEventScope {
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
-                tracker.onPointer(event.changes.firstOrNull { it.pressed }?.position?.y)
+                tracker.onPointer(
+                    pressedY = event.changes.firstOrNull { it.pressed }?.position?.y,
+                    eventType = event.type,
+                    anyConsumed = event.changes.any { it.isConsumed },
+                )
             }
         }
     }
