@@ -111,6 +111,7 @@ import moe.rukamori.archivetune.db.entities.PlaylistSongMap
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.KeepDraggedRowComposed
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.togglePlayPause
@@ -669,7 +670,7 @@ fun Queue(
                             ),
                         ).asPaddingValues(),
             ) onMove@{ from, to ->
-                reorderTracker.draggedKey = from.key
+                reorderTracker.onMoved(from.key, to.key, from.index, to.index)
                 val movedWindow =
                     mutableQueueWindows.moveByKey(from.key, to.key) { it.queueItemKey } ?: return@onMove
                 val draggedItemUid = movedWindow.uid
@@ -692,6 +693,7 @@ fun Queue(
 
         LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
             if (reorderableState.isAnyItemDragging) return@LaunchedEffect
+            reorderTracker.onDragStopped(lazyListState)
             val droppedKey = reorderTracker.draggedKey
             val edgeTarget =
                 reorderTracker.dropEdgeTarget(
@@ -861,6 +863,7 @@ fun Queue(
                             state = reorderableState,
                             key = window.queueItemKey,
                         ) { isDragging ->
+                            KeepDraggedRowComposed(isDragging, window.queueItemKey)
                             val dragElevation by animateDpAsState(
                                 targetValue = if (isDragging) 8.dp else 0.dp,
                                 label = "queueDragElevation",
@@ -960,7 +963,7 @@ fun Queue(
                                                     modifier =
                                                         Modifier.draggableHandle(
                                                             onDragStarted = {
-                                                                reorderTracker.draggedKey = window.queueItemKey
+                                                                reorderTracker.onDragStarted(window.queueItemKey)
                                                                 if (enableHapticFeedback) {
                                                                     haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                                                                 }

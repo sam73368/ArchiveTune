@@ -74,6 +74,7 @@ import coil3.compose.AsyncImage
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.KeepDraggedRowComposed
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.ui.player.resolveQueueReorder
@@ -220,7 +221,7 @@ fun SlidingQueueDrawer(
                 rememberReorderableLazyListState(
                     lazyListState = lazyListState,
                 ) onMove@{ from, to ->
-                    reorderTracker.draggedKey = from.key
+                    reorderTracker.onMoved(from.key, to.key, from.index, to.index)
                     val movedWindow =
                         mutableQueueWindows.moveByKey(from.key, to.key) { it.sfQueueItemKey } ?: return@onMove
                     draggedUid = movedWindow.uid
@@ -228,6 +229,7 @@ fun SlidingQueueDrawer(
 
             LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
                 if (reorderableState.isAnyItemDragging) return@LaunchedEffect
+                reorderTracker.onDragStopped(lazyListState)
                 val droppedKey = reorderTracker.draggedKey
                 val edgeTarget =
                     reorderTracker.dropEdgeTarget(
@@ -354,11 +356,12 @@ fun SlidingQueueDrawer(
                             state = reorderableState,
                             key = window.sfQueueItemKey,
                         ) {
+                            KeepDraggedRowComposed(it, window.sfQueueItemKey)
                             val dragHandleModifier =
                                 if (isQueueExpanded) {
                                     Modifier.draggableHandle(
                                         onDragStarted = {
-                                            reorderTracker.draggedKey = window.sfQueueItemKey
+                                            reorderTracker.onDragStarted(window.sfQueueItemKey)
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         },
                                     )

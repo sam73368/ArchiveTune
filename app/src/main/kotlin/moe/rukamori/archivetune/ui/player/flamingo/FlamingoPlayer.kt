@@ -206,6 +206,7 @@ import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.getCurrentQueueIndex
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.KeepDraggedRowComposed
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.ui.player.applyQueueReorder
@@ -2982,7 +2983,7 @@ private fun FlamingoPlayingList(
                 rememberReorderableLazyListState(
                     lazyListState = state,
                 ) onMove@{ from, to ->
-                    reorderTracker.draggedKey = from.key
+                    reorderTracker.onMoved(from.key, to.key, from.index, to.index)
                     val movedWindow =
                         mutableQueueWindows.moveByKey(from.key, to.key) { it.uid.hashCode() } ?: return@onMove
                     draggedUid = movedWindow.uid
@@ -3007,6 +3008,7 @@ private fun FlamingoPlayingList(
 
             LaunchedEffect(queueWindows, currentWindowIndex, reorderableState.isAnyItemDragging) {
                 if (reorderableState.isAnyItemDragging) return@LaunchedEffect
+                reorderTracker.onDragStopped(state)
                 val droppedKey = reorderTracker.draggedKey
                 val edgeTarget =
                     reorderTracker.dropEdgeTarget(
@@ -3152,6 +3154,7 @@ private fun FlamingoPlayingList(
                         key = { _, window -> window.uid.hashCode() },
                     ) { _, window ->
                         ReorderableItem(reorderableState, key = window.uid.hashCode()) { isDragging ->
+                            KeepDraggedRowComposed(isDragging, window.uid.hashCode())
                             FlamingoQueueMusicListItem(
                                 window = window,
                                 queueWindows = queueWindows,
@@ -3160,7 +3163,7 @@ private fun FlamingoPlayingList(
                                 isDragging = isDragging,
                                 reorderHandleModifier =
                                     Modifier.draggableHandle(
-                                        onDragStarted = { reorderTracker.draggedKey = window.uid.hashCode() },
+                                        onDragStarted = { reorderTracker.onDragStarted(window.uid.hashCode()) },
                                     ),
                                 onMoveToNextQueue = {
                                     val currentTimelineIndex = currentWindow?.firstPeriodIndex ?: -1

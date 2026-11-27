@@ -7008,3 +7008,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI; waiting for the crash report.
+
+---
+Task ID: LITE-36
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: After LITE-35 the drag scrolls smoothly but releases by itself after passing two or three rows, every time.
+
+Work Log:
+- The 06:03 log shows three drops (timeline discontinuities at 06:03:13, :20, :24, each one a committed move) and nothing else around them: no error, no crash. The library, Compose LazyList and the app code were re-read; nothing in them explains a drop after a few rows, so the cause has to be measured on the device.
+- `KeepDraggedRowComposed` pins the dragged row through `LocalPinnableContainer` while it is dragged: a lazy row that leaves composition runs the library's DisposableEffect and ends the drag. That is the only path in the library that ends a drag without the finger being lifted, apart from the gesture being cancelled.
+- `ReorderDragTracker` now logs under the `QueueDrag` tag: drag start (key, finger y), every move (from/to key and index), and the end of the drag, with a warning when the drag ends while the finger is still on the screen (moves done, whether the row is still visible, first visible index, whether the list is scrolling). The pinned row also logs when it stops being dragged. Wired into every queue style, local playlists and library playlists.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI and a log of one failed drag.

@@ -114,6 +114,7 @@ import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.PlaylistSong
 import moe.rukamori.archivetune.extensions.move
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.KeepDraggedRowComposed
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.toMediaItem
@@ -517,7 +518,7 @@ fun LocalPlaylistScreen(
             lazyListState = lazyListState,
             scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) onMove@{ from, to ->
-            reorderTracker.draggedKey = from.key
+            reorderTracker.onMoved(from.key, to.key, from.index, to.index)
             val moved = mutableSongs.moveByKey(from.key, to.key) { it.map.id } ?: return@onMove
             draggedMapId = moved.map.id
             haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
@@ -611,6 +612,7 @@ fun LocalPlaylistScreen(
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
         if (!reorderableState.isAnyItemDragging) {
+            reorderTracker.onDragStopped(lazyListState)
             val droppedKey = reorderTracker.draggedKey
             val edgeTarget =
                 if (isReorderingEnabled) {
@@ -890,6 +892,7 @@ fun LocalPlaylistScreen(
                                 compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
                             },
                     ) {
+                        KeepDraggedRowComposed(it, song.map.id)
                         val currentItem by rememberUpdatedState(song)
 
                         fun deleteFromPlaylist() {
@@ -992,7 +995,7 @@ fun LocalPlaylistScreen(
                                                 Modifier
                                                     .draggableHandle(
                                                         onDragStarted = {
-                                                            reorderTracker.draggedKey = song.map.id
+                                                            reorderTracker.onDragStarted(song.map.id)
                                                             haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                                                         },
                                                         onDragStopped = {

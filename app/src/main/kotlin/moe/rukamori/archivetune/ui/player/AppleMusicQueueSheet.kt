@@ -80,6 +80,7 @@ import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.QueueEditLockKey
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.KeepDraggedRowComposed
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.metadata
@@ -182,7 +183,7 @@ fun AppleMusicQueueSheet(
         rememberReorderableLazyListState(
             lazyListState = lazyListState,
         ) onMove@{ from, to ->
-            reorderTracker.draggedKey = from.key
+            reorderTracker.onMoved(from.key, to.key, from.index, to.index)
             val movedWindow =
                 mutableQueueWindows.moveByKey(from.key, to.key) { it.uid.hashCode() } ?: return@onMove
             draggedUid = movedWindow.uid
@@ -190,6 +191,7 @@ fun AppleMusicQueueSheet(
 
     LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
         if (reorderableState.isAnyItemDragging) return@LaunchedEffect
+        reorderTracker.onDragStopped(lazyListState)
         val droppedKey = reorderTracker.draggedKey
         val edgeTarget =
             reorderTracker.dropEdgeTarget(
@@ -371,6 +373,7 @@ fun AppleMusicQueueSheet(
                     state = reorderableState,
                     key = window.uid.hashCode(),
                 ) {
+                    KeepDraggedRowComposed(it, window.uid.hashCode())
                     val isActive = window.uid == currentPlayingUid
                     val metadata = window.mediaItem.metadata ?: return@ReorderableItem
                     val isPlayed =
@@ -452,7 +455,7 @@ fun AppleMusicQueueSheet(
                                                 onClick = { },
                                                 modifier =
                                                     Modifier.draggableHandle(
-                                                        onDragStarted = { reorderTracker.draggedKey = window.uid.hashCode() },
+                                                        onDragStarted = { reorderTracker.onDragStarted(window.uid.hashCode()) },
                                                     ),
                                             ) {
                                                 Icon(

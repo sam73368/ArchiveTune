@@ -105,6 +105,7 @@ import moe.rukamori.archivetune.constants.ThumbnailCornerRadius
 import moe.rukamori.archivetune.constants.ShowTagsInLibraryKey
 import moe.rukamori.archivetune.db.entities.Playlist
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.KeepDraggedRowComposed
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.toMediaItem
@@ -227,7 +228,7 @@ fun LibraryPlaylistsScreen(
             lazyListState = lazyListState,
             scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) { from, to ->
-            reorderTracker.draggedKey = from.key
+            reorderTracker.onMoved(from.key, to.key, from.index, to.index)
             if (mutablePlaylists.moveByKey(from.key, to.key) { it.id } != null) {
                 pendingPlaylistOrderUpdate = true
             }
@@ -247,6 +248,7 @@ fun LibraryPlaylistsScreen(
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
         if (!reorderableState.isAnyItemDragging) {
+            reorderTracker.onDragStopped(lazyListState)
             val droppedKey = reorderTracker.draggedKey
             val edgeTarget =
                 reorderTracker.dropEdgeTarget(
@@ -610,6 +612,7 @@ fun LibraryPlaylistsScreen(
                                     compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
                                 },
                         ) {
+                            KeepDraggedRowComposed(it, playlist.id)
                             PlaylistListCard(
                                 playlist = playlist,
                                 onClick = {
@@ -635,7 +638,7 @@ fun LibraryPlaylistsScreen(
                                 dragHandleModifier =
                                     Modifier
                                         .draggableHandle(
-                                            onDragStarted = { reorderTracker.draggedKey = playlist.id },
+                                            onDragStarted = { reorderTracker.onDragStarted(playlist.id) },
                                         ).graphicsLayer { alpha = 0.99f },
                             )
                         }
