@@ -7037,3 +7037,16 @@ Work Log:
 
 Stage Summary:
 - Pending CI and a second log.
+
+---
+Task ID: LITE-38
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Can a secret key make app updates install without confirming every time?
+
+Work Log:
+- The signing key does not control the confirmation: every build is already signed with the same committed keystore. The confirmation is skipped by Android 12+ only when the installer session asks for `USER_ACTION_NOT_REQUIRED` (already done in `AppUpdateInstaller`), the app updates itself, and the installer declares `UPDATE_PACKAGES_WITHOUT_USER_ACTION` — that permission was missing from the manifest, so every update asked. Added it (normal permission, no runtime prompt).
+- Nothing compiled locally; not run on a device. The first update after this one may still ask once.
+
+Stage Summary:
+- Pending CI.
