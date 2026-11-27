@@ -81,8 +81,6 @@ import moe.rukamori.archivetune.constants.QueueEditLockKey
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.extensions.moveByKey
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
-import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
-import moe.rukamori.archivetune.ui.component.rememberReorderScroller
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.toggleRepeatMode
@@ -183,7 +181,6 @@ fun AppleMusicQueueSheet(
     val reorderableState =
         rememberReorderableLazyListState(
             lazyListState = lazyListState,
-            scroller = rememberReorderScroller(lazyListState),
         ) onMove@{ from, to ->
             reorderTracker.draggedKey = from.key
             val movedWindow =
@@ -191,20 +188,19 @@ fun AppleMusicQueueSheet(
             draggedUid = movedWindow.uid
         }
 
-    ReorderEdgeCatchUp(
-        reorderableState = reorderableState,
-        lazyListState = lazyListState,
-        tracker = reorderTracker,
-        firstKey = { mutableQueueWindows.firstOrNull()?.uid?.hashCode() },
-        lastKey = { mutableQueueWindows.lastOrNull()?.uid?.hashCode() },
-        moveTo = { dragged, target ->
-            mutableQueueWindows.moveByKey(dragged, target) { it.uid.hashCode() }?.let { moved -> draggedUid = moved.uid }
-        },
-    )
-
     LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
         if (reorderableState.isAnyItemDragging) return@LaunchedEffect
-        reorderTracker.draggedKey = null
+        val droppedKey = reorderTracker.draggedKey
+        val edgeTarget =
+            reorderTracker.dropEdgeTarget(
+                lazyListState = lazyListState,
+                firstKey = mutableQueueWindows.firstOrNull()?.uid?.hashCode(),
+                lastKey = mutableQueueWindows.lastOrNull()?.uid?.hashCode(),
+            )
+        reorderTracker.reset()
+        if (droppedKey != null && edgeTarget != null) {
+            mutableQueueWindows.moveByKey(droppedKey, edgeTarget) { it.uid.hashCode() }?.let { draggedUid = it.uid }
+        }
 
         val completedDragUid = draggedUid
         var latestWindows = queueWindows

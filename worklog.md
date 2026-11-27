@@ -6993,3 +6993,18 @@ Work Log:
 
 Stage Summary:
 - Pending CI.
+
+---
+Task ID: LITE-35
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: After LITE-34 drag-and-drop got worse and the app crashed (log 21:52-21:53).
+
+Work Log:
+- The log starts with the restarted process (21:52:59), so the crash itself is not in it; it shows a normal start, Plex resume of 17155 and no error tied to the queue. The crash report the app copies to Download/ArchiveTune at the next start is needed to know the exact cause.
+- LITE-34 changed the drag in two live ways: rows moved by app code during the drag (with `requestScrollToItem`) and a `ScrollableState` wrapper around the library's auto-scroller that swallowed scroll interruptions (plus 2x scroll speed). Both interfere with the library's own state while it drags; they are removed (no `rememberReorderScroller`, no `ReorderEdgeCatchUp`), back to the library's own scroller and speed.
+- Kept the passive finger tracking and moved the edge fix to the drop: when the drag ends, if the first/last reorderable row is on screen and the last finger position was above/below it, the dropped row is placed there before the normal commit (queue styles, local playlists, library playlists). Nothing touches the list while the drag is running.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI; waiting for the crash report.

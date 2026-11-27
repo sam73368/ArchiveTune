@@ -115,8 +115,6 @@ import moe.rukamori.archivetune.db.entities.PlaylistSong
 import moe.rukamori.archivetune.extensions.move
 import moe.rukamori.archivetune.extensions.moveByKey
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
-import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
-import moe.rukamori.archivetune.ui.component.rememberReorderScroller
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.extensions.togglePlayPause
@@ -518,27 +516,12 @@ fun LocalPlaylistScreen(
         rememberReorderableLazyListState(
             lazyListState = lazyListState,
             scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
-            scroller = rememberReorderScroller(lazyListState),
         ) onMove@{ from, to ->
             reorderTracker.draggedKey = from.key
             val moved = mutableSongs.moveByKey(from.key, to.key) { it.map.id } ?: return@onMove
             draggedMapId = moved.map.id
             haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
         }
-
-    ReorderEdgeCatchUp(
-        reorderableState = reorderableState,
-        lazyListState = lazyListState,
-        tracker = reorderTracker,
-        firstKey = { if (isReorderingEnabled) mutableSongs.firstOrNull()?.map?.id else null },
-        lastKey = { if (isReorderingEnabled) mutableSongs.lastOrNull()?.map?.id else null },
-        moveTo = { dragged, target ->
-            mutableSongs.moveByKey(dragged, target) { it.map.id }?.let { moved ->
-                draggedMapId = moved.map.id
-                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
-            }
-        },
-    )
 
     LaunchedEffect(songs, reorderableState.isAnyItemDragging, pendingReorders) {
         if (reorderableState.isAnyItemDragging || pendingReorders > 0 || syncedSongs === songs) return@LaunchedEffect
@@ -628,7 +611,21 @@ fun LocalPlaylistScreen(
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
         if (!reorderableState.isAnyItemDragging) {
-            reorderTracker.draggedKey = null
+            val droppedKey = reorderTracker.draggedKey
+            val edgeTarget =
+                if (isReorderingEnabled) {
+                    reorderTracker.dropEdgeTarget(
+                        lazyListState = lazyListState,
+                        firstKey = mutableSongs.firstOrNull()?.map?.id,
+                        lastKey = mutableSongs.lastOrNull()?.map?.id,
+                    )
+                } else {
+                    null
+                }
+            reorderTracker.reset()
+            if (droppedKey != null && edgeTarget != null) {
+                mutableSongs.moveByKey(droppedKey, edgeTarget) { it.map.id }?.let { draggedMapId = it.map.id }
+            }
             draggedMapId?.let { mapId ->
                 draggedMapId = null
                 requestReorder(mapId)

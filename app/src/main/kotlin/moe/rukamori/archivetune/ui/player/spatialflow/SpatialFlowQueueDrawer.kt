@@ -75,8 +75,6 @@ import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.moveByKey
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
-import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
-import moe.rukamori.archivetune.ui.component.rememberReorderScroller
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.ui.player.resolveQueueReorder
 import moe.rukamori.archivetune.models.MediaMetadata
@@ -221,7 +219,6 @@ fun SlidingQueueDrawer(
             val reorderableState =
                 rememberReorderableLazyListState(
                     lazyListState = lazyListState,
-                    scroller = rememberReorderScroller(lazyListState),
                 ) onMove@{ from, to ->
                     reorderTracker.draggedKey = from.key
                     val movedWindow =
@@ -229,20 +226,19 @@ fun SlidingQueueDrawer(
                     draggedUid = movedWindow.uid
                 }
 
-            ReorderEdgeCatchUp(
-                reorderableState = reorderableState,
-                lazyListState = lazyListState,
-                tracker = reorderTracker,
-                firstKey = { mutableQueueWindows.firstOrNull()?.sfQueueItemKey },
-                lastKey = { mutableQueueWindows.lastOrNull()?.sfQueueItemKey },
-                moveTo = { dragged, target ->
-                    mutableQueueWindows.moveByKey(dragged, target) { it.sfQueueItemKey }?.let { moved -> draggedUid = moved.uid }
-                },
-            )
-
             LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
                 if (reorderableState.isAnyItemDragging) return@LaunchedEffect
-                reorderTracker.draggedKey = null
+                val droppedKey = reorderTracker.draggedKey
+                val edgeTarget =
+                    reorderTracker.dropEdgeTarget(
+                        lazyListState = lazyListState,
+                        firstKey = mutableQueueWindows.firstOrNull()?.sfQueueItemKey,
+                        lastKey = mutableQueueWindows.lastOrNull()?.sfQueueItemKey,
+                    )
+                reorderTracker.reset()
+                if (droppedKey != null && edgeTarget != null) {
+                    mutableQueueWindows.moveByKey(droppedKey, edgeTarget) { it.sfQueueItemKey }?.let { draggedUid = it.uid }
+                }
 
                 val completedDragUid = draggedUid
                 if (completedDragUid != null) {

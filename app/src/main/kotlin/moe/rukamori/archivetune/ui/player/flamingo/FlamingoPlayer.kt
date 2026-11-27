@@ -207,8 +207,6 @@ import moe.rukamori.archivetune.extensions.getCurrentQueueIndex
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.extensions.moveByKey
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
-import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
-import moe.rukamori.archivetune.ui.component.rememberReorderScroller
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.ui.player.applyQueueReorder
 import moe.rukamori.archivetune.ui.player.resolveQueueReorder
@@ -2983,24 +2981,12 @@ private fun FlamingoPlayingList(
             val reorderableState =
                 rememberReorderableLazyListState(
                     lazyListState = state,
-                    scroller = rememberReorderScroller(state),
                 ) onMove@{ from, to ->
                     reorderTracker.draggedKey = from.key
                     val movedWindow =
                         mutableQueueWindows.moveByKey(from.key, to.key) { it.uid.hashCode() } ?: return@onMove
                     draggedUid = movedWindow.uid
                 }
-
-            ReorderEdgeCatchUp(
-                reorderableState = reorderableState,
-                lazyListState = state,
-                tracker = reorderTracker,
-                firstKey = { mutableQueueWindows.firstOrNull()?.uid?.hashCode() },
-                lastKey = { mutableQueueWindows.lastOrNull()?.uid?.hashCode() },
-                moveTo = { dragged, target ->
-                    mutableQueueWindows.moveByKey(dragged, target) { it.uid.hashCode() }?.let { moved -> draggedUid = moved.uid }
-                },
-            )
 
             LaunchedEffect(reorderableState) {
                 androidx.compose.runtime.snapshotFlow { reorderableState.isAnyItemDragging }
@@ -3021,7 +3007,17 @@ private fun FlamingoPlayingList(
 
             LaunchedEffect(queueWindows, currentWindowIndex, reorderableState.isAnyItemDragging) {
                 if (reorderableState.isAnyItemDragging) return@LaunchedEffect
-                reorderTracker.draggedKey = null
+                val droppedKey = reorderTracker.draggedKey
+                val edgeTarget =
+                    reorderTracker.dropEdgeTarget(
+                        lazyListState = state,
+                        firstKey = mutableQueueWindows.firstOrNull()?.uid?.hashCode(),
+                        lastKey = mutableQueueWindows.lastOrNull()?.uid?.hashCode(),
+                    )
+                reorderTracker.reset()
+                if (droppedKey != null && edgeTarget != null) {
+                    mutableQueueWindows.moveByKey(droppedKey, edgeTarget) { it.uid.hashCode() }?.let { draggedUid = it.uid }
+                }
 
                 val completedDragUid = draggedUid
                 var latestWindows = queueWindows

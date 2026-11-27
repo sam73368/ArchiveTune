@@ -106,8 +106,6 @@ import moe.rukamori.archivetune.constants.ShowTagsInLibraryKey
 import moe.rukamori.archivetune.db.entities.Playlist
 import moe.rukamori.archivetune.extensions.moveByKey
 import moe.rukamori.archivetune.ui.component.ReorderDragTracker
-import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
-import moe.rukamori.archivetune.ui.component.rememberReorderScroller
 import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.innertube.models.PlaylistItem
@@ -228,26 +226,12 @@ fun LibraryPlaylistsScreen(
         rememberReorderableLazyListState(
             lazyListState = lazyListState,
             scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
-            scroller = rememberReorderScroller(lazyListState),
         ) { from, to ->
             reorderTracker.draggedKey = from.key
             if (mutablePlaylists.moveByKey(from.key, to.key) { it.id } != null) {
                 pendingPlaylistOrderUpdate = true
             }
         }
-
-    ReorderEdgeCatchUp(
-        reorderableState = reorderableState,
-        lazyListState = lazyListState,
-        tracker = reorderTracker,
-        firstKey = { mutablePlaylists.firstOrNull()?.id },
-        lastKey = { mutablePlaylists.lastOrNull()?.id },
-        moveTo = { dragged, target ->
-            if (mutablePlaylists.moveByKey(dragged, target) { it.id } != null) {
-                pendingPlaylistOrderUpdate = true
-            }
-        },
-    )
 
     var syncedPlaylists by remember { mutableStateOf<List<Playlist>?>(null) }
     LaunchedEffect(visiblePlaylists, reorderableState.isAnyItemDragging, pendingPlaylistOrderUpdate) {
@@ -262,7 +246,19 @@ fun LibraryPlaylistsScreen(
     }
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
-        if (!reorderableState.isAnyItemDragging) reorderTracker.draggedKey = null
+        if (!reorderableState.isAnyItemDragging) {
+            val droppedKey = reorderTracker.draggedKey
+            val edgeTarget =
+                reorderTracker.dropEdgeTarget(
+                    lazyListState = lazyListState,
+                    firstKey = mutablePlaylists.firstOrNull()?.id,
+                    lastKey = mutablePlaylists.lastOrNull()?.id,
+                )
+            reorderTracker.reset()
+            if (droppedKey != null && edgeTarget != null && mutablePlaylists.moveByKey(droppedKey, edgeTarget) { it.id } != null) {
+                pendingPlaylistOrderUpdate = true
+            }
+        }
         if (!reorderableState.isAnyItemDragging && pendingPlaylistOrderUpdate) {
             viewModel.updateCustomPlaylistOrder(
                 mergeVisiblePlaylistOrder(
