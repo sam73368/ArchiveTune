@@ -6976,3 +6976,20 @@ Work Log:
 
 Stage Summary:
 - Pending CI.
+
+---
+Task ID: LITE-34
+Agent: Claude (Samy's ArchiveTune fork)
+
+Task: Queue drag-and-drop: moving the finger up faster than the list scrolls cancels the drag and the song goes back to where it was.
+
+Work Log:
+- Library code (sh.calvin.reorderable 3.1.0) and Compose foundation sources read. Two causes found:
+  - The library only moves the dragged row onto an item whose centre lies inside the dragged row. When the finger outruns the list and ends above the first row (or below the last), and the list cannot scroll further, no target exists, nothing moves, and on release the row animates back to its slot, which is still its original place.
+  - `moveItems` calls `LazyListState.requestScrollToItem`, which cancels any scroll in progress (`scroll {}`). If that lands while the library's auto-scroller is animating (a move launched just before the finger entered the edge zone), the scroller's coroutine ends with the interruption and its job is never relaunched for the rest of the drag: the list stops scrolling while the finger waits at the edge.
+- `ui/component/ReorderSupport.kt`: `rememberReorderScroller` wraps the list state in a `ScrollableState` whose `scroll` swallows that interruption (rethrows only when the scroller itself is cancelled), and scrolls at 10 % of the viewport per 100 ms (library default 5 %). `trackReorderPointer` records the finger position on the list (Initial pass, nothing consumed) and `ReorderEdgeCatchUp` moves the dragged row to the first/last reorderable row when that row is on screen and the finger is beyond it, with `requestScrollToItem` when the first row is the first visible item (same anchoring as the library). The dragged key comes from the handle's `onDragStarted` and every `onMove`.
+- Wired into the main queue, the Apple Music sheet, Flamingo (first/last up-next row), SpatialFlow, local playlists and library playlists. Catch-up moves set the dragged id, so the drop commits through the existing paths.
+- Nothing compiled locally; not run on a device.
+
+Stage Summary:
+- Pending CI.

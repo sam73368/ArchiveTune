@@ -74,6 +74,10 @@ import coil3.compose.AsyncImage
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.ReorderDragTracker
+import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
+import moe.rukamori.archivetune.ui.component.rememberReorderScroller
+import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.ui.player.resolveQueueReorder
 import moe.rukamori.archivetune.models.MediaMetadata
 import androidx.media3.common.Timeline
@@ -207,6 +211,7 @@ fun SlidingQueueDrawer(
 
             val mutableQueueWindows = remember { mutableStateListOf<Timeline.Window>() }
             var draggedUid by remember { mutableStateOf<Any?>(null) }
+            val reorderTracker = remember { ReorderDragTracker() }
 
             val currentPlayingUid =
                 remember(currentSongIndex, queueWindows) {
@@ -214,14 +219,30 @@ fun SlidingQueueDrawer(
                 }
 
             val reorderableState =
-                rememberReorderableLazyListState(lazyListState = lazyListState) onMove@{ from, to ->
+                rememberReorderableLazyListState(
+                    lazyListState = lazyListState,
+                    scroller = rememberReorderScroller(lazyListState),
+                ) onMove@{ from, to ->
+                    reorderTracker.draggedKey = from.key
                     val movedWindow =
                         mutableQueueWindows.moveByKey(from.key, to.key) { it.sfQueueItemKey } ?: return@onMove
                     draggedUid = movedWindow.uid
                 }
 
+            ReorderEdgeCatchUp(
+                reorderableState = reorderableState,
+                lazyListState = lazyListState,
+                tracker = reorderTracker,
+                firstKey = { mutableQueueWindows.firstOrNull()?.sfQueueItemKey },
+                lastKey = { mutableQueueWindows.lastOrNull()?.sfQueueItemKey },
+                moveTo = { dragged, target ->
+                    mutableQueueWindows.moveByKey(dragged, target) { it.sfQueueItemKey }?.let { moved -> draggedUid = moved.uid }
+                },
+            )
+
             LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
                 if (reorderableState.isAnyItemDragging) return@LaunchedEffect
+                reorderTracker.draggedKey = null
 
                 val completedDragUid = draggedUid
                 if (completedDragUid != null) {
@@ -318,7 +339,8 @@ fun SlidingQueueDrawer(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .weight(1f),
+                            .weight(1f)
+                            .trackReorderPointer(reorderTracker),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
@@ -340,6 +362,7 @@ fun SlidingQueueDrawer(
                                 if (isQueueExpanded) {
                                     Modifier.draggableHandle(
                                         onDragStarted = {
+                                            reorderTracker.draggedKey = window.sfQueueItemKey
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         },
                                     )

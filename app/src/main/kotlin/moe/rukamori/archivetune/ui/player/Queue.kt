@@ -111,6 +111,10 @@ import moe.rukamori.archivetune.db.entities.PlaylistSongMap
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.ReorderDragTracker
+import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
+import moe.rukamori.archivetune.ui.component.rememberReorderScroller
+import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.togglePlayPause
 import moe.rukamori.archivetune.extensions.toggleRepeatMode
 import moe.rukamori.archivetune.models.MediaMetadata
@@ -640,6 +644,7 @@ fun Queue(
 
         val lazyListState = rememberLazyListState()
         var draggedUid by remember { mutableStateOf<Any?>(null) }
+        val reorderTracker = remember { ReorderDragTracker() }
 
         val currentPlayingUid =
             remember(currentWindowIndex, queueWindows) {
@@ -665,7 +670,9 @@ fun Queue(
                                 bottom = ListItemHeight,
                             ),
                         ).asPaddingValues(),
+                scroller = rememberReorderScroller(lazyListState),
             ) onMove@{ from, to ->
+                reorderTracker.draggedKey = from.key
                 val movedWindow =
                     mutableQueueWindows.moveByKey(from.key, to.key) { it.queueItemKey } ?: return@onMove
                 val draggedItemUid = movedWindow.uid
@@ -686,8 +693,23 @@ fun Queue(
                 }
             }
 
+        ReorderEdgeCatchUp(
+            reorderableState = reorderableState,
+            lazyListState = lazyListState,
+            tracker = reorderTracker,
+            firstKey = { mutableQueueWindows.firstOrNull()?.queueItemKey },
+            lastKey = { mutableQueueWindows.lastOrNull()?.queueItemKey },
+            moveTo = { dragged, target ->
+                mutableQueueWindows.moveByKey(dragged, target) { it.queueItemKey }?.let { moved ->
+                    draggedUid = moved.uid
+                    if (enableHapticFeedback) haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                }
+            },
+        )
+
         LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
             if (reorderableState.isAnyItemDragging) return@LaunchedEffect
+            reorderTracker.draggedKey = null
 
             val completedDragUid = draggedUid
             var latestWindows = queueWindows
@@ -834,6 +856,7 @@ fun Queue(
                     modifier =
                         Modifier
                             .weight(1f)
+                            .trackReorderPointer(reorderTracker)
                             .nestedScroll(state.preUpPostDownNestedScrollConnection),
                 ) {
                     items(
@@ -944,6 +967,7 @@ fun Queue(
                                                     modifier =
                                                         Modifier.draggableHandle(
                                                             onDragStarted = {
+                                                                reorderTracker.draggedKey = window.queueItemKey
                                                                 if (enableHapticFeedback) {
                                                                     haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                                                                 }

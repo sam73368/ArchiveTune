@@ -80,6 +80,10 @@ import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.constants.QueueEditLockKey
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.ReorderDragTracker
+import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
+import moe.rukamori.archivetune.ui.component.rememberReorderScroller
+import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.toggleRepeatMode
 import moe.rukamori.archivetune.ui.component.BottomSheetState
@@ -163,6 +167,7 @@ fun AppleMusicQueueSheet(
         }
 
     var draggedUid by remember { mutableStateOf<Any?>(null) }
+    val reorderTracker = remember { ReorderDragTracker() }
 
     var hasScrolledToCurrent by remember { mutableStateOf(false) }
     LaunchedEffect(mutableQueueWindows.size, currentPlayingUid) {
@@ -178,14 +183,28 @@ fun AppleMusicQueueSheet(
     val reorderableState =
         rememberReorderableLazyListState(
             lazyListState = lazyListState,
+            scroller = rememberReorderScroller(lazyListState),
         ) onMove@{ from, to ->
+            reorderTracker.draggedKey = from.key
             val movedWindow =
                 mutableQueueWindows.moveByKey(from.key, to.key) { it.uid.hashCode() } ?: return@onMove
             draggedUid = movedWindow.uid
         }
 
+    ReorderEdgeCatchUp(
+        reorderableState = reorderableState,
+        lazyListState = lazyListState,
+        tracker = reorderTracker,
+        firstKey = { mutableQueueWindows.firstOrNull()?.uid?.hashCode() },
+        lastKey = { mutableQueueWindows.lastOrNull()?.uid?.hashCode() },
+        moveTo = { dragged, target ->
+            mutableQueueWindows.moveByKey(dragged, target) { it.uid.hashCode() }?.let { moved -> draggedUid = moved.uid }
+        },
+    )
+
     LaunchedEffect(queueWindows, reorderableState.isAnyItemDragging) {
         if (reorderableState.isAnyItemDragging) return@LaunchedEffect
+        reorderTracker.draggedKey = null
 
         val completedDragUid = draggedUid
         var latestWindows = queueWindows
@@ -343,7 +362,10 @@ fun AppleMusicQueueSheet(
         LazyColumn(
             state = lazyListState,
             contentPadding = PaddingValues(bottom = 16.dp, top = 4.dp),
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .trackReorderPointer(reorderTracker),
         ) {
             itemsIndexed(
                 items = mutableQueueWindows,
@@ -432,7 +454,10 @@ fun AppleMusicQueueSheet(
                                         if (!locked) {
                                             IconButton(
                                                 onClick = { },
-                                                modifier = Modifier.draggableHandle(),
+                                                modifier =
+                                                    Modifier.draggableHandle(
+                                                        onDragStarted = { reorderTracker.draggedKey = window.uid.hashCode() },
+                                                    ),
                                             ) {
                                                 Icon(
                                                     painter = painterResource(R.drawable.drag_handle),

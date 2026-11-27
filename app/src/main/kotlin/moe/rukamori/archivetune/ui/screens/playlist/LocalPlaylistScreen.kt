@@ -114,6 +114,10 @@ import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.db.entities.PlaylistSong
 import moe.rukamori.archivetune.extensions.move
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.ReorderDragTracker
+import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
+import moe.rukamori.archivetune.ui.component.rememberReorderScroller
+import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.extensions.togglePlayPause
 import moe.rukamori.archivetune.innertube.YouTube
@@ -505,6 +509,7 @@ fun LocalPlaylistScreen(
     }
     val lazyListState = rememberLazyListState()
     var draggedMapId by remember { mutableStateOf<Int?>(null) }
+    val reorderTracker = remember { ReorderDragTracker() }
     var pendingReorders by remember { mutableIntStateOf(0) }
     var syncedSongs by remember { mutableStateOf<List<PlaylistSong>?>(null) }
     val reorderRequests = remember { Channel<PlaylistReorderRequest>(Channel.UNLIMITED) }
@@ -513,11 +518,27 @@ fun LocalPlaylistScreen(
         rememberReorderableLazyListState(
             lazyListState = lazyListState,
             scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+            scroller = rememberReorderScroller(lazyListState),
         ) onMove@{ from, to ->
+            reorderTracker.draggedKey = from.key
             val moved = mutableSongs.moveByKey(from.key, to.key) { it.map.id } ?: return@onMove
             draggedMapId = moved.map.id
             haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
         }
+
+    ReorderEdgeCatchUp(
+        reorderableState = reorderableState,
+        lazyListState = lazyListState,
+        tracker = reorderTracker,
+        firstKey = { if (isReorderingEnabled) mutableSongs.firstOrNull()?.map?.id else null },
+        lastKey = { if (isReorderingEnabled) mutableSongs.lastOrNull()?.map?.id else null },
+        moveTo = { dragged, target ->
+            mutableSongs.moveByKey(dragged, target) { it.map.id }?.let { moved ->
+                draggedMapId = moved.map.id
+                haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+            }
+        },
+    )
 
     LaunchedEffect(songs, reorderableState.isAnyItemDragging, pendingReorders) {
         if (reorderableState.isAnyItemDragging || pendingReorders > 0 || syncedSongs === songs) return@LaunchedEffect
@@ -607,6 +628,7 @@ fun LocalPlaylistScreen(
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
         if (!reorderableState.isAnyItemDragging) {
+            reorderTracker.draggedKey = null
             draggedMapId?.let { mapId ->
                 draggedMapId = null
                 requestReorder(mapId)
@@ -644,6 +666,7 @@ fun LocalPlaylistScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .trackReorderPointer(reorderTracker)
                     .then(
                         if (liquidGlassHeaderActive) {
                             Modifier.glassSource(artworkBackdrop)
@@ -972,6 +995,7 @@ fun LocalPlaylistScreen(
                                                 Modifier
                                                     .draggableHandle(
                                                         onDragStarted = {
+                                                            reorderTracker.draggedKey = song.map.id
                                                             haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                                                         },
                                                         onDragStopped = {

@@ -105,6 +105,10 @@ import moe.rukamori.archivetune.constants.ThumbnailCornerRadius
 import moe.rukamori.archivetune.constants.ShowTagsInLibraryKey
 import moe.rukamori.archivetune.db.entities.Playlist
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.ReorderDragTracker
+import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
+import moe.rukamori.archivetune.ui.component.rememberReorderScroller
+import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.extensions.toMediaItem
 import moe.rukamori.archivetune.innertube.models.PlaylistItem
 import moe.rukamori.archivetune.innertube.models.WatchEndpoint
@@ -219,15 +223,31 @@ fun LibraryPlaylistsScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val lazyListState = rememberLazyListState()
     var pendingPlaylistOrderUpdate by remember { mutableStateOf(false) }
+    val reorderTracker = remember { ReorderDragTracker() }
     val reorderableState =
         rememberReorderableLazyListState(
             lazyListState = lazyListState,
             scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+            scroller = rememberReorderScroller(lazyListState),
         ) { from, to ->
+            reorderTracker.draggedKey = from.key
             if (mutablePlaylists.moveByKey(from.key, to.key) { it.id } != null) {
                 pendingPlaylistOrderUpdate = true
             }
         }
+
+    ReorderEdgeCatchUp(
+        reorderableState = reorderableState,
+        lazyListState = lazyListState,
+        tracker = reorderTracker,
+        firstKey = { mutablePlaylists.firstOrNull()?.id },
+        lastKey = { mutablePlaylists.lastOrNull()?.id },
+        moveTo = { dragged, target ->
+            if (mutablePlaylists.moveByKey(dragged, target) { it.id } != null) {
+                pendingPlaylistOrderUpdate = true
+            }
+        },
+    )
 
     var syncedPlaylists by remember { mutableStateOf<List<Playlist>?>(null) }
     LaunchedEffect(visiblePlaylists, reorderableState.isAnyItemDragging, pendingPlaylistOrderUpdate) {
@@ -242,6 +262,7 @@ fun LibraryPlaylistsScreen(
     }
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
+        if (!reorderableState.isAnyItemDragging) reorderTracker.draggedKey = null
         if (!reorderableState.isAnyItemDragging && pendingPlaylistOrderUpdate) {
             viewModel.updateCustomPlaylistOrder(
                 mergeVisiblePlaylistOrder(
@@ -575,7 +596,10 @@ fun LibraryPlaylistsScreen(
 
                     contentPadding = PaddingValues(bottom = playerAwareBottomPadding),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
-                    modifier = Modifier.fillMaxSize(),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .trackReorderPointer(reorderTracker),
                 ) {
                     itemsIndexed(
                         items = listPlaylists,
@@ -614,8 +638,9 @@ fun LibraryPlaylistsScreen(
                                 showDragHandle = showDragHandles,
                                 dragHandleModifier =
                                     Modifier
-                                        .draggableHandle()
-                                        .graphicsLayer { alpha = 0.99f },
+                                        .draggableHandle(
+                                            onDragStarted = { reorderTracker.draggedKey = playlist.id },
+                                        ).graphicsLayer { alpha = 0.99f },
                             )
                         }
                     }

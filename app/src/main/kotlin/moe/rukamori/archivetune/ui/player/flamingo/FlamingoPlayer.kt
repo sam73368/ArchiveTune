@@ -206,6 +206,10 @@ import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.getCurrentQueueIndex
 import moe.rukamori.archivetune.extensions.getQueueWindows
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.component.ReorderDragTracker
+import moe.rukamori.archivetune.ui.component.ReorderEdgeCatchUp
+import moe.rukamori.archivetune.ui.component.rememberReorderScroller
+import moe.rukamori.archivetune.ui.component.trackReorderPointer
 import moe.rukamori.archivetune.ui.player.applyQueueReorder
 import moe.rukamori.archivetune.ui.player.resolveQueueReorder
 import moe.rukamori.archivetune.lyrics.LyricsUtils
@@ -2974,15 +2978,29 @@ private fun FlamingoPlayingList(
                 }
 
             var draggedUid by remember { mutableStateOf<Any?>(null) }
+            val reorderTracker = remember { ReorderDragTracker() }
 
             val reorderableState =
                 rememberReorderableLazyListState(
                     lazyListState = state,
+                    scroller = rememberReorderScroller(state),
                 ) onMove@{ from, to ->
+                    reorderTracker.draggedKey = from.key
                     val movedWindow =
                         mutableQueueWindows.moveByKey(from.key, to.key) { it.uid.hashCode() } ?: return@onMove
                     draggedUid = movedWindow.uid
                 }
+
+            ReorderEdgeCatchUp(
+                reorderableState = reorderableState,
+                lazyListState = state,
+                tracker = reorderTracker,
+                firstKey = { mutableQueueWindows.firstOrNull()?.uid?.hashCode() },
+                lastKey = { mutableQueueWindows.lastOrNull()?.uid?.hashCode() },
+                moveTo = { dragged, target ->
+                    mutableQueueWindows.moveByKey(dragged, target) { it.uid.hashCode() }?.let { moved -> draggedUid = moved.uid }
+                },
+            )
 
             LaunchedEffect(reorderableState) {
                 androidx.compose.runtime.snapshotFlow { reorderableState.isAnyItemDragging }
@@ -3003,6 +3021,7 @@ private fun FlamingoPlayingList(
 
             LaunchedEffect(queueWindows, currentWindowIndex, reorderableState.isAnyItemDragging) {
                 if (reorderableState.isAnyItemDragging) return@LaunchedEffect
+                reorderTracker.draggedKey = null
 
                 val completedDragUid = draggedUid
                 var latestWindows = queueWindows
@@ -3055,6 +3074,7 @@ private fun FlamingoPlayingList(
                     contentPadding = PaddingValues(bottom = bottomContentPadding),
                     modifier = Modifier
                         .fillMaxSize()
+                        .trackReorderPointer(reorderTracker)
                         .nestedScroll(controlsPokeConnection)
                         .graphicsLayer {
                             compositingStrategy = CompositingStrategy.Offscreen
@@ -3142,7 +3162,10 @@ private fun FlamingoPlayingList(
                                 currentWindowIndex = currentWindowIndex,
                                 reorderEnabled = mutableQueueWindows.size > 1,
                                 isDragging = isDragging,
-                                reorderHandleModifier = Modifier.draggableHandle(),
+                                reorderHandleModifier =
+                                    Modifier.draggableHandle(
+                                        onDragStarted = { reorderTracker.draggedKey = window.uid.hashCode() },
+                                    ),
                                 onMoveToNextQueue = {
                                     val currentTimelineIndex = currentWindow?.firstPeriodIndex ?: -1
                                     if (window.firstPeriodIndex > 0 && currentTimelineIndex >= 0) {
