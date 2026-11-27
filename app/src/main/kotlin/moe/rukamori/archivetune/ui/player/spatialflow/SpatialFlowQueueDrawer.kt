@@ -74,6 +74,7 @@ import coil3.compose.AsyncImage
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.extensions.metadata
 import moe.rukamori.archivetune.extensions.moveByKey
+import moe.rukamori.archivetune.ui.player.resolveQueueReorder
 import moe.rukamori.archivetune.models.MediaMetadata
 import androidx.media3.common.Timeline
 import sh.calvin.reorderable.ReorderableItem
